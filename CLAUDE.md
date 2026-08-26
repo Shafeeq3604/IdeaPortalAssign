@@ -63,7 +63,9 @@ SKILL.md          How to build one vertical slice
 ```bash
 corepack pnpm install     # `corepack enable` needs admin on this machine;
                           # prefix commands with `corepack` until it is run once
-pnpm dev              # web + api + worker + docker deps (postgres, redis)
+pnpm deps:up          # FIRST: start postgres + redis (needs Docker Desktop running)
+pnpm dev              # then: web + api together (worker joins at P3)
+                      # note: dev does NOT start the containers — deps:up does
 pnpm build            # turbo build, all packages
 pnpm test             # unit + integration (Vitest)
 pnpm test:watch       # TDD loop
