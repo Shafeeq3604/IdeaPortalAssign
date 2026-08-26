@@ -27,7 +27,7 @@ web build     OK        api /health  200                        OK
 | 4b | Tailwind theme bridge consuming the tokens | **done** | `packages/ui/src/theme.css` |
 | 5 | shadcn/ui installed + registry pinned; 11 custom signatures | **done** | 28 components in `packages/ui`, registry pinned, button verified #3548c7 |
 | 5b | `ai_model_routes` seed + no-literal architecture test | **done** | `packages/ai/src/routing/routes.ts`, `tests/arch/` |
-| 5c | Frontend contracts — URL search-param schemas | **partial** | `search-params.ts` done; Query key factory + ErrorBoundary remain (P1-adjacent) |
+| 5c | Frontend contracts — params, query keys, boundaries, form binding | **done** | `contracts/search-params.ts`, `web/app/query-keys.ts`, `web/app/providers.tsx`, `web/app/error-boundary.tsx`, `ui/lib/form.ts` |
 | 6 | AI output schemas AI-01..08 + "no numeric score" test | **done** | `packages/ai/src/schemas/analysis.ts` |
 | 7 | Criterion catalogue + 4 profiles (all sum to 1.0000) | **done** | `packages/contracts/src/criteria.ts` |
 | 8 | Engine interfaces | **done** | `packages/scoring/src/types.ts` |
@@ -36,7 +36,7 @@ web build     OK        api /health  200                        OK
 
 ## Resolved: the circular dependency (option A)
 
-Items 2b, 3, 4b and 5 needed  and , which P0 itself blocked. Resolved by
+Items 2b, 3, 4b and 5 needed `apps/api` and `apps/web`, which P0 itself blocked. Resolved by
 adding **P0.0** to the phase plan (SPEC §14.0) — bare skeletons, no features — so the freeze
 completed as specified rather than being narrowed. Recorded as **D-21** in SPEC §16.1.
 
