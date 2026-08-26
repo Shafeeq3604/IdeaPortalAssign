@@ -33,6 +33,6 @@ jobs:
       - name: Unit + integration
         run: pnpm test
 
-      - name: Contract diff gate
-        run: |
-          echo "OpenAPI diff gate lands with apps/api in P1 (SPEC §11.3)"
+      # The freeze is only real if drift fails the build (SPEC §11.3, §14.1).
+      - name: OpenAPI contract diff gate
+        run: pnpm openapi:check

@@ -19,13 +19,13 @@ prisma        schema valid                                  OK
 | 1 | Prisma schema — all M1 entities + reserved M2/M3 + `embedding` | **done** | `packages/db/prisma/schema.prisma` (~30 models, validates) |
 | 1b | Load-bearing constraint migration (7 requirements as CHECKs/triggers) | **done** | `packages/db/prisma/migrations/…_spec_constraints/migration.sql` |
 | 2 | Contracts — enums, lifecycle table, nav map, error codes, env | **done** | `packages/contracts/src/` |
-| 2b | Contracts — Zod schemas for every request/response | **not started** | needs the API surface; see *Blocked on P1 scaffold* |
-| 3 | Generated OpenAPI + CI diff gate | **not started** | same |
+| 2b | Contracts — Zod schemas for every request/response | **done** | `packages/contracts/src/schemas/` + `api.ts` (30 endpoints) |
+| 3 | Generated OpenAPI + CI diff gate | **done** | `openapi.json` (26 paths, 39 schemas), `pnpm openapi:check`, wired into CI |
 | 4 | Design tokens — light + dark + reduced-motion | **done** | `packages/ui/src/tokens.css` |
-| 4b | Tailwind preset consuming the tokens | **not started** | needs `apps/web` |
-| 5 | shadcn/ui installed + registry pinned; 11 custom signatures | **not started** | needs `apps/web` |
+| 4b | Tailwind theme bridge consuming the tokens | **done** | `packages/ui/src/theme.css` |
+| 5 | shadcn/ui installed + registry pinned; 11 custom signatures | **done** | 28 components in `packages/ui`, registry pinned, button verified #3548c7 |
 | 5b | `ai_model_routes` seed + no-literal architecture test | **done** | `packages/ai/src/routing/routes.ts`, `tests/arch/` |
-| 5c | Frontend contracts — URL search-param schemas | **partial** | `search-params.ts` done; Query key factory + ErrorBoundary need `apps/web` |
+| 5c | Frontend contracts — URL search-param schemas | **partial** | `search-params.ts` done; Query key factory + ErrorBoundary remain (P1-adjacent) |
 | 6 | AI output schemas AI-01..08 + "no numeric score" test | **done** | `packages/ai/src/schemas/analysis.ts` |
 | 7 | Criterion catalogue + 4 profiles (all sum to 1.0000) | **done** | `packages/contracts/src/criteria.ts` |
 | 8 | Engine interfaces | **done** | `packages/scoring/src/types.ts` |
