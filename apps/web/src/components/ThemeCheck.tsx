@@ -1,4 +1,11 @@
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from "@iep/ui";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, Input, Label } from "@iep/ui";
+import { Link } from "react-router-dom";
+
+const renderLink = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
+  <Link to={to} className={className}>{children}</Link>
+);
+
+function Boom(): React.ReactElement { throw new Error("deliberate test crash"); }
 
 /**
  * P0.0 theme check — deleted in P1.
@@ -83,6 +90,41 @@ export function ThemeCheck() {
           <div className="h-10 w-16 rounded-md bg-ramp-5" />
         </div>
       </section>
+      <section>
+        <h2 className="mb-1 text-500 font-semibold">No-dead-end states</h2>
+        <p className="mb-4 text-200 text-muted-foreground">
+          Both require a way out in their props — a dead end does not compile.
+        </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <EmptyState
+            title="No recommendations"
+            description="This idea scored above the attention threshold, so there is nothing to fix."
+            action={{ label: "View the evaluation", to: "/ideas/demo-idea/evaluation" }}
+            renderLink={renderLink}
+          />
+          <ErrorState
+            title="Could not load the analysis"
+            description="The analysis service did not respond."
+            onRetry={() => undefined}
+            escapeTo={{ label: "Back to ideas", to: "/ideas" }}
+            requestId="req_01J8Z3X"
+            renderLink={renderLink}
+          />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-500 font-semibold">Elevation</h2>
+        <div className="flex gap-4">
+          <div className="h-16 w-24 rounded-lg bg-card shadow-e1" />
+          <div className="h-16 w-24 rounded-lg bg-card shadow-e2" />
+          <div className="h-16 w-24 rounded-lg bg-card shadow-e3" />
+          <div className="h-16 w-24 rounded-lg bg-card shadow-e4" />
+        </div>
+      </section>
     </div>
   );
 }
+
+/** Route rendered at /_boom to prove the route boundary catches a crash. */
+export function CrashTest() { return <Boom />; }

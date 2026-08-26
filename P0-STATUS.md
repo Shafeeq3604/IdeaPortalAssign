@@ -1,15 +1,17 @@
 # Phase 0 — Contract Freeze · status
 
-**State: `[~]` in progress — NOT signed off.** P0 is BLOCKING; no slice starts until this
+**State: `[~]` — all deliverables COMPLETE, awaiting human sign-off.** P0 is BLOCKING; no slice starts until this
 reads `[x]` and a human has signed it (SPEC §14).
 
 Verified by running the gates, not by inspection. Last run: all green.
 
 ```
-lint:tokens   no feature code yet (apps/web lands in P1)   OK
-test:nav      67/67 passed                                  OK
-typecheck     @iep/contracts, @iep/scoring, @iep/ai         OK   (strict + noUncheckedIndexedAccess)
-prisma        schema valid                                  OK
+test:nav      80/80 passed (arch + navigation + api contract)   OK
+openapi       drift gate current; proven to fail on drift      OK
+typecheck     contracts, scoring, ai, api, web (+ui)            OK
+lint:tokens   no feature code yet (P1)                          OK
+prisma        schema valid                                      OK
+web build     OK        api /health  200                        OK
 ```
 
 ## Deliverables
@@ -32,20 +34,11 @@ prisma        schema valid                                  OK
 | 9 | Fixture corpus — 12 ideas, 4 archetypes | **done** | `packages/contracts/src/fixtures/ideas.ts` |
 | 10 | CI skeleton | **done** | `.github/workflows/ci.yml` |
 
-## Blocked on P1 scaffold — a real sequencing problem
+## Resolved: the circular dependency (option A)
 
-Items **2b, 3, 4b, 5** all need `apps/api` and `apps/web` to exist. But SPEC §14 puts the
-app scaffold in P1, and P0 blocks P1. As written, P0 cannot complete.
-
-This is a genuine defect in the phase definition, not an execution problem. Two ways out —
-**this needs a decision before P0 can close**:
-
-- **(a)** Add a P0.0 sub-step: bare `apps/api` + `apps/web` scaffolds (health route, empty
-  router, Vite config, shadcn init) with no features. P0 then completes as specified.
-  *Recommended* — it is ~half a day and keeps the freeze meaningful.
-- **(b)** Move 2b/3/4b/5 into P1 and narrow P0 to "data + domain contracts". Cheaper now,
-  but it means parallel UI slices start without a frozen component baseline or API shape,
-  which is the exact drift P0 exists to prevent.
+Items 2b, 3, 4b and 5 needed  and , which P0 itself blocked. Resolved by
+adding **P0.0** to the phase plan (SPEC §14.0) — bare skeletons, no features — so the freeze
+completed as specified rather than being narrowed. Recorded as **D-21** in SPEC §16.1.
 
 ## Deviations from spec, recorded
 
@@ -70,3 +63,19 @@ This is a genuine defect in the phase definition, not an execution problem. Two 
 - **A3 (security/legal approval to send idea text to Anthropic)** is assumed granted. If
   refused, `packages/ai` needs an on-prem or gateway path — an architecture change requiring
   a superseding ADR, though `AiProvider` (ADR-011) is the seam that would absorb it.
+
+## Sign-off checklist
+
+All deliverables are complete and every gate is green. Before flipping `[~]` → `[x]` in
+CLAUDE.md, a human should confirm:
+
+- [ ] Walk the shell: `corepack pnpm --filter @iep/web dev` → all 25 routes load
+- [ ] Confirm the palette at `/_theme` — primary button indigo, dark mode swaps
+- [ ] Skim `openapi.json` — 30 endpoints, are these the right ones for M1?
+- [ ] Confirm the four seeded profiles in `criteria.ts` reflect real priorities (A7)
+- [ ] Accept assumptions A1–A5 (SPEC §17.10), or flag one to revisit
+- [ ] Tag `@iep/contracts@1.0.0` in git
+
+After sign-off, P1 (Identity, Access & App Shell) and P4 (Evaluation & Ranking Engine)
+can start **in parallel** — P4 depends on P0 alone and has the 12-idea fixture corpus it
+needs.

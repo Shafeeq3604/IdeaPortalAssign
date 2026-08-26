@@ -133,24 +133,10 @@ export interface DiffViewProps {
 }
 
 /**
- * `EmptyState` / `ErrorState` — thin compositions over shadcn's Alert that ENFORCE the
- * no-dead-end rule (SPEC §6.3 assertion 3): the action props are required, not optional.
+ * EmptyState / ErrorState are IMPLEMENTED, not just signed — see ./states.tsx.
+ * They were pulled forward from P1 because the no-dead-end rule (SPEC §6.3 assertion 3)
+ * is only real if a dead end fails to compile: both require a way out in their props.
  */
-export interface EmptyStateProps {
-  readonly title: string;
-  readonly description: string;
-  /** Required. An empty state without a forward action is a dead end. */
-  readonly action: { readonly label: string; readonly to: string };
-}
-
-export interface ErrorStateProps {
-  readonly title: string;
-  readonly description: string;
-  /** Required. So is a route out. */
-  readonly onRetry: () => void;
-  readonly escapeTo: { readonly label: string; readonly to: string };
-  readonly requestId?: string | undefined;
-}
 
 /** `ClickableRow` — Table wrapper enforcing whole-row navigation (SPEC §6.2). */
 export interface ClickableRowProps {

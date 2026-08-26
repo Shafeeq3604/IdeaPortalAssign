@@ -1,7 +1,9 @@
 import { BrowserRouter, Link, Route, Routes, useLocation } from "react-router-dom";
 import { ROUTES, breadcrumbChain } from "@iep/contracts";
 import { RoutePlaceholder } from "./components/RoutePlaceholder";
-import { ThemeCheck } from "./components/ThemeCheck";
+import { ThemeCheck, CrashTest } from "./components/ThemeCheck";
+import { AppProviders } from "./app/providers";
+import { RouteErrorBoundary } from "./app/error-boundary";
 
 /**
  * apps/web — P0.0 shell.
@@ -74,10 +76,12 @@ function DevNav() {
 }
 
 function Shell() {
+  const { pathname } = useLocation();
   return (
     <div className="shell">
       <DevNav />
       <div className="shell__main">
+        <RouteErrorBoundary resetKey={pathname}>
         <Routes>
           {ROUTES.map((route) => (
             <Route
@@ -107,6 +111,7 @@ function Shell() {
               </main>
             }
           />
+          <Route path="/_boom" element={<CrashTest />} />
           <Route
             path="*"
             element={
@@ -120,6 +125,7 @@ function Shell() {
             }
           />
         </Routes>
+        </RouteErrorBoundary>
       </div>
     </div>
   );
@@ -127,8 +133,10 @@ function Shell() {
 
 export function AppRouter() {
   return (
-    <BrowserRouter>
-      <Shell />
-    </BrowserRouter>
+    <AppProviders>
+      <BrowserRouter>
+        <Shell />
+      </BrowserRouter>
+    </AppProviders>
   );
 }

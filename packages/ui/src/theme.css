@@ -84,6 +84,11 @@
   --text-700: var(--fs-700);
   --text-800: var(--fs-800);
 
+  /* ── Spacing ──
+     Our --sp-* scale is 4px-based and Tailwind v4 defaults to --spacing: 0.25rem (4px),
+     so p-4 already resolves to 16px === var(--sp-4). Verified, not assumed; if either
+     scale ever changes, map --spacing explicitly here. ── */
+
   /* ── Radius ── */
   --radius-sm: var(--r-sm);
   --radius-md: var(--r-md);

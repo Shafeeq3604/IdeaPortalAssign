@@ -1541,6 +1541,23 @@ Nothing else starts. Not "mostly starts" — nothing.
 **Exit criteria:** items 1–10 merged; `pnpm build && pnpm test && pnpm test:nav` green on
 an empty database; contracts package tagged `v1.0.0`; **explicit human sign-off**.
 
+
+### 14.0 Phase 0.0 — App scaffolds · added after P0 proved circular
+
+**Why this exists.** P0 deliverables 2b, 3, 4b and 5 all require `apps/api` and `apps/web`
+to exist, but the app scaffold sat in P1 — and P0 blocks P1. As originally written, P0 could
+not complete. The defect was in the phase plan, not the work (see §16 D-21).
+
+**Scope: skeletons only, no features.**
+- `apps/api` — Fastify, boot-time env validation, the route-access registration guard, and
+  exactly one route: `GET /health`.
+- `apps/web` — Vite + React, router **generated from `navigation.map.ts`**, placeholder pages,
+  Tailwind v4 wired to the tokens, shadcn/ui installed into `packages/ui`.
+
+**Depends on:** P0 items 1, 2, 4 (schema, contracts, tokens).
+**Exit:** both apps boot; `/health` returns 200; every route in the map renders; the shadcn
+primary button renders `--accent-600`, not the library default.
+
 ### 14.1 Contract amendment process (after freeze)
 
 - **Additive and backward-compatible** (new optional field, new enum member, new route, new
@@ -1729,6 +1746,7 @@ changed, why, and what survived.
 | **D-09a** | D-09 (*one in-house component layer, no one-offs* — UPHELD) | **Reversed on the library, not the principle.** shadcn/ui is now the baseline (ADR-019); we no longer author ~25 commodity primitives | The *anti-drift* half of D-09 is intact and is what mattered: one install location (`packages/ui`), `lint:tokens` still fails on raw hex/px and on bare `<button>`/`<input>` in `features/**`, and every custom component must name the shadcn component that fails to cover it (§7.6). D-09's real target was per-feature one-offs, and that is still prohibited |
 | **D-16a** | D-16 (*`claude-opus-5` for every story* — UPHELD) | **Reversed.** Tiered routing by cognitive demand (ADR-020). My counter-argument — that ~$0.20/idea is the wrong place to economise — was answered better than I answered it: the saving is real (~64%, $0.36 → $0.13) *and* the highest-capability model still runs every story where a wrong answer changes how an idea is treated. Extraction and judgement are different problems; I had treated them as one | The quality floor. Tier A still covers value banding, feasibility, risk, improvement recommendations, and existing-solution comparison. Tier B/C failures escalate one tier before falling back (§12.1.2). The boundary rule is written down so the tiering is auditable rather than ad hoc |
 | **D-19** | *(new)* | **Model choice must not be a code literal** (ADR-021) | Enforced, not intended: an architecture test greps for `claude-` outside `packages/ai/routing` and fails the build. "Configurable" that is not tested is a comment |
+| **D-21** | §14 phase plan | **P0 as written was circular** — four of its deliverables needed the app scaffold, which P0 itself blocked. Caught during execution, not review. Resolved by adding P0.0 (§14.0): bare skeletons, no features, so the freeze completes as specified rather than being narrowed. | The freeze itself. The alternative — moving those four items into P1 — would have let parallel UI slices start without a frozen component baseline or API shape, which is the exact drift P0 exists to prevent |
 | **D-20** | *(new)* | **MCP moved off the MVP path entirely** (P12 risk note) | FR-21 ships from the curated `ExistingSolution` catalogue alone. Enterprise connectors are L5, feature-flagged, and additive — their absence removes enrichment, never a requirement |
 
 ---
