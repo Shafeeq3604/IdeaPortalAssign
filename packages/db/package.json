@@ -9,9 +9,9 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "prisma generate && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "lint": "echo \"lint: configured in P1\"",
     "migrate": "prisma migrate dev",
@@ -19,9 +19,12 @@
     "generate": "prisma generate"
   },
   "dependencies": {
+    "@iep/ai": "workspace:*",
+    "@iep/contracts": "workspace:*",
     "@prisma/client": "^6.1.0"
   },
   "devDependencies": {
+    "@types/node": "^26.3.0",
     "prisma": "^6.1.0",
     "tsx": "^4.19.2"
   }

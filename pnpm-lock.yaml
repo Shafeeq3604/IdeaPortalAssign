@@ -140,10 +140,19 @@ importers:
 
   packages/db:
     dependencies:
+      '@iep/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@iep/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@prisma/client':
         specifier: ^6.1.0
         version: 6.19.3(prisma@6.19.3(typescript@6.0.3))(typescript@6.0.3)
     devDependencies:
+      '@types/node':
+        specifier: ^26.3.0
+        version: 26.3.0
       prisma:
         specifier: ^6.1.0
         version: 6.19.3(typescript@6.0.3)
