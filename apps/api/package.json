@@ -14,8 +14,14 @@
     "lint": "echo \"lint: configured in P1\""
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/cors": "^11.3.0",
+    "@fastify/helmet": "^13.1.1",
+    "@fastify/rate-limit": "^11.2.0",
     "@iep/contracts": "workspace:*",
+    "@iep/db": "workspace:^",
     "fastify": "^5.2.0",
+    "ioredis": "^6.0.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

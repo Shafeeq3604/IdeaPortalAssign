@@ -190,3 +190,27 @@ a:hover {
     gap: var(--sp-1) 0;
   }
 }
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  margin-bottom: var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+
+.user-menu__name {
+  margin: 0;
+  font-size: var(--fs-200);
+  font-weight: 600;
+}
+
+.user-menu__roles {
+  margin: 0;
+  font-size: var(--fs-100);
+  color: var(--text-secondary);
+}

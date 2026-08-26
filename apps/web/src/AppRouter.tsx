@@ -1,25 +1,30 @@
-import { BrowserRouter, Link, Route, Routes, useLocation } from "react-router-dom";
-import { ROUTES, breadcrumbChain } from "@iep/contracts";
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ROUTES, breadcrumbChain, type Role } from "@iep/contracts";
+import { Button } from "@iep/ui";
 import { RoutePlaceholder } from "./components/RoutePlaceholder";
 import { ThemeCheck, CrashTest } from "./components/ThemeCheck";
+import { LoginPage } from "./features/auth/LoginPage";
 import { AppProviders } from "./app/providers";
 import { RouteErrorBoundary } from "./app/error-boundary";
+import { RequireAuth, canSee, useSession } from "./app/session";
+import { api } from "./app/api-client";
+import { queryKeys } from "./app/query-keys";
 
 /**
- * apps/web — P0.0 shell.
+ * apps/web — P1 app shell.
  *
- * The router is GENERATED FROM `navigation.map.ts`, never hand-written. That is the
- * whole point of doing it at P0: the navigation contract (SPEC §6) is wired in from the
- * first line instead of being retrofitted, and `pnpm test:nav` is already asserting
- * against the same source this router reads.
+ * Routes are GENERATED from `navigation.map.ts` and filtered per role using the SAME
+ * role lists the API enforces. That is SPEC §6.3 assertion 7: a route a role must not
+ * reach is correctly absent for them, and absence is not an orphan.
  *
- * Every page is a placeholder. Screens land in P1+.
+ * The client filter is convenience, never security — the API refuses independently, and
+ * a user who types the URL gets a scoped message rather than data.
  */
 
-/** Group routes for the dev nav, so the shell is walkable without typing URLs. */
 const GROUPS: readonly { label: string; match: (id: string) => boolean }[] = [
-  { label: "Entry", match: (id) => ["login", "home"].includes(id) },
-  { label: "Ideas", match: (id) => id.startsWith("idea") || id === "ideas" || id === "me.ideas" },
+  { label: "Ideas", match: (id) => ["ideas", "me.ideas", "ideas.new"].includes(id) },
+  { label: "This idea", match: (id) => id.startsWith("idea.") },
   { label: "Rankings", match: (id) => id.startsWith("rankings") },
   { label: "Review", match: (id) => id.startsWith("review") },
   { label: "Leadership", match: (id) => id === "dashboard" },
@@ -29,30 +34,60 @@ const GROUPS: readonly { label: string; match: (id: string) => boolean }[] = [
   { label: "Help", match: (id) => id.startsWith("help") },
 ];
 
-/** Params are for real data later; here they just make the link navigable. */
-function demoPath(path: string): string {
-  return path
+const demoPath = (path: string): string =>
+  path
     .replace(":ideaId", "demo-idea")
     .replace(":versionNo", "1")
     .replace(":runId", "demo-run")
     .replace(":departmentId", "demo-dept")
     .replace(":userId", "demo-user");
+
+function UserMenu() {
+  const { data } = useSession();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const logout = useMutation({
+    mutationFn: () => api<{ ok: true }>("/auth/logout", { method: "POST" }),
+    onSuccess: () => {
+      // Clear every cached query: the next user must never see the last one's data.
+      queryClient.clear();
+      navigate("/login", { replace: true });
+    },
+  });
+
+  if (!data) return null;
+  return (
+    <div className="user-menu">
+      <div className="user-menu__who">
+        <p className="user-menu__name">{data.user.displayName}</p>
+        <p className="user-menu__roles">{data.user.roles.join(" · ")}</p>
+      </div>
+      <Button variant="ghost" size="sm" onClick={() => logout.mutate()} disabled={logout.isPending}>
+        Sign out
+      </Button>
+    </div>
+  );
 }
 
-function DevNav() {
+function Nav({ roles }: { roles: readonly Role[] }) {
   const { pathname } = useLocation();
+  const visible = ROUTES.filter(
+    (r) => !["login", "home"].includes(r.id) && canSee(roles, r.roles),
+  );
 
   return (
-    <nav aria-label="Routes" className="dev-nav">
+    <nav aria-label="Main" className="dev-nav">
       <p className="dev-nav__title">
-        Navigation map
-        <span className="dev-nav__count">{ROUTES.length} routes</span>
+        IEP
+        <span className="dev-nav__count">
+          {visible.length} of {ROUTES.length}
+        </span>
       </p>
-
+      <UserMenu />
       {GROUPS.map((group) => {
-        const items = ROUTES.filter((r) => group.match(r.id));
+        const items = visible.filter((r) => group.match(r.id));
         if (items.length === 0) return null;
-
         return (
           <section key={group.label} className="dev-nav__group">
             <h2 className="dev-nav__heading">{group.label}</h2>
@@ -77,54 +112,68 @@ function DevNav() {
 
 function Shell() {
   const { pathname } = useLocation();
+  const { data } = useSession();
+  const roles: readonly Role[] = data?.user.roles ?? [];
+
   return (
     <div className="shell">
-      <DevNav />
+      <Nav roles={roles} />
       <div className="shell__main">
         <RouteErrorBoundary resetKey={pathname}>
-        <Routes>
-          {ROUTES.map((route) => (
+          <Routes>
+            {ROUTES.filter((r) => !["login", "home"].includes(r.id)).map((route) => (
+              <Route
+                key={route.id}
+                path={route.path}
+                element={
+                  canSee(roles, route.roles) ? (
+                    <RoutePlaceholder
+                      routeId={route.id}
+                      title={route.title}
+                      path={route.path}
+                      roles={route.roles}
+                      renders={route.renders}
+                      searchParams={route.searchParams}
+                      backPath={route.backPath}
+                      crumbs={breadcrumbChain(route.id).map((c) => c.title)}
+                    />
+                  ) : (
+                    // Not a dead end: says why, and offers the way out (SPEC §6.3).
+                    <main className="page">
+                      <h1>Not available for your role</h1>
+                      <p className="muted">
+                        Restricted to {route.roles.join(", ")}. You have{" "}
+                        {roles.join(", ") || "no roles"}.
+                      </p>
+                      <Link to="/ideas">Back to ideas</Link>
+                    </main>
+                  )
+                }
+              />
+            ))}
             <Route
-              key={route.id}
-              path={route.path}
+              path="/_theme"
               element={
-                <RoutePlaceholder
-                  routeId={route.id}
-                  title={route.title}
-                  path={route.path}
-                  roles={route.roles}
-                  renders={route.renders}
-                  searchParams={route.searchParams}
-                  backPath={route.backPath}
-                  crumbs={breadcrumbChain(route.id).map((c) => c.title)}
-                />
+                <main className="page">
+                  <h1>Theme check</h1>
+                  <p className="muted">P0.0 scaffold — removed at P1 close.</p>
+                  <ThemeCheck />
+                </main>
               }
             />
-          ))}
-          <Route
-            path="/_theme"
-            element={
-              <main className="page">
-                <h1>Theme check</h1>
-                <p className="muted">P0.0 only — removed in P1.</p>
-                <ThemeCheck />
-              </main>
-            }
-          />
-          <Route path="/_boom" element={<CrashTest />} />
-          <Route
-            path="*"
-            element={
-              <main className="page">
-                <h1>Not found</h1>
-                <p className="muted">
-                  No route in the navigation map matches this URL.
-                </p>
-                <Link to="/">Back to home</Link>
-              </main>
-            }
-          />
-        </Routes>
+            <Route path="/_boom" element={<CrashTest />} />
+            <Route path="/" element={<Navigate to="/ideas" replace />} />
+            <Route
+              path="*"
+              element={
+                <main className="page">
+                  <h1>Not found</h1>
+                  <p className="muted">No route in the navigation map matches this URL.</p>
+                  <Link to="/ideas">Back to ideas</Link>
+                </main>
+              }
+            />
+          </Routes>
         </RouteErrorBoundary>
       </div>
     </div>
@@ -135,8 +184,20 @@ export function AppRouter() {
   return (
     <AppProviders>
       <BrowserRouter>
-        <Shell />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="*"
+            element={
+              <RequireAuth>
+                <Shell />
+              </RequireAuth>
+            }
+          />
+        </Routes>
       </BrowserRouter>
     </AppProviders>
   );
 }
+
+export { queryKeys };

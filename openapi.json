@@ -5260,7 +5260,7 @@
         ],
         "x-access": {
           "requires": [
-            "admin"
+            "audit:read"
           ]
         },
         "security": [
@@ -5407,7 +5407,7 @@
         ],
         "x-access": {
           "requires": [
-            "admin"
+            "user:manage"
           ]
         },
         "security": [
@@ -5723,7 +5723,7 @@
         ],
         "x-access": {
           "requires": [
-            "admin"
+            "config:write"
           ]
         },
         "security": [
@@ -7650,7 +7650,7 @@
         ],
         "x-access": {
           "requires": [
-            "admin"
+            "ranking:recompute"
           ]
         },
         "security": [

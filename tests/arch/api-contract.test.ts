@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ENDPOINTS } from "../../packages/contracts/src/api.js";
 import { HTTP_STATUS_BY_CODE } from "../../packages/contracts/src/errors.js";
+import { PERMISSIONS, ROLE_PERMISSIONS, permissionsFor } from "../../packages/contracts/src/permissions.js";
+import type { Role } from "../../packages/contracts/src/enums.js";
 
 /**
  * API contract assertions (P0 deliverables 2b + 3).
@@ -31,6 +33,46 @@ describe("endpoint registry integrity", () => {
   it("SPEC §4.2 — every endpoint declares access; omission is impossible", () => {
     const undeclared = ENDPOINTS.filter((e) => e.access === undefined).map((e) => e.operationId);
     expect(undeclared).toEqual([]);
+  });
+
+  /**
+   * The guard that was missing.
+   *
+   * A `requires` string that is not a real Permission can never be granted, so the
+   * endpoint is permanently 403 — fail-closed, but broken, and invisible until someone
+   * with the right role actually tries it. That is exactly how it was found in P1:
+   * `"admin"` was not a permission, and every admin endpoint was dead.
+   */
+  it("every declared permission actually exists", () => {
+    const valid = new Set<string>(PERMISSIONS);
+    const bogus: string[] = [];
+    for (const ep of ENDPOINTS) {
+      if (ep.access === "public") continue;
+      for (const r of ep.access.requires) {
+        if (!valid.has(r)) bogus.push(`${ep.operationId} → "${r}"`);
+      }
+    }
+    expect(bogus, `unknown permissions (these endpoints are permanently 403):\n${bogus.join("\n")}`)
+      .toEqual([]);
+  });
+
+  it("every declared permission is held by at least one role", () => {
+    const roles: Role[] = ["EMPLOYEE", "REVIEWER", "ADMIN", "MANAGEMENT"];
+    const grantable = new Set<string>(roles.flatMap((r) => [...permissionsFor([r])]));
+    const orphaned: string[] = [];
+    for (const ep of ENDPOINTS) {
+      if (ep.access === "public") continue;
+      for (const r of ep.access.requires) {
+        if (!grantable.has(r)) orphaned.push(`${ep.operationId} → ${r}`);
+      }
+    }
+    expect(orphaned, `permissions no role can hold:\n${orphaned.join("\n")}`).toEqual([]);
+  });
+
+  it("every permission in the catalogue is granted to someone", () => {
+    const granted = new Set<string>(Object.values(ROLE_PERMISSIONS).flat());
+    const dead = PERMISSIONS.filter((p) => !granted.has(p));
+    expect(dead, `defined but granted to no role: ${dead.join(", ")}`).toEqual([]);
   });
 
   it("only /health is public — everything else is authenticated", () => {

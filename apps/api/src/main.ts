@@ -1,29 +1,85 @@
+import Redis from "ioredis";
+import { getPrisma } from "@iep/db";
 import { ApiEnv, loadEnv } from "@iep/contracts/env";
 import { buildServer } from "./server.js";
+import { registerDevLogin } from "./modules/auth.routes.js";
+import { DevAuthProvider, OidcAuthProvider, type AuthProvider } from "./auth/provider.js";
+import { MemorySessionStore, RedisSessionStore, type SessionStore } from "./auth/session.js";
+import type { AppContext } from "./context.js";
 
 /**
- * Entry point. Kept separate from server.ts so tests can build a server
- * without binding a port or installing signal handlers.
+ * Entry point. Composition happens here and only here, so `buildServer` stays injectable
+ * and tests never touch Redis, the IdP, or process.env.
  */
 
 const env = loadEnv(ApiEnv, process.env);
-const app = buildServer();
+const isProd = env.NODE_ENV === "production";
 
-async function start(): Promise<void> {
+/** A1 is unanswered: default to the dev provider outside production, refuse in it. */
+function makeAuthProvider(): AuthProvider {
+  const configured = process.env["AUTH_PROVIDER"] ?? (isProd ? "oidc" : "dev");
+  if (configured === "dev") return new DevAuthProvider(env.NODE_ENV);
+  return new OidcAuthProvider({
+    issuer: env.OIDC_ISSUER,
+    clientId: env.OIDC_CLIENT_ID,
+    clientSecret: env.OIDC_CLIENT_SECRET,
+    redirectUri: env.OIDC_REDIRECT_URI,
+  });
+}
+
+async function makeSessionStore(): Promise<{ store: SessionStore; redis: Redis | null }> {
+  const redis = new Redis(env.REDIS_URL, {
+    lazyConnect: true,
+    maxRetriesPerRequest: 2,
+    retryStrategy: (times) => (times > 3 ? null : Math.min(times * 200, 1000)),
+  });
   try {
-    await app.listen({ port: env.PORT, host: "0.0.0.0" });
-    app.log.info(`iep-api listening on :${env.PORT}`);
-  } catch (error) {
-    app.log.error(error, "failed to start");
-    process.exit(1);
+    await redis.connect();
+    return { store: new RedisSessionStore(redis), redis };
+  } catch {
+    redis.disconnect();
+    if (isProd) {
+      // In production a missing session store is a hard failure: falling back to memory
+      // would silently break logout-revocation and any second instance.
+      throw new Error("Redis is required in production for server-side sessions (SPEC §4.1)");
+    }
+    return { store: new MemorySessionStore(), redis: null };
   }
+}
+
+const { store, redis } = await makeSessionStore();
+
+const ctx: AppContext = {
+  env,
+  db: getPrisma(),
+  sessions: store,
+  auth: makeAuthProvider(),
+};
+
+const app = buildServer(ctx);
+registerDevLogin(app, ctx);
+
+try {
+  await app.listen({ port: env.PORT, host: "0.0.0.0" });
+  app.log.info(
+    { auth: ctx.auth.kind, sessions: redis ? "redis" : "memory" },
+    `iep-api listening on :${env.PORT}`,
+  );
+  if (!redis) {
+    app.log.warn("Redis unavailable — using in-memory sessions. Run `pnpm deps:up`.");
+  }
+} catch (error) {
+  app.log.error(error, "failed to start");
+  process.exit(1);
 }
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
     app.log.info(`${signal} received, closing`);
-    void app.close().then(() => process.exit(0));
+    void (async () => {
+      await app.close();
+      redis?.disconnect();
+      process.exit(0);
+    })();
   });
 }
-
-void start();

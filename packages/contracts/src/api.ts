@@ -45,7 +45,12 @@ const RunParams = z.object({ runId: C.Id });
 const OWN = ["idea:read:own"] as const;
 const READ = ["idea:read"] as const;
 const REVIEW = ["review:write"] as const;
-const ADMIN = ["admin"] as const;
+// Real permissions only — a string that is not in PERMISSIONS can never be granted,
+// so it silently makes an endpoint permanently 403. A contract test now enforces this.
+const AUDIT = ["audit:read"] as const;
+const USERS = ["user:manage"] as const;
+const CONFIG_WRITE = ["config:write"] as const;
+const RECOMPUTE = ["ranking:recompute"] as const;
 
 export const ENDPOINTS: readonly EndpointDef[] = [
   /* ── meta ── */
@@ -177,7 +182,7 @@ export const ENDPOINTS: readonly EndpointDef[] = [
   {
     operationId: "recomputeRankings", method: "POST", path: "/rankings/recompute", tag: "rankings",
     summary: "Recompute a cohort. Creates a NEW immutable run; makes no provider call.",
-    access: { requires: [...ADMIN] }, body: E.RecomputeRequest, response: E.RankingRunMeta,
+    access: { requires: [...RECOMPUTE] }, body: E.RecomputeRequest, response: E.RankingRunMeta,
     successStatus: 202, errors: ["ROLE_NOT_PERMITTED", "VALIDATION_FAILED"],
   },
 
@@ -224,7 +229,7 @@ export const ENDPOINTS: readonly EndpointDef[] = [
   {
     operationId: "updateProfileWeights", method: "PATCH", path: "/config/profiles/{profileKey}", tag: "config",
     summary: "M2 (P10). Returns 501 in M1 — an explicit deferral, never a dead button.",
-    access: { requires: [...ADMIN] }, params: z.object({ profileKey: z.string() }),
+    access: { requires: [...CONFIG_WRITE] }, params: z.object({ profileKey: z.string() }),
     body: z.object({ weights: z.array(z.object({ criterionKey: z.string(), weight: z.number() })) }),
     response: C.OkResponse, successStatus: 200, errors: ["NOT_IMPLEMENTED_UNTIL_M2", "ROLE_NOT_PERMITTED"],
   },
@@ -239,13 +244,13 @@ export const ENDPOINTS: readonly EndpointDef[] = [
   {
     operationId: "listAuditEntries", method: "GET", path: "/admin/audit", tag: "admin",
     summary: "Append-only audit trail (FR-29). Every row links to its subject.",
-    access: { requires: [...ADMIN] }, query: R.AuditQuery, response: R.AuditResponse,
+    access: { requires: [...AUDIT] }, query: R.AuditQuery, response: R.AuditResponse,
     successStatus: 200, errors: ["ROLE_NOT_PERMITTED", "VALIDATION_FAILED"],
   },
   {
     operationId: "listUsers", method: "GET", path: "/admin/users", tag: "admin",
     summary: "Users and their roles.",
-    access: { requires: [...ADMIN] }, query: R.AdminUsersQuery, response: R.AdminUsersResponse,
+    access: { requires: [...USERS] }, query: R.AdminUsersQuery, response: R.AdminUsersResponse,
     successStatus: 200, errors: ["ROLE_NOT_PERMITTED"],
   },
 ];

@@ -15,8 +15,9 @@
     "test:watch": "vitest",
     "lint": "echo \"lint: configured in P1\"",
     "migrate": "prisma migrate dev",
-    "seed": "tsx prisma/seed.ts",
-    "generate": "prisma generate"
+    "seed": "tsx --env-file-if-exists=../../.env prisma/seed.ts",
+    "generate": "prisma generate",
+    "db:reset": "prisma db push --force-reset --skip-generate && pnpm seed"
   },
   "dependencies": {
     "@iep/ai": "workspace:*",

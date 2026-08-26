@@ -5,7 +5,9 @@ services:
       POSTGRES_USER: iep
       POSTGRES_PASSWORD: iep
       POSTGRES_DB: iep
-    ports: ["5432:5432"]
+    # 5433 on the host: a local PostgreSQL service already owns 5432 on this machine,
+    # and it silently shadows the container. Wrong-database bugs are miserable to trace.
+    ports: ["5433:5432"]
     volumes: ["iep-pg:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U iep"]
@@ -13,7 +15,7 @@ services:
       retries: 10
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    ports: ["6380:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
