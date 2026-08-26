@@ -1,0 +1,30 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/theme.css",
+    "baseColor": "slate",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "registries": {
+    "@shadcn": {
+      "url": "https://ui.shadcn.com/r/{name}.json"
+    }
+  },
+  "$iep": {
+    "pinnedAt": "2026-08-26",
+    "note": "Installed components are OUR SOURCE (ADR-019). Upgrades are reviewed PRs, never a silent re-add. Re-running the CLI without --overwrite will not touch existing files."
+  }
+}

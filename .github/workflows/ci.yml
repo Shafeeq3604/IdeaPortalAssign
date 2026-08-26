@@ -1,0 +1,38 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+
+      # Architecture invariants first — they are cheap and they are the ones
+      # that silently rot if they run last (ADR-005, ADR-021, SPEC §6.3).
+      - name: Architecture + navigation contract
+        run: pnpm test:nav
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Prisma schema valid
+        run: pnpm --filter @iep/db exec prisma validate
+        env:
+          DATABASE_URL: postgresql://u:p@localhost:5432/iep
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Design tokens (no raw hex/px in feature code)
+        run: pnpm lint:tokens
+
+      - name: Unit + integration
+        run: pnpm test
+
+      - name: Contract diff gate
+        run: |
+          echo "OpenAPI diff gate lands with apps/api in P1 (SPEC §11.3)"

@@ -1,0 +1,296 @@
+/*
+ * IEP design tokens — "Considered Clarity" (SPEC §7, §8). FROZEN AT P0.
+ *
+ * Three rules the direction imposes:
+ *   1. Ink before colour   — hierarchy from type weight and spacing; colour is information.
+ *   2. Borders before shadows — hairlines separate; elevation is for things that float.
+ *   3. No verdict palette  — green/red never encode idea quality (P-1). They are system state.
+ *
+ * Feature code may not use a raw hex or px value. `pnpm lint:tokens` enforces it.
+ */
+
+:root {
+  /* ── Ink ramp ── */
+  --ink-900: #10141c;
+  --ink-700: #333a48;
+  --ink-500: #5a6478;
+  --ink-400: #7c8598;
+  --ink-300: #b4bcca;
+  --ink-200: #d9dee7;
+  --ink-100: #edf0f5;
+  --ink-050: #f7f8fb;
+  --ink-000: #ffffff;
+
+  /* ── Semantic surfaces ── */
+  --canvas: var(--ink-050);
+  --surface: var(--ink-000);
+  --surface-sunken: var(--ink-100);
+  --border: var(--ink-200);
+  --border-strong: var(--ink-300);
+  --text: var(--ink-900);
+  --text-secondary: var(--ink-500);
+  --text-tertiary: var(--ink-400);
+
+  /* ── Accent: one, calm indigo ── */
+  --accent-700: #2b3ba8;
+  --accent-600: #3548c7;
+  --accent-500: #4c5fdb;
+  --accent-100: #e6e9fb;
+  --accent-050: #f2f4fe;
+  --focus-ring: var(--accent-500);
+
+  /* ── Evidence: DIRECTION, not verdict. Deliberately not green/red. ── */
+  --factor-up: #1f7a6b;        /* raises the ranking  (teal) */
+  --factor-up-bg: #e4f2ef;
+  --factor-down: #8a5a2b;      /* lowers the ranking  (clay) */
+  --factor-down-bg: #f6ede3;
+  --factor-neutral: var(--ink-400);
+
+  /* ── Score magnitude ramp: neutral → accent, no good/bad reading ── */
+  --ramp-1: #e8ebf2;
+  --ramp-2: #c6ceea;
+  --ramp-3: #9aa7df;
+  --ramp-4: #6b7cd2;
+  --ramp-5: #3548c7;
+
+  /* ── AI provenance (SPEC §7.4) ── */
+  --ai-surface: #f5f2fc;
+  --ai-border: #dcd2f2;
+  --ai-ink: #5b4b8a;
+
+  /* ── System state ONLY. Never applied to an idea's score. ── */
+  --state-info: #2b6cb0;
+  --state-warn: #b7791f;
+  --state-ok: #2f7a4f;
+  --state-danger: #b03a3a;
+
+  /* ── Type: 1.200 minor third, base 16px ── */
+  --font-sans: "Inter var", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-100: 0.694rem;
+  --fs-200: 0.833rem;
+  --fs-300: 1rem;
+  --fs-400: 1.2rem;
+  --fs-500: 1.44rem;
+  --fs-600: 1.728rem;
+  --fs-700: 2.074rem;
+  --fs-800: 2.488rem;
+  --lh-tight: 1.2;
+  --lh-snug: 1.35;
+  --lh-normal: 1.55;
+  --lh-relaxed: 1.7;
+
+  /* ── Spacing (4px base) ── */
+  --sp-0: 0;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+
+  /* ── Radius ── */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-full: 9999px;
+
+  /* ── Elevation: e-1 cards, e-2 sticky, e-3 popovers, e-4 modals. Nothing else floats. ── */
+  --e-0: none;
+  --e-1: 0 1px 2px rgb(16 20 28 / 6%);
+  --e-2: 0 2px 4px -1px rgb(16 20 28 / 8%), 0 1px 2px rgb(16 20 28 / 4%);
+  --e-3: 0 8px 16px -4px rgb(16 20 28 / 10%), 0 2px 4px rgb(16 20 28 / 6%);
+  --e-4: 0 16px 32px -8px rgb(16 20 28 / 14%);
+
+  /* ── Layout ── */
+  --container: 1280px;
+  --content: 960px;
+  --prose: 68ch;
+
+  /* ── Motion (SPEC §8.2) ── */
+  --dur-instant: 80ms;
+  --dur-fast: 140ms;
+  --dur-base: 200ms;
+  --dur-reveal: 240ms;
+  --dur-slow: 320ms;
+  --dur-settle: 420ms;
+  --dur-tally: 600ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-settle: cubic-bezier(0.34, 1.06, 0.64, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --stagger: 24ms;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * DARK — same token names redefined. Components never branch on theme.
+ * Three-state: explicit choice stamps data-theme; "system" stamps nothing.
+ * ══════════════════════════════════════════════════════════════════ */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink-900: #eef1f6;
+    --ink-700: #d3d9e3;
+    --ink-500: #98a2b4;
+    --ink-400: #7a8496;
+    --ink-300: #4e5768;
+    --ink-200: #333b49;
+    --ink-100: #222935;
+    --ink-050: #171c25;
+    --ink-000: #1d232e; /* surface sits ABOVE canvas in dark */
+
+    --accent-700: #8e9bff;
+    --accent-600: #7c8bfa;
+    --accent-500: #9aa6ff;
+    --accent-100: #252c4a;
+    --accent-050: #1e2438;
+
+    --factor-up: #5fc9b4;
+    --factor-up-bg: #12312c;
+    --factor-down: #d19a63;
+    --factor-down-bg: #33261a;
+
+    --ramp-1: #2a3140;
+    --ramp-2: #3c4766;
+    --ramp-3: #55638f;
+    --ramp-4: #6f7fbe;
+    --ramp-5: #8e9bff;
+
+    --ai-surface: #221e33;
+    --ai-border: #3b3357;
+    --ai-ink: #b6a8e0;
+
+    --state-info: #6ba6e8;
+    --state-warn: #e0b056;
+    --state-ok: #5fb37f;
+    --state-danger: #e07a7a;
+
+    /* Shadows do not read on a dark ground — borders do the work (SPEC §7.3). */
+    --e-1: none;
+    --e-2: none;
+    --e-3: 0 8px 16px -4px rgb(0 0 0 / 45%);
+    --e-4: 0 16px 32px -8px rgb(0 0 0 / 55%);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink-900: #eef1f6;
+  --ink-700: #d3d9e3;
+  --ink-500: #98a2b4;
+  --ink-400: #7a8496;
+  --ink-300: #4e5768;
+  --ink-200: #333b49;
+  --ink-100: #222935;
+  --ink-050: #171c25;
+  --ink-000: #1d232e;
+
+  --accent-700: #8e9bff;
+  --accent-600: #7c8bfa;
+  --accent-500: #9aa6ff;
+  --accent-100: #252c4a;
+  --accent-050: #1e2438;
+
+  --factor-up: #5fc9b4;
+  --factor-up-bg: #12312c;
+  --factor-down: #d19a63;
+  --factor-down-bg: #33261a;
+
+  --ramp-1: #2a3140;
+  --ramp-2: #3c4766;
+  --ramp-3: #55638f;
+  --ramp-4: #6f7fbe;
+  --ramp-5: #8e9bff;
+
+  --ai-surface: #221e33;
+  --ai-border: #3b3357;
+  --ai-ink: #b6a8e0;
+
+  --state-info: #6ba6e8;
+  --state-warn: #e0b056;
+  --state-ok: #5fb37f;
+  --state-danger: #e07a7a;
+
+  --e-1: none;
+  --e-2: none;
+  --e-3: 0 8px 16px -4px rgb(0 0 0 / 45%);
+  --e-4: 0 16px 32px -8px rgb(0 0 0 / 55%);
+}
+
+/* ── shadcn/ui theme bridge (ADR-019): shadcn reads these names. ── */
+:root,
+:root[data-theme="dark"] {
+  --background: var(--canvas);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+  --primary: var(--accent-600);
+  --primary-foreground: var(--ink-000);
+  --secondary: var(--surface-sunken);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-sunken);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--accent-100);
+  --accent-foreground: var(--accent-700);
+  --destructive: var(--state-danger);
+  --destructive-foreground: var(--ink-000);
+  --input: var(--border);
+  --ring: var(--focus-ring);
+  --radius: var(--r-md);
+}
+
+/* ── Base ── */
+body {
+  background: var(--canvas);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-300);
+  line-height: var(--lh-normal);
+}
+
+/* Mandatory on every score, rank, percentage and week range (SPEC §7.2) —
+   figures must align in columns and must not jitter during `tally`. */
+.tabular,
+[data-numeric] {
+  font-variant-numeric: tabular-nums;
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * REDUCED MOTION — a parallel definition, not an afterthought (SPEC §8.6).
+ * Information carried by motion must survive its removal: `settle-rank`
+ * drops the FLIP but keeps the highlight ring and the delta chip.
+ * ══════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-instant: 0ms;
+    --dur-fast: 80ms;
+    --dur-base: 80ms;
+    --dur-reveal: 80ms;
+    --dur-slow: 80ms;
+    --dur-settle: 0ms;
+    --dur-tally: 0ms;
+    --stagger: 0ms;
+    --ease-settle: linear;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 80ms !important;
+    scroll-behavior: auto !important;
+  }
+}

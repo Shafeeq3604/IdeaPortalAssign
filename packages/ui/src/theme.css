@@ -1,0 +1,108 @@
+/*
+ * @iep/ui — Tailwind v4 theme bridge (ADR-019).
+ *
+ * This is the single seam between shadcn/ui and the IEP design system. shadcn components
+ * are written against semantic names (bg-background, text-muted-foreground, border);
+ * this file points those names at the tokens in tokens.css.
+ *
+ * Consequence, and the reason it is done this way: because the tokens themselves swap
+ * for dark mode, shadcn components need NO `dark:` variants. They inherit the theme.
+ * That is SPEC §7.3 — "components never branch on theme" — made real.
+ *
+ * Import this once, in the app entry. Do not import tokens.css separately as well.
+ */
+
+@import "tailwindcss";
+@import "./tokens.css";
+
+/*
+ * Tailwind must be told to scan THIS package.
+ *
+ * Automatic content detection skips node_modules, and apps/web reaches @iep/ui through a
+ * pnpm symlink inside node_modules — so without this, every utility used by a shadcn
+ * component (bg-primary, bg-card, border-border …) is silently never generated. The app
+ * still builds and the components still render; they just come out unstyled. Paths are
+ * relative to this file.
+ */
+@source "./components/**/*.{ts,tsx}";
+@source "./lib/**/*.{ts,tsx}";
+
+/* Our dark mode is driven by tokens (media query + [data-theme]). This variant exists
+   only for the rare component that genuinely needs to branch; prefer tokens. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  /* ── Surfaces and text — shadcn's semantic names → our tokens ── */
+  --color-background: var(--canvas);
+  --color-foreground: var(--text);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--text);
+  --color-muted: var(--surface-sunken);
+  --color-muted-foreground: var(--text-secondary);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--focus-ring);
+
+  /* ── Accent: one calm indigo (SPEC §7.1 "ink before colour") ── */
+  --color-primary: var(--accent-600);
+  --color-primary-foreground: var(--ink-000);
+  --color-secondary: var(--surface-sunken);
+  --color-secondary-foreground: var(--text);
+  --color-accent: var(--accent-100);
+  --color-accent-foreground: var(--accent-700);
+
+  /* ── System state ONLY. Never applied to an idea's score (P-1). ── */
+  --color-destructive: var(--state-danger);
+  --color-destructive-foreground: var(--ink-000);
+
+  /* ── IEP-specific colours shadcn has no concept of ── */
+  --color-factor-up: var(--factor-up);
+  --color-factor-up-bg: var(--factor-up-bg);
+  --color-factor-down: var(--factor-down);
+  --color-factor-down-bg: var(--factor-down-bg);
+  --color-ai-surface: var(--ai-surface);
+  --color-ai-border: var(--ai-border);
+  --color-ai-ink: var(--ai-ink);
+  --color-ramp-1: var(--ramp-1);
+  --color-ramp-2: var(--ramp-2);
+  --color-ramp-3: var(--ramp-3);
+  --color-ramp-4: var(--ramp-4);
+  --color-ramp-5: var(--ramp-5);
+
+  /* ── Type scale (SPEC §7.2, 1.200 minor third) ──
+     NOTE: --font-sans is NOT mapped here. Tailwind's theme key and our token share the
+     name, so var(--font-sans) inside --font-sans is circular and voids the whole block.
+     The family is applied on body in tokens.css instead. ── */
+  --text-100: var(--fs-100);
+  --text-200: var(--fs-200);
+  --text-300: var(--fs-300);
+  --text-400: var(--fs-400);
+  --text-500: var(--fs-500);
+  --text-600: var(--fs-600);
+  --text-700: var(--fs-700);
+  --text-800: var(--fs-800);
+
+  /* ── Radius ── */
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+
+  /* ── Elevation (SPEC §7.5: e-1 cards, e-2 sticky, e-3 overlays, e-4 modals) ── */
+  --shadow-e1: var(--e-1);
+  --shadow-e2: var(--e-2);
+  --shadow-e3: var(--e-3);
+  --shadow-e4: var(--e-4);
+
+  /* ── Motion (SPEC §8.2) ── */
+  --animate-duration-instant: var(--dur-instant);
+  --animate-duration-fast: var(--dur-fast);
+  --animate-duration-base: var(--dur-base);
+  --animate-duration-reveal: var(--dur-reveal);
+  --animate-duration-settle: var(--dur-settle);
+  --animate-duration-tally: var(--dur-tally);
+  /* Easings are NOT mapped: same name-collision problem as --font-sans.
+     Use the tokens directly, e.g. ease-[var(--ease-out-quint)]. */
+}

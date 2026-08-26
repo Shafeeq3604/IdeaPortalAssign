@@ -1,0 +1,40 @@
+{
+  "name": "iep",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "test:watch": "turbo run test:watch --parallel",
+    "test:bdd": "turbo run test:bdd",
+    "test:e2e": "turbo run test:e2e",
+    "test:nav": "vitest run --config vitest.arch.config.ts",
+    "test:arch": "vitest run --config vitest.arch.config.ts",
+    "lint": "turbo run lint",
+    "lint:tokens": "node scripts/lint-tokens.mjs",
+    "typecheck": "turbo run typecheck",
+    "db:migrate": "pnpm --filter @iep/db migrate",
+    "db:seed": "pnpm --filter @iep/db seed",
+    "eval": "turbo run eval",
+    "smoke": "node scripts/smoke.mjs",
+    "deps:up": "docker compose up -d",
+    "deps:down": "docker compose down",
+    "openapi:generate": "tsx scripts/generate-openapi.mts",
+    "openapi:check": "tsx scripts/generate-openapi.mts && git diff --exit-code --stat -- openapi.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "playwright": "^1.62.1",
+    "tsx": "^4.19.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8",
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.25.2"
+  }
+}

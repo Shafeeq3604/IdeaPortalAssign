@@ -1,0 +1,192 @@
+/*
+ * P0.0 shell styling. Tokens only — no raw hex, no raw px (SPEC §7.6).
+ * Replaced by Tailwind + shadcn in Step 3 / P1.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-300);
+  line-height: var(--lh-normal);
+}
+
+code {
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: var(--fs-200);
+  background: var(--surface-sunken);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-sm);
+}
+
+a {
+  color: var(--accent-600);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
+  min-height: 100%;
+}
+
+.shell__main {
+  min-width: 0;
+}
+
+/* ── dev nav ── */
+
+.dev-nav {
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  padding: var(--sp-6) var(--sp-5);
+  overflow-y: auto;
+  max-height: 100vh;
+}
+
+.dev-nav__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-6);
+  font-size: var(--fs-200);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.dev-nav__count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+}
+
+.dev-nav__group {
+  margin-bottom: var(--sp-5);
+}
+
+.dev-nav__heading {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-100);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.dev-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dev-nav li a {
+  display: block;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  font-size: var(--fs-200);
+}
+
+.dev-nav li a:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.dev-nav li a[aria-current="page"] {
+  background: var(--accent-100);
+  color: var(--accent-700);
+  font-weight: 500;
+}
+
+/* ── page ── */
+
+.page {
+  max-width: var(--content);
+  padding: var(--sp-10) var(--sp-8);
+}
+
+.page h1 {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-700);
+  line-height: var(--lh-tight);
+  font-weight: 600;
+}
+
+.crumbs {
+  margin-bottom: var(--sp-4);
+  font-size: var(--fs-200);
+  color: var(--text-tertiary);
+}
+
+.muted {
+  margin: 0 0 var(--sp-8);
+  color: var(--text-secondary);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: minmax(0, 10rem) minmax(0, 1fr);
+  gap: var(--sp-3) var(--sp-5);
+  margin: 0;
+  padding: var(--sp-5) var(--sp-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--e-1);
+}
+
+.facts dt {
+  font-size: var(--fs-200);
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.facts dd {
+  margin: 0;
+  font-size: var(--fs-200);
+}
+
+@media (max-width: 48rem) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dev-nav {
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-1) 0;
+  }
+}
