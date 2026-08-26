@@ -17,6 +17,11 @@ import type { Band, EffortClass, FeasibilityStatus, Horizon, UserCountBand } fro
  *   VAGUE       — underspecified. Low maturity, must still be RANKABLE (never rejected).
  *   INFEASIBLE  — blocked by a stated organisational constraint. Exercises FR-06's
  *                 citation requirement and must still receive improvement guidance (P-4).
+ *
+ * NOTE on maturityLevel: these are DERIVED from the REQUIREMENTS §20 rule (implemented in
+ * packages/scoring), not authored by hand. Six were corrected in P4 when the rule was first
+ * run against them — the rule is the spec; the original numbers were estimates.
+ *
  *   STRATEGIC   — high long-term value, low current feasibility. The FR-11 case: must
  *                 outrank a quick win under `strategic_innovation` and lose under
  *                 `quick_wins`. If that inversion does not happen, the engine is wrong.
@@ -121,7 +126,7 @@ export const IDEA_FIXTURES: readonly IdeaFixture[] = [
       riskLevels: ["MEDIUM", "MEDIUM"],
       effortClass: "MEDIUM", costClass: "MEDIUM", timelineWeeks: { min: 10, max: 18 },
     },
-    expectations: { maturityLevel: 3, isRankable: true, expectsRecommendations: true },
+    expectations: { maturityLevel: 2, isRankable: true, expectsRecommendations: true },
   },
   {
     key: "meeting-room-noshow",
@@ -142,7 +147,7 @@ export const IDEA_FIXTURES: readonly IdeaFixture[] = [
     },
     // The canonical quick win: must beat the strategic ideas under `quick_wins`.
     expectations: {
-      maturityLevel: 4, isRankable: true, expectsRecommendations: false,
+      maturityLevel: 3, isRankable: true, expectsRecommendations: false,
       ranksAboveUnderQuickWins: ["unified-knowledge-graph", "predictive-capacity-planning"],
     },
   },
@@ -230,7 +235,7 @@ export const IDEA_FIXTURES: readonly IdeaFixture[] = [
       effortClass: "HIGH", costClass: "HIGH", timelineWeeks: { min: 20, max: 48 },
     },
     // High value + infeasible: must still rank, and must still get guidance (P-4).
-    expectations: { maturityLevel: 2, isRankable: true, expectsRecommendations: true },
+    expectations: { maturityLevel: 3, isRankable: true, expectsRecommendations: true },
   },
   {
     key: "realtime-erp-writeback",
@@ -251,7 +256,7 @@ export const IDEA_FIXTURES: readonly IdeaFixture[] = [
       riskLevels: ["HIGH", "MEDIUM", "MEDIUM"],
       effortClass: "VERY_HIGH", costClass: "VERY_HIGH", timelineWeeks: { min: 26, max: 52 },
     },
-    expectations: { maturityLevel: 3, isRankable: true, expectsRecommendations: true },
+    expectations: { maturityLevel: 2, isRankable: true, expectsRecommendations: true },
   },
   {
     key: "public-salary-benchmarks",
@@ -300,7 +305,7 @@ export const IDEA_FIXTURES: readonly IdeaFixture[] = [
     },
     // THE FR-11 assertion: beats the quick win under strategic, loses under quick_wins.
     expectations: {
-      maturityLevel: 3, isRankable: true, expectsRecommendations: true,
+      maturityLevel: 4, isRankable: true, expectsRecommendations: true,
       ranksAboveUnderStrategic: ["meeting-room-noshow", "expense-receipt-ocr"],
     },
   },
@@ -325,7 +330,7 @@ export const IDEA_FIXTURES: readonly IdeaFixture[] = [
       effortClass: "HIGH", costClass: "HIGH", timelineWeeks: { min: 20, max: 44 },
     },
     expectations: {
-      maturityLevel: 3, isRankable: true, expectsRecommendations: true,
+      maturityLevel: 2, isRankable: true, expectsRecommendations: true,
       ranksAboveUnderStrategic: ["meeting-room-noshow"],
     },
   },

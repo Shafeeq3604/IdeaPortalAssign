@@ -19,6 +19,8 @@ export interface CriterionDef {
   readonly sourceKind: CriterionSourceKind;
   /** Which AI factor feeds it. null = not AI-derived. Mapping lives in packages/scoring. */
   readonly factorSource: string | null;
+  /** Absent means active. An admin may deactivate a criterion in M2 without deleting it. */
+  readonly isActive?: boolean;
 }
 
 export const CRITERIA: readonly CriterionDef[] = [

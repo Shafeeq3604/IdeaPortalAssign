@@ -11,11 +11,14 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --coverage",
     "test:watch": "vitest",
     "lint": "echo \"lint: configured in P1\""
   },
   "dependencies": {
     "@iep/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.9"
   }
 }

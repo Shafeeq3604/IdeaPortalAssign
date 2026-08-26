@@ -86,13 +86,13 @@ Full phase definitions and `Depends on:` lists are in **SPEC §14**.
 
 ```
 MILESTONE M0 — Foundations
-  [~] P0  Contract Freeze  (BLOCKING — nothing else starts)  ← see P0-STATUS.md
+  [x] P0  Contract Freeze  (BLOCKING — nothing else starts)  ← see P0-STATUS.md
 
 MILESTONE M1 — MVP1 (must be a real, usable, navigable product on its own)
-  [ ] P1  Identity, Access & App Shell
+  [x] P1  Identity, Access & App Shell
   [ ] P2  Idea Capture & Lifecycle
   [ ] P3  AI Analysis Pipeline
-  [ ] P4  Evaluation & Ranking Engine        (parallel-safe with P2/P3)
+  [x] P4  Evaluation & Ranking Engine        (parallel-safe with P2/P3)
   [ ] P5  Explanation & Improvement
   [ ] P6  Human Review, Overrides & Audit
   [ ] P7  Ranked Board & Management Dashboard

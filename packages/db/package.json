@@ -9,7 +9,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "prisma generate && tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
@@ -17,7 +17,8 @@
     "migrate": "prisma migrate dev",
     "seed": "tsx --env-file-if-exists=../../.env prisma/seed.ts",
     "generate": "prisma generate",
-    "db:reset": "prisma db push --force-reset --skip-generate && pnpm seed"
+    "db:reset": "prisma db push --force-reset --skip-generate && pnpm seed",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@iep/ai": "workspace:*",
