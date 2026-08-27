@@ -3,9 +3,7 @@ import { PrismaClient } from "@iep/db";
 import { StubProvider } from "@iep/ai";
 import { makeIdeaRepo } from "@iep/api/src/modules/idea/repo.js";
 import { runPipeline } from "@iep/worker/src/pipeline.js";
-import { evaluateVersion } from "@iep/worker/src/evaluate.js";
-import { recomputeRankings } from "@iep/worker/src/ranking.js";
-import { loadEngineConfig } from "@iep/worker/src/factors.js";
+import { evaluateVersion, loadEngineConfig, recomputeRankings } from "@iep/evaluation";
 
 /**
  * F-04 — Evaluation & ranking (SPEC §9.4), as a FLOW.

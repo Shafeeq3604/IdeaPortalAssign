@@ -7,9 +7,7 @@ import {
   type AnalysisJob, type RankingJob,
 } from "./queue.js";
 import { runPipeline } from "./pipeline.js";
-import { evaluateVersion } from "./evaluate.js";
-import { recomputeRankings } from "./ranking.js";
-import { generateRecommendations } from "./improve.js";
+import { evaluateVersion, generateRecommendations, recomputeRankings } from "@iep/evaluation";
 
 /**
  * apps/worker — the AI pipeline consumer (P3).

@@ -1,22 +1,23 @@
 {
-  "name": "@iep/bdd",
+  "name": "@iep/evaluation",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
-    "test:bdd": "vitest run",
-    "test:bdd:watch": "vitest",
+    "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
     "lint": "echo \"lint: configured in P9\""
   },
-  "devDependencies": {
+  "dependencies": {
     "@iep/ai": "workspace:*",
     "@iep/contracts": "workspace:*",
     "@iep/db": "workspace:*",
-    "@iep/worker": "workspace:*",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.8",
-    "@iep/api": "workspace:*",
-    "@iep/evaluation": "workspace:*"
+    "@iep/scoring": "workspace:*"
   }
 }

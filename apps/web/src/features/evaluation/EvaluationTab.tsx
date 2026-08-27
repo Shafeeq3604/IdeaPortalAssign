@@ -138,7 +138,7 @@ export function EvaluationTab() {
                   />
                   <p className="mt-4 text-100 text-muted-foreground">
                     From{" "}
-                    <Link to={`/rankings/runs/${e.ranking.runId}`}>
+                    <Link to={`/rankings/${e.ranking.runId}`}>
                       the ranking run of {new Date(e.ranking.computedAt).toLocaleString()}
                     </Link>
                     .

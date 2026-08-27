@@ -3,10 +3,7 @@ import { PrismaClient } from "@iep/db";
 import { StubProvider } from "@iep/ai";
 import { makeIdeaRepo } from "@iep/api/src/modules/idea/repo.js";
 import { runPipeline } from "@iep/worker/src/pipeline.js";
-import { evaluateVersion } from "@iep/worker/src/evaluate.js";
-import { recomputeRankings } from "@iep/worker/src/ranking.js";
-import { generateRecommendations } from "@iep/worker/src/improve.js";
-import { ATTENTION_THRESHOLD } from "@iep/worker/src/factors.js";
+import { ATTENTION_THRESHOLD, evaluateVersion, generateRecommendations, recomputeRankings } from "@iep/evaluation";
 
 /**
  * F-05 — Explanation & improvement (SPEC §9.5, §9.6), as a FLOW.

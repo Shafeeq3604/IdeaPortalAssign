@@ -4,7 +4,7 @@ import { StubProvider } from "@iep/ai";
 import { can } from "@iep/contracts";
 import { makeIdeaRepo } from "@iep/api/src/modules/idea/repo.js";
 import { runPipeline } from "@iep/worker/src/pipeline.js";
-import { evaluateVersion } from "@iep/worker/src/evaluate.js";
+import { evaluateVersion } from "@iep/evaluation";
 
 /**
  * F-08 — Human review, overrides and audit (SPEC §9.8, FR-22, FR-23, FR-29), as a FLOW.

@@ -15,6 +15,9 @@ import { EvaluationTab } from "./features/evaluation/EvaluationTab";
 import { ImproveTab } from "./features/evaluation/ImproveTab";
 import { ReviewTab } from "./features/review/ReviewTab";
 import { ReviewQueuePage } from "./features/review/ReviewQueuePage";
+import { RankingsPage } from "./features/rankings/RankingsPage";
+import { ComparePage } from "./features/rankings/ComparePage";
+import { DashboardPage } from "./features/rankings/DashboardPage";
 import { AppProviders } from "./app/providers";
 import { RouteErrorBoundary } from "./app/error-boundary";
 import { RequireAuth } from "./app/session";
@@ -145,6 +148,11 @@ function Shell() {
             <Route path="/ideas/:ideaId/improve" element={<ImproveTab />} />
             <Route path="/ideas/:ideaId/review" element={<ReviewTab />} />
             <Route path="/review" element={<ReviewQueuePage />} />
+            {/* Static before dynamic: /rankings/compare must not be read as a run id. */}
+            <Route path="/rankings/compare" element={<ComparePage />} />
+            <Route path="/rankings/:runId" element={<RankingsPage mode="run" />} />
+            <Route path="/rankings" element={<RankingsPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/ideas/:ideaId/history" element={<HistoryTab />} />
             <Route path="/ideas/:ideaId/revise" element={<ReviseIdeaPage />} />
 
@@ -152,7 +160,8 @@ function Shell() {
               .filter(
                 (r) =>
                   !["ideas", "me.ideas", "ideas.new", "idea.overview", "idea.analysis", "idea.evaluation", "idea.improve",
-                    "idea.review", "idea.history", "idea.revise", "review.queue"].includes(
+                    "idea.review", "idea.history", "idea.revise", "review.queue",
+                    "rankings", "rankings.run", "rankings.compare", "dashboard"].includes(
                     r.id,
                   ),
               )

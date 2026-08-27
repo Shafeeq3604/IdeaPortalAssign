@@ -15,5 +15,18 @@ export default defineConfig({
     testTimeout: 60_000,
     hookTimeout: 60_000,
     reporters: ["verbose"],
+
+    /**
+     * ONE FILE AT A TIME. These share a real database.
+     *
+     * A ranking recompute is cohort-wide by definition, so a spec that recomputes sweeps
+     * up every other spec's ideas — and if another file is deleting its fixtures at that
+     * moment, the run inserts entries against rows that are on their way out. It surfaced
+     * as an opaque Prisma error that vanished when the file ran alone, which is the worst
+     * kind of flake to inherit.
+     *
+     * The E2E config made the same call for the same reason (SPEC §11.5).
+     */
+    fileParallelism: false,
   },
 });

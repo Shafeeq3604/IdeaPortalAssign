@@ -67,7 +67,7 @@ export function entityHrefFor(entityType: string, entityId: string): string | nu
     case "evaluation":
       return `/ideas/${entityId}/evaluation`;
     case "ranking_run":
-      return `/rankings/runs/${entityId}`;
+      return `/rankings/${entityId}`;
     default:
       return null;
   }

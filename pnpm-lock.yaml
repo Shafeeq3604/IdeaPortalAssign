@@ -56,6 +56,9 @@ importers:
       '@iep/db':
         specifier: workspace:^
         version: link:../../packages/db
+      '@iep/evaluation':
+        specifier: workspace:*
+        version: link:../../packages/evaluation
       bullmq:
         specifier: ^5.34.0
         version: 5.81.3
@@ -160,6 +163,9 @@ importers:
       '@iep/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@iep/evaluation':
+        specifier: workspace:*
+        version: link:../../packages/evaluation
       '@iep/scoring':
         specifier: workspace:*
         version: link:../../packages/scoring
@@ -226,6 +232,21 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.23.12
+
+  packages/evaluation:
+    dependencies:
+      '@iep/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@iep/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@iep/db':
+        specifier: workspace:*
+        version: link:../db
+      '@iep/scoring':
+        specifier: workspace:*
+        version: link:../scoring
 
   packages/scoring:
     dependencies:
@@ -306,6 +327,9 @@ importers:
       '@iep/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@iep/evaluation':
+        specifier: workspace:*
+        version: link:../../packages/evaluation
       '@iep/worker':
         specifier: workspace:*
         version: link:../../apps/worker

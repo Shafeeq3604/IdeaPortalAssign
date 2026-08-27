@@ -46,6 +46,7 @@ apps/
 packages/
   contracts/      Zod schemas, shared types, navigation.map.ts, error codes  [FROZEN in P0]
   scoring/        Pure evaluation + ranking + explanation engine (no I/O)
+  evaluation/     DB-bound bridge: factors, persistence, ranking runs, AI-08
   ui/             shadcn/ui baseline + 11 custom components + design tokens
   ai/             Provider abstraction, ModelRouter (tiered), prompts, schemas, stub
   db/             Prisma schema, migrations, seed
@@ -97,7 +98,7 @@ MILESTONE M1 — MVP1 (must be a real, usable, navigable product on its own)
   [x] P4  Evaluation & Ranking Engine        (parallel-safe with P2/P3)
   [x] P5  Explanation & Improvement   (AI-09 narrative deferred — optional in SPEC)
   [x] P6  Human Review, Overrides & Audit
-  [ ] P7  Ranked Board & Management Dashboard
+  [x] P7  Ranked Board & Management Dashboard   (settle-rank FLIP reorder not built)
   [ ] P8  Re-evaluation & Version History
   [ ] P9  Config Viewer (read-only) + MVP1 hardening
 
