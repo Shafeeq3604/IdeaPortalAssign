@@ -150,6 +150,16 @@ export function IdeaForm({
           </Button>
         ) : null}
       </div>
+      {/*
+        SPEC §4.5: the notice is linked from the submission form, because this is the
+        moment someone decides how much detail to write.
+      */}
+      <p className="text-100 text-muted-foreground">
+        Your idea text is analysed by an AI service; your name and email are not sent with
+        it, and no AI decides anything.{" "}
+        <a href="/help/data-and-ai">How your idea is handled</a>
+      </p>
+
     </form>
   );
 }

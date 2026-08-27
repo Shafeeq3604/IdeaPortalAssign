@@ -359,6 +359,11 @@ export function registerRankingRoutes(handlers: Map<string, Handler>): void {
     const scope = q.departmentId ? { departmentId: q.departmentId } : {};
     const dept = q.departmentId ? `&departmentId=${q.departmentId}` : "";
 
+    const latest = await ctx.db.rankingRun.findFirst({
+      orderBy: { computedAt: "desc" }, select: { id: true },
+    });
+    const latestRunId = latest?.id ?? null;
+
     const count = (status: IdeaStatus | IdeaStatus[]) =>
       ctx.db.idea.count({
         where: { ...scope, status: Array.isArray(status) ? { in: status } : status },
@@ -379,9 +384,15 @@ export function registerRankingRoutes(handlers: Map<string, Handler>): void {
       ctx.db.idea.count({ where: { ...scope, NOT: { status: "DRAFT" } } }),
       count("AI_ANALYSIS"),
       count(["EVALUATED", "RANKED"]),
-      ctx.db.rankingEntry.count({
-        where: { run: { id: (await ctx.db.rankingRun.findFirst({ orderBy: { computedAt: "desc" }, select: { id: true } }))?.id ?? "" } },
-      }),
+      // Count through the RELATION, not a fetched id.
+      //
+      // The first version looked up the latest run and passed `?? ""` when there was
+      // none — an empty string is not a UUID, so Postgres rejected it and the whole
+      // dashboard 500ed on a fresh install. Ordering inside the relation also removes a
+      // race: the id could go stale between the two queries while a recompute lands.
+      latestRunId
+        ? ctx.db.rankingEntry.count({ where: { runId: latestRunId } })
+        : Promise.resolve(0),
       count("NEEDS_CLARIFICATION"),
       count("UNDER_REVIEW"),
       count("PROTOTYPE_CANDIDATE"),

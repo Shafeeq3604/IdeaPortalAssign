@@ -101,20 +101,15 @@ function Board({
   onToggleCompare: (ideaId: string, on: boolean) => void;
   onPage: (page: number) => void;
 }) {
-  if (data.items.length === 0) {
-    return (
-      <EmptyState
-        title="No ranked ideas yet"
-        description={
-          data.run.cohortSize === 0
-            ? "Nothing has been evaluated under this profile yet. Ideas appear here once their analysis finishes."
-            : "No idea matches these filters. Widen them to see the rest of the board."
-        }
-        action={{ label: "Browse all ideas", to: "/ideas" }}
-        renderLink={link}
-      />
-    );
-  }
+  /**
+   * The empty case replaces the LIST, not the page.
+   *
+   * Returning early here was a dead end: switching to a profile with no ranking run
+   * removed the profile selector along with the rows, so the only way back was the
+   * browser button. The controls that got you into a state have to survive it
+   * (SPEC §6.3 assertion 3). The J-3 journey caught this.
+   */
+  const empty = data.items.length === 0;
 
   return (
     <>
@@ -159,6 +154,19 @@ function Board({
           <p className="text-100 text-muted-foreground">Select one more to compare.</p>
         ) : null}
       </div>
+
+      {empty ? (
+        <EmptyState
+          title="No ranked ideas here"
+          description={
+            data.run.cohortSize === 0
+              ? "Nothing has been evaluated under this profile yet. Ideas appear once their analysis finishes — the controls above still work."
+              : "No idea matches these filters. Widen them, or switch profile, using the controls above."
+          }
+          action={{ label: "Browse all ideas", to: "/ideas" }}
+          renderLink={link}
+        />
+      ) : null}
 
       <ol className="space-y-3">
         {data.items.map((row) => (

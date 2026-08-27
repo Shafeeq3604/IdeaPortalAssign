@@ -71,7 +71,7 @@ pnpm build            # turbo build, all packages
 pnpm test             # unit + integration (Vitest)
 pnpm test:watch       # TDD loop
 pnpm test:bdd         # journey/flow specs (tests/bdd — real DB, no browser)
-pnpm test:e2e         # Playwright, critical paths only
+pnpm test:e2e         # Playwright: J-1..J-5 + a WCAG AA axe sweep
 pnpm test:nav         # navigation & clickability contract assertions
 pnpm lint             # eslint + stylelint
 pnpm lint:tokens      # fails on raw hex/px in feature code
@@ -100,7 +100,7 @@ MILESTONE M1 — MVP1 (must be a real, usable, navigable product on its own)
   [x] P6  Human Review, Overrides & Audit
   [x] P7  Ranked Board & Management Dashboard   (settle-rank FLIP reorder not built)
   [x] P8  Re-evaluation & Version History
-  [ ] P9  Config Viewer (read-only) + MVP1 hardening
+  [~] P9  Config Viewer (read-only) + MVP1 hardening   (axe + J1-J5 done; Lighthouse, k6, AI evals outstanding)
 
 MILESTONE M2 — Signals, Duplication & Config
   [ ] P10 Admin Configuration (write)

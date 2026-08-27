@@ -195,3 +195,31 @@ export function breadcrumbChain(routeId: string, maxDepth = 6): readonly RouteDe
   }
   return chain;
 }
+
+/**
+ * Which route a concrete pathname belongs to, if any.
+ *
+ * Added at P9, when the placeholder fallback was removed: without a fallback rendering
+ * every route, the catch-all has to tell "this URL is a typo" apart from "this URL is a
+ * real page your role may not see". Saying "not found" for the second is a small lie
+ * that sends someone hunting for a page that exists.
+ *
+ * Path knowledge belongs here rather than in the router, because this file is already the
+ * authority on what a path means, and the nav test can assert against it.
+ */
+export function matchRouteId(pathname: string): RouteDef | undefined {
+  const normalised = pathname.replace(/\/+$/, "") || "/";
+  return ROUTES.find((route) => {
+    // `:param` matches one segment and nothing else — `/ideas/a/b` must not match
+    // `/ideas/:ideaId`, or a nested typo would report as a permission problem.
+    const source = route.path
+      .split("/")
+      .map((segment) =>
+        segment.startsWith(":")
+          ? "[^/]+"
+          : segment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+      )
+      .join("/");
+    return new RegExp(`^${source}$`).test(normalised);
+  });
+}

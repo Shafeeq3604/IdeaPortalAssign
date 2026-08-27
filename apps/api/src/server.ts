@@ -208,6 +208,34 @@ function registerEndpoint(
 
       const result = await handler(request, reply, ctx);
       if (reply.sent) return reply;
+
+      /**
+       * Outside production, every response is checked against its contract schema.
+       *
+       * The queue handler returned its pagination fields flat while the contract nests
+       * them under `meta`. The API answered 200, the data was correct, and the page fell
+       * into its error boundary — a failure only findable by clicking. Zod already knows
+       * the shape; there is no reason for the server not to check it.
+       *
+       * Loud in development, off in production: a shape mismatch is a bug to fix at the
+       * source, not a 500 to hand a user.
+       */
+      if (ctx.env.NODE_ENV !== "production") {
+        const parsed = ep.response.safeParse(result);
+        if (!parsed.success) {
+          request.log.error(
+            {
+              operationId: ep.operationId,
+              issues: parsed.error.issues.slice(0, 5).map((i) => ({
+                path: i.path.join(".") || "(root)",
+                message: i.message,
+              })),
+            },
+            "RESPONSE DOES NOT MATCH ITS CONTRACT — the client will misread this",
+          );
+        }
+      }
+
       return reply.status(ep.successStatus).send(result);
     },
   });

@@ -22,6 +22,72 @@ const AWAITING_REVIEW: readonly IdeaStatus[] = [
 const daysSince = (date: Date | null): number =>
   date === null ? 0 : Math.max(0, Math.floor((Date.now() - date.getTime()) / 86_400_000));
 
+
+/**
+ * One shape for a queue row, whichever ordering produced it.
+ *
+ * The rank-sorted path fetches by id list and the default path fetches by `orderBy`;
+ * without a shared include and mapper the two would drift and only one would be tested.
+ */
+const QUEUE_INCLUDE = {
+  currentVersion: {
+    select: {
+      title: true,
+      // "Has AI nobody has checked" is the whole point of a review queue, so it is
+      // computed here rather than left for the client to infer from absence.
+      analyses: { select: { id: true } },
+      evaluations: {
+        orderBy: { computedAt: "desc" }, take: 1,
+        select: { compositeScore: true },
+      },
+    },
+  },
+  submitter: { select: { id: true, displayName: true, department: { select: { name: true } } } },
+  department: { select: { id: true, name: true } },
+  rankingEntries: {
+    orderBy: { run: { computedAt: "desc" } }, take: 1,
+    select: { rank: true },
+  },
+  reviews: { select: { id: true }, take: 1 },
+} as const;
+
+type QueueRow = {
+  id: string;
+  status: string;
+  submittedAt: Date | null;
+  currentVersion: {
+    title: string;
+    analyses: { id: string }[];
+    evaluations: { compositeScore: unknown }[];
+  } | null;
+  submitter: { id: string; displayName: string; department: { name: string } | null };
+  department: { id: string; name: string } | null;
+  rankingEntries: { rank: number }[];
+  reviews: { id: string }[];
+};
+
+function toQueueItem(idea: QueueRow) {
+  return {
+    ideaId: idea.id,
+    title: idea.currentVersion?.title ?? "Untitled",
+    status: idea.status,
+    submitter: {
+      id: idea.submitter.id,
+      displayName: idea.submitter.displayName,
+      departmentName: idea.submitter.department?.name ?? null,
+    },
+    department: idea.department ? { id: idea.department.id, name: idea.department.name } : null,
+    rank: idea.rankingEntries[0]?.rank ?? null,
+    compositeScore: idea.currentVersion?.evaluations[0]
+      ? Number(idea.currentVersion.evaluations[0].compositeScore)
+      : null,
+    submittedAt: idea.submittedAt?.toISOString() ?? null,
+    waitingDays: daysSince(idea.submittedAt),
+    hasUnvalidatedAi:
+      (idea.currentVersion?.analyses.length ?? 0) > 0 && idea.reviews.length === 0,
+  };
+}
+
 export function registerReviewRoutes(handlers: Map<string, Handler>): void {
   handlers.set("getReviewQueue", async (request, _reply, ctx) => {
     const query = request.query as {
@@ -38,36 +104,64 @@ export function registerReviewRoutes(handlers: Map<string, Handler>): void {
       ...(query.departmentId ? { departmentId: query.departmentId } : {}),
     };
 
+    /**
+     * "By rank" now actually sorts by rank.
+     *
+     * It used to fall through to `createdAt asc` — a control that offered an ordering and
+     * quietly gave you a different one, which is worse than not offering it. Rank lives
+     * on a ranking ENTRY, not on the idea, so it cannot be an `orderBy`: the order is
+     * built here from the latest run, with unranked ideas after the ranked ones rather
+     * than dropped.
+     */
+    if (query.sort === "rank") {
+      const latestRun = await ctx.db.rankingRun.findFirst({
+        orderBy: { computedAt: "desc" }, select: { id: true },
+      });
+      const ranked = latestRun
+        ? await ctx.db.rankingEntry.findMany({
+            where: { runId: latestRun.id, idea: where },
+            orderBy: { rank: "asc" },
+            select: { ideaId: true },
+          })
+        : [];
+      const rankedIds = ranked.map((e) => e.ideaId);
+
+      const unranked = await ctx.db.idea.findMany({
+        where: { ...where, id: { notIn: rankedIds } },
+        orderBy: { submittedAt: "asc" },
+        select: { id: true },
+      });
+
+      const ordered = [...rankedIds, ...unranked.map((i) => i.id)];
+      const pageIds = ordered.slice((page - 1) * perPage, page * perPage);
+      const fetched = await ctx.db.idea.findMany({
+        where: { id: { in: pageIds } },
+        include: QUEUE_INCLUDE,
+      });
+      // `findMany` does not preserve the order of an `in` list, so it is reimposed here.
+      const byId = new Map(fetched.map((i) => [i.id, i]));
+      const items = pageIds
+        .map((id) => byId.get(id))
+        .filter((i): i is NonNullable<typeof i> => i !== undefined)
+        .map(toQueueItem);
+
+      return {
+        items,
+        meta: {
+          page, perPage, total: ordered.length,
+          totalPages: Math.max(1, Math.ceil(ordered.length / perPage)),
+        },
+      };
+    }
+
     const [rows, total] = await Promise.all([
       ctx.db.idea.findMany({
         where,
-        include: {
-          currentVersion: {
-            select: {
-              title: true,
-              // "Has AI nobody has checked" is the whole point of a review queue, so it
-              // is computed here rather than left for the client to infer from absence.
-              analyses: { select: { id: true } },
-              evaluations: {
-                orderBy: { computedAt: "desc" }, take: 1,
-                select: { compositeScore: true },
-              },
-            },
-          },
-          submitter: { select: { id: true, displayName: true, department: { select: { name: true } } } },
-          department: { select: { id: true, name: true } },
-          rankingEntries: {
-            orderBy: { run: { computedAt: "desc" } }, take: 1,
-            select: { rank: true },
-          },
-          reviews: { select: { id: true }, take: 1 },
-        },
+        include: QUEUE_INCLUDE,
         // Oldest first by default: a queue sorted by score quietly buries the ideas that
         // have been waiting longest, which is the failure a queue exists to prevent.
         orderBy:
-          query.sort === "recent" ? { submittedAt: "desc" }
-          : query.sort === "rank" ? { createdAt: "asc" }
-          : { submittedAt: "asc" },
+          query.sort === "recent" ? { submittedAt: "desc" } : { submittedAt: "asc" },
         skip: (page - 1) * perPage,
         take: perPage,
       }),
@@ -75,29 +169,16 @@ export function registerReviewRoutes(handlers: Map<string, Handler>): void {
     ]);
 
     return {
-      items: rows.map((idea) => ({
-        ideaId: idea.id,
-        title: idea.currentVersion?.title ?? "Untitled",
-        status: idea.status,
-        submitter: {
-          id: idea.submitter.id,
-          displayName: idea.submitter.displayName,
-          departmentName: idea.submitter.department?.name ?? null,
-        },
-        department: idea.department ? { id: idea.department.id, name: idea.department.name } : null,
-        rank: idea.rankingEntries[0]?.rank ?? null,
-        compositeScore: idea.currentVersion?.evaluations[0]
-          ? Number(idea.currentVersion.evaluations[0].compositeScore)
-          : null,
-        submittedAt: idea.submittedAt?.toISOString() ?? null,
-        waitingDays: daysSince(idea.submittedAt),
-        hasUnvalidatedAi:
-          (idea.currentVersion?.analyses.length ?? 0) > 0 && idea.reviews.length === 0,
-      })),
-      page,
-      perPage,
-      total,
-      totalPages: Math.max(1, Math.ceil(total / perPage)),
+      items: rows.map(toQueueItem),
+      // Under `meta`, matching the `paginated()` helper every other list uses. Returning
+      // these flat rendered a 200 the client could not read: `data.meta.total` threw and
+      // the whole queue page fell into the error boundary.
+      meta: {
+        page,
+        perPage,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / perPage)),
+      },
     };
   });
 

@@ -111,6 +111,10 @@ export function Stepper({ steps, onStepClick }: StepperProps) {
         <h3 className="text-200 font-medium">Analysis progress</h3>
         <p
           role="progressbar"
+          // A progressbar without a name is announced as "progress bar" and nothing else.
+          // `aria-valuetext` describes the VALUE, not what is progressing — axe caught
+          // the difference.
+          aria-label="Analysis steps finished"
           aria-valuemin={0}
           aria-valuemax={steps.length}
           aria-valuenow={done}

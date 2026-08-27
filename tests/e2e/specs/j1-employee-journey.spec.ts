@@ -92,7 +92,8 @@ test.describe("J-1 employee journey", () => {
     await expect(page).toHaveURL(/\/history/);
     await expect(page.getByRole("link", { name: "Version 1" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Version 2" })).toBeVisible();
-    await expect(page.getByText("First version.")).toBeVisible();
+        // P8 replaced the version list with the Timeline, which words v1 differently.
+    await expect(page.getByText("The first version, as submitted.")).toBeVisible();
     await expect(page.getByText(/Named the OCR service/)).toBeVisible();
 
     // The status lane is recorded — an unlogged transition is impossible (FR-23).

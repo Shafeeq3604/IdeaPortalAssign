@@ -1,9 +1,7 @@
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ROUTES, breadcrumbChain, type Role } from "@iep/contracts";
+import { ROUTES, matchRouteId, type Role } from "@iep/contracts";
 import { Button } from "@iep/ui";
-import { RoutePlaceholder } from "./components/RoutePlaceholder";
-import { ThemeCheck, CrashTest } from "./components/ThemeCheck";
 import { LoginPage } from "./features/auth/LoginPage";
 import { IdeaListPage } from "./features/ideas/IdeaListPage";
 import { SubmitIdeaPage } from "./features/ideas/SubmitIdeaPage";
@@ -19,6 +17,10 @@ import { ReviewQueuePage } from "./features/review/ReviewQueuePage";
 import { RankingsPage } from "./features/rankings/RankingsPage";
 import { ComparePage } from "./features/rankings/ComparePage";
 import { DashboardPage } from "./features/rankings/DashboardPage";
+import { CriteriaPage, ProfilesPage } from "./features/config/ConfigPages";
+import { AuditPage, UsersPage } from "./features/admin/AdminPages";
+import { DepartmentPage, PersonPage } from "./features/people/ScopedIdeaPages";
+import { DataAndAiPage } from "./features/help/DataAndAiPage";
 import { AppProviders } from "./app/providers";
 import { RouteErrorBoundary } from "./app/error-boundary";
 import { RequireAuth } from "./app/session";
@@ -124,10 +126,70 @@ function Nav({ roles }: { roles: readonly Role[] }) {
   );
 }
 
+/**
+ * The catch-all, which has to tell two different stories.
+ *
+ * A URL matching no route is a typo. A URL matching a route this ROLE may not see is a
+ * permission boundary, and answering "not found" there is a small lie that sends someone
+ * hunting for a page which does exist. Both carry a way out (SPEC §6.3 assertion 3).
+ *
+ * This replaced the nav-map placeholder fallback, which used to produce the role message
+ * as a side effect of rendering every unimplemented route. With all 25 routes real, that
+ * fallback was gone — and the role message would have gone with it unnoticed.
+ */
+function Unreachable({ roles }: { roles: readonly Role[] }) {
+  const { pathname } = useLocation();
+  const known = matchRouteId(pathname);
+
+  if (known && !canSee(roles, known.roles)) {
+    return (
+      <main className="page">
+        <h1>Not available for your role</h1>
+        <p className="muted">
+          {known.title} is restricted to {known.roles.join(", ")}. You have{" "}
+          {roles.join(", ") || "no roles"}.
+        </p>
+        <Link to="/ideas">Back to ideas</Link>
+      </main>
+    );
+  }
+
+  return (
+    <main className="page">
+      <h1>Not found</h1>
+      <p className="muted">No route in the navigation map matches this URL.</p>
+      <Link to="/ideas">Back to ideas</Link>
+    </main>
+  );
+}
+
 function Shell() {
   const { pathname } = useLocation();
   const { data } = useSession();
   const roles: readonly Role[] = data?.user.roles ?? [];
+
+  /**
+   * The client-side role gate, checked ONCE for whatever route matches.
+   *
+   * It used to be a side effect of the nav-map placeholder fallback, which wrapped every
+   * route in a `canSee` check. Removing that fallback at P9 silently removed the gate
+   * too: an employee opening /dashboard got the real page and a 403 from the API rather
+   * than a straight answer about why. The E2E orphan hunt caught it.
+   *
+   * Convenience, never security — the API refuses independently (SPEC §4.2). What this
+   * buys is an honest message instead of a broken-looking screen.
+   */
+  const matched = matchRouteId(pathname);
+  if (matched && !canSee(roles, matched.roles)) {
+    return (
+      <div className="shell">
+        <Nav roles={roles} />
+        <div className="shell__main">
+          <Unreachable roles={roles} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="shell">
@@ -154,71 +216,27 @@ function Shell() {
             <Route path="/rankings/:runId" element={<RankingsPage mode="run" />} />
             <Route path="/rankings" element={<RankingsPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/config/criteria" element={<CriteriaPage />} />
+            <Route path="/config/profiles" element={<ProfilesPage />} />
+            <Route path="/admin/audit" element={<AuditPage />} />
+            <Route path="/admin/users" element={<UsersPage />} />
+            <Route path="/people/:userId" element={<PersonPage />} />
+            <Route path="/departments/:departmentId" element={<DepartmentPage />} />
+            <Route path="/help/data-and-ai" element={<DataAndAiPage />} />
             <Route path="/ideas/:ideaId/history" element={<HistoryTab />} />
             <Route path="/ideas/:ideaId/versions/:versionNo" element={<VersionPage />} />
             <Route path="/ideas/:ideaId/revise" element={<ReviseIdeaPage />} />
 
-            {ROUTES.filter((r) => !["login", "home"].includes(r.id))
-              .filter(
-                (r) =>
-                  !["ideas", "me.ideas", "ideas.new", "idea.overview", "idea.analysis", "idea.evaluation", "idea.improve",
-                    "idea.review", "idea.history", "idea.revise", "review.queue",
-                    "rankings", "rankings.run", "rankings.compare", "dashboard", "idea.version"].includes(
-                    r.id,
-                  ),
-              )
-              .map((route) => (
-              <Route
-                key={route.id}
-                path={route.path}
-                element={
-                  canSee(roles, route.roles) ? (
-                    <RoutePlaceholder
-                      routeId={route.id}
-                      title={route.title}
-                      path={route.path}
-                      roles={route.roles}
-                      renders={route.renders}
-                      searchParams={route.searchParams}
-                      backPath={route.backPath}
-                      crumbs={breadcrumbChain(route.id).map((c) => c.title)}
-                    />
-                  ) : (
-                    // Not a dead end: says why, and offers the way out (SPEC §6.3).
-                    <main className="page">
-                      <h1>Not available for your role</h1>
-                      <p className="muted">
-                        Restricted to {route.roles.join(", ")}. You have{" "}
-                        {roles.join(", ") || "no roles"}.
-                      </p>
-                      <Link to="/ideas">Back to ideas</Link>
-                    </main>
-                  )
-                }
-              />
-            ))}
-            <Route
-              path="/_theme"
-              element={
-                <main className="page">
-                  <h1>Theme check</h1>
-                  <p className="muted">P0.0 scaffold — removed at P1 close.</p>
-                  <ThemeCheck />
-                </main>
-              }
-            />
-            <Route path="/_boom" element={<CrashTest />} />
+            {/*
+              The nav-map placeholder fallback is GONE. Every one of the 25 routes has a
+              real page as of P9, so a fallback here would only ever hide a routing
+              mistake behind a plausible-looking stub.
+
+              A role that may not see a route still gets the explicit "not available for
+              your role" page below rather than a 404 — absence is not a dead end.
+            */}
             <Route path="/" element={<Navigate to="/ideas" replace />} />
-            <Route
-              path="*"
-              element={
-                <main className="page">
-                  <h1>Not found</h1>
-                  <p className="muted">No route in the navigation map matches this URL.</p>
-                  <Link to="/ideas">Back to ideas</Link>
-                </main>
-              }
-            />
+            <Route path="*" element={<Unreachable roles={roles} />} />
           </Routes>
         </RouteErrorBoundary>
       </div>

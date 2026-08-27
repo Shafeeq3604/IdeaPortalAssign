@@ -82,9 +82,14 @@ export function ReviewTab() {
               </CardContent>
             </Card>
 
+            {/*
+              No link: the audit log is admin-only, and pointing every reviewer at a page
+              that answers "not available for your role" is a promise the product cannot
+              keep. The reassurance is what matters here, not the hop.
+            */}
             <p className="text-100 text-muted-foreground">
-              Every decision here is recorded in{" "}
-              <Link to="/admin/audit">the audit trail</Link>, with who made it and why.
+              Every decision here is recorded in the audit trail, with who made it and
+              why. Administrators can read it in full.
             </p>
           </div>
         );

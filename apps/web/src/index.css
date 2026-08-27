@@ -47,6 +47,24 @@
     text-decoration: none;
   }
 
+  /*
+   * A link INSIDE a sentence needs more than colour (WCAG 1.4.1).
+   *
+   * Against muted body text the accent only reaches 1.2:1, so colour alone does not
+   * distinguish it — axe flagged exactly that on the submission form. Standalone links
+   * in nav, tables and lists of links keep the clean look; links embedded in prose get
+   * an underline, which is where the rule actually bites.
+   */
+  p a,
+  dd a,
+  /* A breadcrumb is a text block too: the crumb sits in a line of separators and muted
+     text, so the same rule applies to it. */
+  .crumbs a,
+  li > a:not(:only-child) {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
   a:hover {
     text-decoration: underline;
   }

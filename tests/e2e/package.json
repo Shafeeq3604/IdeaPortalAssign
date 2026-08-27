@@ -10,6 +10,7 @@
     "lint": "echo \"lint: configured in P9\""
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.49.1",
     "typescript": "^5.7.2"
   }
