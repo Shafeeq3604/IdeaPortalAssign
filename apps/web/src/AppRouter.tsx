@@ -5,6 +5,11 @@ import { Button } from "@iep/ui";
 import { RoutePlaceholder } from "./components/RoutePlaceholder";
 import { ThemeCheck, CrashTest } from "./components/ThemeCheck";
 import { LoginPage } from "./features/auth/LoginPage";
+import { IdeaListPage } from "./features/ideas/IdeaListPage";
+import { SubmitIdeaPage } from "./features/ideas/SubmitIdeaPage";
+import { ReviseIdeaPage } from "./features/ideas/ReviseIdeaPage";
+import { OverviewTab } from "./features/ideas/OverviewTab";
+import { HistoryTab } from "./features/ideas/HistoryTab";
 import { AppProviders } from "./app/providers";
 import { RouteErrorBoundary } from "./app/error-boundary";
 import { RequireAuth, canSee, useSession } from "./app/session";
@@ -121,7 +126,26 @@ function Shell() {
       <div className="shell__main">
         <RouteErrorBoundary resetKey={pathname}>
           <Routes>
-            {ROUTES.filter((r) => !["login", "home"].includes(r.id)).map((route) => (
+            {/*
+              P2 replaces the placeholder for the routes it implements. Everything else
+              still renders from the nav map, so the shell stays walkable end to end and
+              no route becomes a dead link mid-milestone.
+            */}
+            <Route path="/ideas" element={<IdeaListPage scope="all" />} />
+            <Route path="/me/ideas" element={<IdeaListPage scope="mine" />} />
+            <Route path="/ideas/new" element={<SubmitIdeaPage />} />
+            <Route path="/ideas/:ideaId/overview" element={<OverviewTab />} />
+            <Route path="/ideas/:ideaId/history" element={<HistoryTab />} />
+            <Route path="/ideas/:ideaId/revise" element={<ReviseIdeaPage />} />
+
+            {ROUTES.filter((r) => !["login", "home"].includes(r.id))
+              .filter(
+                (r) =>
+                  !["ideas", "me.ideas", "ideas.new", "idea.overview", "idea.history", "idea.revise"].includes(
+                    r.id,
+                  ),
+              )
+              .map((route) => (
               <Route
                 key={route.id}
                 path={route.path}

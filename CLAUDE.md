@@ -92,7 +92,7 @@ MILESTONE M0 — Foundations
 
 MILESTONE M1 — MVP1 (must be a real, usable, navigable product on its own)
   [x] P1  Identity, Access & App Shell
-  [ ] P2  Idea Capture & Lifecycle
+  [x] P2  Idea Capture & Lifecycle
   [ ] P3  AI Analysis Pipeline
   [x] P4  Evaluation & Ranking Engine        (parallel-safe with P2/P3)
   [ ] P5  Explanation & Improvement

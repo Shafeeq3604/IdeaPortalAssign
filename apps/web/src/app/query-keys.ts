@@ -1,6 +1,13 @@
-import type {
-  AuditQuery, ListIdeasQuery, ListRankingsQuery, ReviewQueueQuery, AdminUsersQuery,
-} from "@iep/contracts";
+/**
+ * Filters reaching a key are only ever serialized, so the factory takes a readonly
+ * serializable object rather than the exact query type. Requiring the mutable contract
+ * type forced call sites to drop `readonly` from their own filter state — trading real
+ * immutability for a type that a cache key does not need.
+ *
+ * Type safety lives where it belongs: on each hook's parameter (see the api.ts inside
+ * each feature folder), which IS typed against the contract query schema.
+ */
+type Filters = object;
 
 /**
  * TanStack Query key factory (P0 deliverable 5c, SPEC §7.8).
@@ -21,7 +28,7 @@ export const queryKeys = {
 
   ideas: {
     all: () => ["ideas"] as const,
-    list: (filters: Partial<ListIdeasQuery>) => ["ideas", "list", filters] as const,
+    list: (filters: Filters) => ["ideas", "list", filters] as const,
     detail: (ideaId: string) => ["ideas", "detail", ideaId] as const,
     versions: (ideaId: string) => ["ideas", "detail", ideaId, "versions"] as const,
     version: (ideaId: string, versionNo: number) =>
@@ -36,14 +43,14 @@ export const queryKeys = {
 
   rankings: {
     all: () => ["rankings"] as const,
-    list: (filters: Partial<ListRankingsQuery>) => ["rankings", "list", filters] as const,
+    list: (filters: Filters) => ["rankings", "list", filters] as const,
     run: (runId: string) => ["rankings", "run", runId] as const,
     compare: (ids: readonly string[], profile?: string) =>
       ["rankings", "compare", [...ids].sort(), profile ?? null] as const,
   },
 
   review: {
-    queue: (filters: Partial<ReviewQueueQuery>) => ["review", "queue", filters] as const,
+    queue: (filters: Filters) => ["review", "queue", filters] as const,
   },
 
   config: {
@@ -54,8 +61,8 @@ export const queryKeys = {
   dashboard: (departmentId?: string) => ["dashboard", departmentId ?? null] as const,
 
   admin: {
-    audit: (filters: Partial<AuditQuery>) => ["admin", "audit", filters] as const,
-    users: (filters: Partial<AdminUsersQuery>) => ["admin", "users", filters] as const,
+    audit: (filters: Filters) => ["admin", "audit", filters] as const,
+    users: (filters: Filters) => ["admin", "users", filters] as const,
   },
 } as const;
 

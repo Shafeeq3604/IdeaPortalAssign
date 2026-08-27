@@ -3,47 +3,58 @@
  * Replaced by Tailwind + shadcn in Step 3 / P1.
  */
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+/*
+ * Element defaults go in @layer base — NOT unlayered.
+ *
+ * Unlayered CSS wins over every layered rule, so a bare `a { color: … }` here silently
+ * beat Tailwind's `text-primary-foreground` (which lives in @layer utilities) and
+ * rendered indigo text on an indigo button. The button looked completely empty.
+ *
+ * Anything that a utility class should be able to override belongs in this layer.
+ */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
 
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-}
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
 
-body {
-  background: var(--canvas);
-  color: var(--text);
-  font-family: var(--font-sans);
-  font-size: var(--fs-300);
-  line-height: var(--lh-normal);
-}
+  body {
+    background: var(--canvas);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: var(--fs-300);
+    line-height: var(--lh-normal);
+  }
 
-code {
-  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
-  font-size: var(--fs-200);
-  background: var(--surface-sunken);
-  padding: var(--sp-1) var(--sp-2);
-  border-radius: var(--r-sm);
-}
+  code {
+    font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+    font-size: var(--fs-200);
+    background: var(--surface-sunken);
+    padding: var(--sp-1) var(--sp-2);
+    border-radius: var(--r-sm);
+  }
 
-a {
-  color: var(--accent-600);
-  text-decoration: none;
-}
+  a {
+    color: var(--accent-600);
+    text-decoration: none;
+  }
 
-a:hover {
-  text-decoration: underline;
-}
+  a:hover {
+    text-decoration: underline;
+  }
 
-:where(a, button, [tabindex]):focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  :where(a, button, [tabindex]):focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
 }
 
 .shell {
