@@ -14,6 +14,27 @@ export default defineConfig({
         target: "http://localhost:3001",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
+        configure: (proxy) => {
+          // Default behaviour prints a multi-line AggregateError stack for EVERY request
+          // while the API is down, which buries the one fact that matters. Say it once,
+          // in words, with the fix.
+          let warned = false;
+          proxy.on("error", (error: NodeJS.ErrnoException) => {
+            if (error.code !== "ECONNREFUSED" && !/ECONNREFUSED/.test(String(error))) {
+              console.error(`[api proxy] ${error.message}`);
+              return;
+            }
+            if (warned) return;
+            warned = true;
+            console.warn(
+              "\n[api proxy] The API is not running on :3001 — every /api request will fail." +
+                "\n            Stop this process and start both with:  corepack pnpm dev\n",
+            );
+          });
+          proxy.on("proxyRes", () => {
+            warned = false; // the API came back; report it again if it goes away later
+          });
+        },
       },
     },
   },

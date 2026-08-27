@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, CardContent, CardHeader, CardTitle, ErrorState } from "@iep/ui";
 import { Link } from "react-router-dom";
-import { api, ApiError } from "../../app/api-client";
+import { api, ApiError, ApiUnreachableError } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
 
 /**
@@ -42,16 +42,19 @@ export function LoginPage() {
   });
 
   if (devUsers.isError) {
+    const unreachable = devUsers.error instanceof ApiUnreachableError;
     const notConfigured =
       devUsers.error instanceof ApiError && devUsers.error.status === 404;
     return (
       <main className="page">
         <ErrorState
-          title={notConfigured ? "Sign-in is not configured" : "Could not reach the server"}
+          title={unreachable ? "The API server is not running" : notConfigured ? "Sign-in is not configured" : "Could not reach the server"}
           description={
-            notConfigured
-              ? "No identity provider is configured yet (assumption A1). Set AUTH_PROVIDER=dev and run `pnpm db:seed` for local development."
-              : "The API did not respond. Check that it is running on port 3001."
+            unreachable
+              ? "The web app is running, but nothing is answering on port 3001. Stop this process and start both with: corepack pnpm dev"
+              : notConfigured
+                ? "No identity provider is configured yet (assumption A1). Set AUTH_PROVIDER=dev and run pnpm db:seed for local development."
+                : "The API responded, but not in a way this page understands."
           }
           onRetry={() => void devUsers.refetch()}
           escapeTo={{ label: "Data & AI notice", to: "/help/data-and-ai" }}

@@ -27,21 +27,65 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The API could not be reached at all — no response, so no status code.
+ *
+ * Distinct from ApiError on purpose: "the server said no" and "there is no server" need
+ * different messages and different retry behaviour. Retrying a refused connection just
+ * floods the log without ever succeeding.
+ */
+export class ApiUnreachableError extends Error {
+  readonly path: string;
+
+  constructor(path: string, cause: unknown) {
+    super("Could not reach the API server");
+    this.name = "ApiUnreachableError";
+    this.path = path;
+    this.cause = cause;
+  }
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${BASE}${path}`, {
-    ...init,
-    // Session cookie must travel; the API sets CORS credentials to match.
-    credentials: "include",
-    headers: {
-      ...(init.body ? { "content-type": "application/json" } : {}),
-      ...init.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${BASE}${path}`, {
+      ...init,
+      // Session cookie must travel; the API sets CORS credentials to match.
+      credentials: "include",
+      headers: {
+        ...(init.body ? { "content-type": "application/json" } : {}),
+        ...init.headers,
+      },
+    });
+  } catch (cause) {
+    // fetch rejects only on a transport failure — the API is down, or the proxy cannot
+    // connect. Never a 4xx/5xx, which resolve normally and are handled below.
+    throw new ApiUnreachableError(path, cause);
+  }
 
   if (response.status === 204) return undefined as T;
 
   const text = await response.text();
-  const parsed: unknown = text ? JSON.parse(text) : null;
+
+  /**
+   * A dev proxy (and most reverse proxies) answer 502/503/504 with a plain-text body when
+   * the upstream is down — the fetch itself succeeds, so the transport catch above never
+   * fires. Without this, "the API isn't running" is indistinguishable from a server bug.
+   */
+  const isGatewayFailure = response.status === 502 || response.status === 503 || response.status === 504;
+  const looksLikeJson = (response.headers.get("content-type") ?? "").includes("json");
+  if (isGatewayFailure && !looksLikeJson) {
+    throw new ApiUnreachableError(path, `${response.status} ${response.statusText}`);
+  }
+
+  let parsed: unknown = null;
+  try {
+    parsed = text ? JSON.parse(text) : null;
+  } catch (cause) {
+    // A non-JSON body from an endpoint that always speaks JSON means we are not talking
+    // to the API — something else answered.
+    throw new ApiUnreachableError(path, cause);
+  }
 
   if (!response.ok) {
     const body = (parsed ?? {

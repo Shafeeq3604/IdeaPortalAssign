@@ -1,8 +1,9 @@
 import * as React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { ErrorState } from "@iep/ui";
 import type { Role, SessionResponse } from "@iep/contracts";
-import { api, ApiError } from "./api-client";
+import { api, ApiError, ApiUnreachableError } from "./api-client";
 import { queryKeys } from "./query-keys";
 
 /** Session state and route guarding (FR-01). */
@@ -27,13 +28,29 @@ export function useActor(): { userId: string; roles: readonly Role[] } | null {
  * losing the destination on sign-in is a small dead end (SPEC §6.3).
  */
 export function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { data, isPending, error } = useSession();
+  const { data, isPending, error, refetch } = useSession();
   const location = useLocation();
 
   if (isPending) {
     return (
       <main className="page" aria-busy="true">
         <p className="muted">Checking your session…</p>
+      </main>
+    );
+  }
+
+  // API down is NOT the same as signed out. Redirecting to /login would hide the real
+  // cause behind a login page that also cannot load.
+  if (error instanceof ApiUnreachableError) {
+    return (
+      <main className="page">
+        <ErrorState
+          title="The API server is not running"
+          description="The web app is up, but nothing is answering on port 3001. Start both processes with: corepack pnpm dev"
+          onRetry={() => void refetch()}
+          escapeTo={{ label: "Reload the page", to: "/" }}
+          renderLink={({ to, children, className }) => (<a href={to} className={className}>{children}</a>)}
+        />
       </main>
     );
   }
