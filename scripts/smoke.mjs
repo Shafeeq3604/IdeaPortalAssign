@@ -82,8 +82,31 @@ if (!root) {
 }
 
 console.log("\n— dependencies —");
-for (const [label, url] of [["postgres", "localhost:5432"], ["redis", "localhost:6379"]]) {
-  const [host, port] = url.split(":");
+
+/**
+ * Read the ports from .env rather than hardcoding them. They moved from 5432/6379 to
+ * 5433/6380 to dodge a local PostgreSQL service, and a hardcoded check then reported
+ * a healthy Redis as "not running" — a false alarm is worse than no check.
+ */
+function hostPortFrom(envKey, fallback) {
+  try {
+    const line = readFileSync(join(ROOT, ".env"), "utf8")
+      .split(/\r?\n/)
+      .find((l) => l.startsWith(`${envKey}=`));
+    // Handles both `scheme://user:pass@host:port/db` and `scheme://host:port` —
+    // the credentials segment is optional, which the first version of this missed.
+    const m = line?.match(/\/\/(?:[^@/]*@)?([^/:]+):(\d+)/);
+    if (m) return [m[1], m[2]];
+  } catch { /* fall through */ }
+  return fallback;
+}
+
+const deps = [
+  ["postgres", hostPortFrom("DATABASE_URL", ["localhost", "5432"])],
+  ["redis", hostPortFrom("REDIS_URL", ["localhost", "6379"])],
+];
+
+for (const [label, [host, port]] of deps) {
   const net = await import("node:net");
   const reachable = await new Promise((resolve) => {
     const s = net.createConnection({ host, port: Number(port) });
@@ -92,7 +115,9 @@ for (const [label, url] of [["postgres", "localhost:5432"], ["redis", "localhost
     setTimeout(() => { s.destroy(); resolve(false); }, 1500);
   });
   // Not a failure at P0 — no feature reads them yet. It becomes one in P2.
-  reachable ? ok(`${label} reachable`) : skip(`${label} not running (\`pnpm deps:up\`) — required from P2`);
+  reachable
+    ? ok(`${label} reachable on ${host}:${port}`)
+    : skip(`${label} not running on ${host}:${port} — run: pnpm deps:up`);
 }
 
 console.log(failures === 0 ? "\nsmoke: PASS\n" : `\nsmoke: ${failures} failure(s)\n`);

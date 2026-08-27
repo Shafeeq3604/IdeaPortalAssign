@@ -91,21 +91,30 @@ export function buildServer(ctx: AppContext): FastifyInstance {
   registerConfigRoutes(handlers);
 
   /* ── register every endpoint from the contract ── */
-  const missing: string[] = [];
+  const stubbed: string[] = [];
 
   for (const ep of ENDPOINTS) {
-    const handler = handlers.get(ep.operationId);
-    if (!handler) {
-      // P1 implements identity, auth and config. The rest land in their own phases;
-      // they answer 501 rather than 404 so a missing feature is never a broken link.
+    if (!handlers.has(ep.operationId)) {
+      // Endpoints whose phase has not landed answer 501 rather than 404, so a missing
+      // feature is never a broken link.
       handlers.set(ep.operationId, notImplementedYet(ep));
+      stubbed.push(ep.operationId);
     }
     registerEndpoint(app, ep, handlers.get(ep.operationId)!, ctx);
   }
 
-  if (missing.length > 0) {
-    throw new Error(`Endpoints declared with no handler: ${missing.join(", ")}`);
-  }
+  /**
+   * Report the stub list at boot.
+   *
+   * Falling through to 501 is correct for an unbuilt phase and WRONG for one that was
+   * meant to be wired — and the two look identical from the outside. `getHealth` was
+   * silently stubbed for a whole phase this way. Printing the list makes an accidental
+   * stub obvious the moment the server starts.
+   */
+  app.log.info(
+    { implemented: ENDPOINTS.length - stubbed.length, stubbed: stubbed.length, endpoints: stubbed },
+    `routes: ${ENDPOINTS.length - stubbed.length}/${ENDPOINTS.length} implemented, ${stubbed.length} awaiting their phase`,
+  );
 
   app.setNotFoundHandler((request, reply) =>
     sendError(reply, "NOT_FOUND", `No route for ${request.method} ${request.url}`),

@@ -10,6 +10,16 @@ import { rolesFromGroups } from "../auth/provider.js";
 /** Auth endpoints (FR-01). */
 
 export function registerAuthRoutes(handlers: Map<string, Handler>): void {
+  /**
+   * Liveness probe. Deliberately says only that the process is alive — no version,
+   * commit, or dependency detail, because this endpoint is unauthenticated (SPEC §4.3).
+   */
+  handlers.set("getHealth", () => ({
+    status: "ok" as const,
+    service: "iep-api",
+    phase: "P1",
+  }));
+
   handlers.set("getSession", async (request, reply, ctx) => {
     if (!request.actor) return sendError(reply, "UNAUTHENTICATED", "Not signed in");
 
