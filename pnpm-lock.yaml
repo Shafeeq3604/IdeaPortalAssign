@@ -11,6 +11,18 @@ importers:
 
   .:
     devDependencies:
+      '@iep/ai':
+        specifier: workspace:*
+        version: link:packages/ai
+      '@iep/db':
+        specifier: workspace:*
+        version: link:packages/db
+      '@iep/evaluation':
+        specifier: workspace:*
+        version: link:packages/evaluation
+      '@iep/worker':
+        specifier: workspace:*
+        version: link:apps/worker
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1

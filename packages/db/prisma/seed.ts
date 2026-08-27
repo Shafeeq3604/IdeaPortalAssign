@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { CRITERIA, PROFILES, profileWeightSum } from "@iep/contracts";
 import { DEFAULT_ROUTES } from "@iep/ai";
+import { DEMO_IDEAS } from "./demo-ideas.js";
 
 /**
  * Seed: configuration + demo data (P0 deliverable, `pnpm db:seed`).
@@ -143,10 +145,76 @@ async function main(): Promise<void> {
     });
   }
 
+  /**
+   * Demo ideas, created SUBMITTED but NOT analysed.
+   *
+   * The seed must not require Redis or a model provider — it is the first thing you run,
+   * before anything else is up. `pnpm demo:data` walks the pipeline over whatever is
+   * unanalysed afterwards, so seeding and analysing stay independently runnable and a
+   * failure in one does not strand the other.
+   *
+   * CLAUDE.md has always documented `db:seed` as seeding ideas. Until now it did not, and
+   * a fresh install opened on an empty product.
+   */
+  const seedUsers = await prisma.user.findMany({ orderBy: { email: "asc" } });
+  const deptIds = [...departments.values()];
+  let createdIdeas = 0;
+
+  for (const [i, idea] of DEMO_IDEAS.entries()) {
+    // Idempotent, like everything else here: re-running must not duplicate them.
+    const existing = await prisma.ideaVersion.findFirst({ where: { title: idea.title } });
+    if (existing) continue;
+
+    const author = seedUsers[i % seedUsers.length]!;
+    const row = await prisma.idea.create({
+      data: {
+        submitterId: author.id,
+        departmentId: deptIds[i % deptIds.length]!,
+        status: "SUBMITTED",
+        submittedAt: new Date(),
+      },
+    });
+
+    const version = await prisma.ideaVersion.create({
+      data: {
+        ideaId: row.id,
+        versionNo: 1,
+        authorId: author.id,
+        contentHash: createHash("sha256")
+          .update(JSON.stringify({ ...idea.optional, title: idea.title }))
+          .digest("hex")
+          .slice(0, 32),
+        changeSummary: null, // v1 has none — the DB CHECK enforces it
+        title: idea.title,
+        description: idea.description,
+        problemStatement: idea.problemStatement,
+        expectedUsers: idea.expectedUsers,
+        expectedOutcome: idea.expectedOutcome,
+        existingProcess: idea.optional.existingProcess ?? null,
+        existingSolutions: idea.optional.existingSolutions ?? null,
+        suggestedTechnology: idea.optional.suggestedTechnology ?? null,
+        expectedBenefits: idea.optional.expectedBenefits ?? null,
+        estimatedCostNote: idea.optional.estimatedCostNote ?? null,
+        references: idea.optional.references ?? null,
+      },
+    });
+
+    await prisma.idea.update({
+      where: { id: row.id },
+      data: { currentVersionId: version.id },
+    });
+    // FR-23: a transition without a record is impossible, seed included.
+    await prisma.statusHistory.create({
+      data: { ideaId: row.id, fromStatus: "DRAFT", toStatus: "SUBMITTED", actorId: author.id },
+    });
+    createdIdeas += 1;
+  }
+
   console.log(
     `seeded: ${DEPARTMENTS.length} departments, ${CATEGORIES.length} categories, ` +
       `${CRITERIA.length} criteria, ${PROFILES.length} profiles, ` +
-      `${DEFAULT_ROUTES.length} model routes, ${DEMO_USERS.length} users`,
+      `${DEFAULT_ROUTES.length} model routes, ${DEMO_USERS.length} users, ` +
+      `${createdIdeas} new demo idea(s)`,
   );
 }
 

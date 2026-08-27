@@ -25,7 +25,9 @@
     "deps:up": "docker compose up -d",
     "deps:down": "docker compose down",
     "openapi:generate": "tsx scripts/generate-openapi.mts",
-    "openapi:check": "tsx scripts/generate-openapi.mts && git diff --exit-code --stat -- openapi.json"
+    "openapi:check": "tsx scripts/generate-openapi.mts && git diff --exit-code --stat -- openapi.json",
+    "demo:data": "tsx --env-file-if-exists=.env scripts/demo-data.mts",
+    "demo:reset": "tsx --env-file-if-exists=.env scripts/demo-data.mts --fresh && pnpm db:seed && tsx --env-file-if-exists=.env scripts/demo-data.mts"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
@@ -35,7 +37,11 @@
     "typescript": "^5.7.2",
     "vitest": "^2.1.8",
     "zod": "^3.24.1",
-    "zod-to-json-schema": "^3.25.2"
+    "zod-to-json-schema": "^3.25.2",
+    "@iep/db": "workspace:*",
+    "@iep/ai": "workspace:*",
+    "@iep/evaluation": "workspace:*",
+    "@iep/worker": "workspace:*"
   },
   "pnpm": {
     "overrides": {

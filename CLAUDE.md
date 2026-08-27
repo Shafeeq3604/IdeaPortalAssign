@@ -56,6 +56,8 @@ tests/
 docs/
   adr/            One file per ADR
 IEP-SPEC.md       SOURCE OF TRUTH
+REQUIREMENTS      requirements.md — the origin document
+RUNNING.md        how to run it locally + a demo walkthrough
 SKILL.md          How to build one vertical slice
 ```
 
@@ -77,7 +79,9 @@ pnpm lint             # eslint + stylelint
 pnpm lint:tokens      # fails on raw hex/px in feature code
 pnpm typecheck
 pnpm db:migrate       # prisma migrate dev
-pnpm db:seed          # demo users, criteria, profiles, ideas
+pnpm db:seed          # config, 4 demo users, 8 demo ideas (idempotent)
+pnpm demo:data        # analyse + score + rank anything unprocessed
+pnpm demo:reset       # wipe ideas, re-seed, re-analyse  (DELETES ideas)
 pnpm eval             # AI golden-set evals (nightly / pre-release, not per-PR)
 pnpm smoke            # boots the stack, hits /health, walks the nav map
 ```

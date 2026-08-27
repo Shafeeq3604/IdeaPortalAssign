@@ -28,18 +28,30 @@ test.describe("J-2 reviewer journey", () => {
       `[href*="/review"]` then matched the queue's own sort links. A row link is the only
       one that both names an idea and ends at its review tab.
     */
-    const firstIdea = page.locator('main a[href^="/ideas/"][href$="/review"]').first();
-    await expect(firstIdea).toBeVisible();
-
-    // Wait, do not sample: `count()` on a cold page reports zero and the journey used
-    // to skip itself, which reads as a pass.
     await expect(
       page.getByRole("row").nth(1),
-      "the review queue is empty — run `pnpm db:seed` and let the worker finish",
+      "the review queue is empty — run `pnpm db:seed && pnpm demo:data`",
+    ).toBeVisible();
+
+    /*
+      An idea Rae did NOT submit.
+
+      A reviewer cannot adjust the score on their own idea — that is the rule, not an
+      inconvenience — so a journey that grabs the top-ranked row gets an idea with no
+      override form roughly a quarter of the time and reports it as a bug.
+    */
+    const reviewable = page
+      .getByRole("row")
+      .filter({ hasNot: page.getByRole("link", { name: "Rae Reviewer" }) })
+      .locator('a[href^="/ideas/"][href$="/review"]')
+      .first();
+    await expect(
+      reviewable,
+      "no queued idea was submitted by someone other than the reviewer",
     ).toBeVisible();
 
     // Row → the idea's REVIEW tab, not its overview (§6.2 row 36).
-    await firstIdea.click();
+    await reviewable.click();
     await expect(page).toHaveURL(new RegExp(String.raw`/ideas/[0-9a-f-]+/review`));
 
     /* ── an override without a reason is refused, in the UI and by the API ── */

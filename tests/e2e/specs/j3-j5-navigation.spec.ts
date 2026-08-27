@@ -35,10 +35,13 @@ test.describe("J-3 management journey", () => {
     await page.goto("/dashboard");
 
     /* ── every tile is a link (§6.2 row 40) ── */
-    // Wait for the first tile: counting during the skeleton render finds zero links and
-    // reports a missing dashboard rather than a slow one.
-    const tiles = page.getByRole("main").getByRole("link");
-    await expect(tiles.first()).toBeVisible();
+    /*
+      Wait for a TILE, not for "the first link in main" — that is the breadcrumb, which is
+      present immediately, so the count ran against a still-loading grid and reported a
+      missing dashboard rather than a slow one. Same trap as the queue row in J-2.
+    */
+    await expect(page.getByRole("link", { name: /Total ideas/ })).toBeVisible();
+    const tiles = page.locator(`main a[href^="/ideas"], main a[href^="/rankings"], main a[href^="/review"]`);
     const tileCount = await tiles.count();
     expect(tileCount, "the dashboard must show at least nine linked tiles").toBeGreaterThanOrEqual(9);
 

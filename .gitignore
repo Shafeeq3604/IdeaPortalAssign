@@ -8,3 +8,7 @@ coverage/
 playwright-report/
 test-results/
 .DS_Store
+
+# Playwright failure artefacts — screenshots, traces, page snapshots
+tests/e2e/test-results/
+tests/e2e/playwright-report/
