@@ -43,15 +43,25 @@ export function LoginPage() {
 
   if (devUsers.isError) {
     const unreachable = devUsers.error instanceof ApiUnreachableError;
+    // The API is up but its database is not — a different fix from the API being down.
+    const dbDown =
+      devUsers.error instanceof ApiError && devUsers.error.body.code === "DEPENDENCY_UNAVAILABLE";
     const notConfigured =
       devUsers.error instanceof ApiError && devUsers.error.status === 404;
     return (
       <main className="page">
         <ErrorState
-          title={unreachable ? "The API server is not running" : notConfigured ? "Sign-in is not configured" : "Could not reach the server"}
+          title={
+            unreachable ? "The API server is not running"
+              : dbDown ? "The database is not running"
+              : notConfigured ? "Sign-in is not configured"
+              : "Could not reach the server"
+          }
           description={
             unreachable
               ? "The web app is running, but nothing is answering on port 3001. Stop this process and start both with: corepack pnpm dev"
+              : dbDown
+              ? "The API is running but cannot reach Postgres. Open Docker Desktop, then run: corepack pnpm deps:up"
               : notConfigured
                 ? "No identity provider is configured yet (assumption A1). Set AUTH_PROVIDER=dev and run pnpm db:seed for local development."
                 : "The API responded, but not in a way this page understands."

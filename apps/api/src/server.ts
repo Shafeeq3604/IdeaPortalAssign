@@ -115,6 +115,42 @@ export function buildServer(ctx: AppContext): FastifyInstance {
     if ((error as { statusCode?: number }).statusCode === 429) {
       return sendError(reply, "RATE_LIMITED", "Too many requests");
     }
+
+    /**
+     * A dependency being down is an operational fact, not a bug, and it has a specific
+     * fix. Reporting it as a generic 500 sends a developer hunting through a Prisma
+     * stack for something that `pnpm deps:up` solves in five seconds.
+     *
+     * The message names the dependency and the remedy but no host, credential or stack —
+     * SPEC §4.4 still applies.
+     */
+    const name = (error as { name?: string }).name ?? "";
+    const code = String((error as { code?: string }).code ?? "");
+    const text = String((error as { message?: string }).message ?? "");
+
+    /**
+     * Two distinct shapes, and the second is easy to miss:
+     *   - PrismaClientInitializationError — the DB was already down at first query.
+     *   - PrismaClientKnownRequestError P1000–P1002/P1008/P1017 — the DB went away
+     *     mid-session (container stopped, connection closed). Prisma reports this as a
+     *     "known request error", which does NOT look like a connectivity failure unless
+     *     you check the code.
+     */
+    const PRISMA_CONNECTIVITY = new Set(["P1000", "P1001", "P1002", "P1008", "P1017"]);
+    const dbDown =
+      name === "PrismaClientInitializationError" ||
+      PRISMA_CONNECTIVITY.has(code) ||
+      /Can't reach database server|Server has closed the connection/.test(text);
+
+    if (dbDown) {
+      request.log.error("database unreachable — is it running? `pnpm deps:up`");
+      return sendError(
+        reply,
+        "DEPENDENCY_UNAVAILABLE",
+        "The database is not reachable. Start it with: corepack pnpm deps:up",
+      );
+    }
+
     request.log.error({ err: error }, "unhandled error");
     // Never leak provider or stack detail to a client (SPEC §4.4).
     return sendError(reply, "INTERNAL_ERROR", "Something went wrong");
