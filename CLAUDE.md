@@ -99,7 +99,7 @@ MILESTONE M1 — MVP1 (must be a real, usable, navigable product on its own)
   [x] P5  Explanation & Improvement   (AI-09 narrative deferred — optional in SPEC)
   [x] P6  Human Review, Overrides & Audit
   [x] P7  Ranked Board & Management Dashboard   (settle-rank FLIP reorder not built)
-  [ ] P8  Re-evaluation & Version History
+  [x] P8  Re-evaluation & Version History
   [ ] P9  Config Viewer (read-only) + MVP1 hardening
 
 MILESTONE M2 — Signals, Duplication & Config

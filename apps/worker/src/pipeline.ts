@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@iep/db";
 import { PIPELINE_STEPS, type AnalysisStep } from "@iep/contracts";
 import {
-  analyseStep,
+  analyseStep, stepInputHash, stepInputText,
   type AiProvider, type ModelRoute,
   type StructureOutput, type UseCaseOutput, type ValueOutput,
   type FeasibilityOutput, type RiskOutput, type EffortTimelineOutput,
@@ -31,6 +31,8 @@ export interface PipelineResult {
   readonly ideaVersionId: string;
   readonly overall: "SUCCEEDED" | "PARTIAL" | "FAILED";
   readonly stepsRun: number;
+  /** Steps whose inputs were unchanged and were copied from the previous version. */
+  readonly stepsCarriedForward: number;
   readonly stepsFallenBack: number;
   readonly totalCostUsd: number;
 }
@@ -50,32 +52,20 @@ async function loadRoutes(db: PrismaClient): Promise<readonly ModelRoute[]> {
   }));
 }
 
-/** The submission as one text block — what the model actually analyses. */
-function ideaTextFrom(fields: Readonly<Record<string, string | null>>): string {
-  const parts = [
-    fields["title"],
-    fields["problemStatement"],
-    fields["description"],
-    fields["expectedUsers"],
-    fields["expectedOutcome"],
-    fields["existingProcess"],
-    fields["existingSolutions"],
-    fields["suggestedTechnology"],
-    fields["expectedBenefits"],
-  ].filter((v): v is string => Boolean(v && v.trim()));
-  return parts.join("\n\n");
-}
-
-export async function runPipeline(
-  deps: PipelineDeps,
-  input: { ideaId: string; ideaVersionId: string; contentHash: string },
-): Promise<PipelineResult> {
-  const { db, provider } = deps;
-
-  const version = await db.ideaVersion.findUnique({ where: { id: input.ideaVersionId } });
-  if (!version) throw new Error(`idea version ${input.ideaVersionId} no longer exists`);
-
-  const fields: Record<string, string | null> = {
+/**
+ * One version's fields, in the shape the step-input helpers expect.
+ *
+ * Replaces the single whole-submission text block this file used to build. Each step now
+ * receives exactly the fields it declares in `STEP_INPUT_FIELDS`, which is what lets an
+ * unchanged step be skipped on a revision without guessing (FR-16).
+ */
+function fieldsOf(version: {
+  title: string; description: string; problemStatement: string; expectedUsers: string;
+  expectedOutcome: string; existingProcess: string | null; existingSolutions: string | null;
+  suggestedTechnology: string | null; expectedBenefits: string | null;
+  estimatedCostNote: string | null; references: string | null;
+}): Record<string, string | null> {
+  return {
     title: version.title,
     description: version.description,
     problemStatement: version.problemStatement,
@@ -88,8 +78,35 @@ export async function runPipeline(
     estimatedCostNote: version.estimatedCostNote,
     references: version.references,
   };
-  const ideaText = ideaTextFrom(fields);
+}
+
+export async function runPipeline(
+  deps: PipelineDeps,
+  input: { ideaId: string; ideaVersionId: string; contentHash: string },
+): Promise<PipelineResult> {
+  const { db, provider } = deps;
+
+  const version = await db.ideaVersion.findUnique({ where: { id: input.ideaVersionId } });
+  if (!version) throw new Error(`idea version ${input.ideaVersionId} no longer exists`);
+
+  const fields = fieldsOf(version);
   const routes = await loadRoutes(db);
+
+  /**
+   * The version this one replaced, if any (FR-16).
+   *
+   * A revision usually changes one or two fields. Re-running all six steps because the
+   * cost note gained a sentence is slow, and on the real provider it is the difference
+   * between a revision costing cents and costing dollars. Any step whose declared inputs
+   * are byte-identical is carried forward instead.
+   */
+  const previous = await db.ideaVersion.findFirst({
+    where: { ideaId: input.ideaId, versionNo: { lt: version.versionNo } },
+    orderBy: { versionNo: "desc" },
+    include: { analyses: { include: { proposal: true, useCases: true, valueFindings: true } } },
+  });
+  const previousFields = previous ? fieldsOf(previous) : null;
+  let carried = 0;
 
   await db.idea.update({ where: { id: input.ideaId }, data: { status: "AI_ANALYSIS" } });
 
@@ -103,6 +120,27 @@ export async function runPipeline(
       where: { ideaVersionId_step: { ideaVersionId: input.ideaVersionId, step } },
     });
     if (existing?.status === "SUCCEEDED") continue;
+
+    /**
+     * Carry forward when this step's inputs did not move.
+     *
+     * Only from a SUCCEEDED, non-fallback run: re-running a step that fell back is the
+     * whole point of trying again, and copying a fallback forward would freeze an outage
+     * into the record permanently.
+     */
+    const reusable =
+      previousFields &&
+      stepInputHash(step, fields) === stepInputHash(step, previousFields)
+        ? previous?.analyses.find(
+            (a) => a.step === step && a.status === "SUCCEEDED" && a.errorCode === null,
+          )
+        : undefined;
+
+    if (reusable) {
+      await carryForward(db, reusable, input.ideaVersionId, step);
+      carried += 1;
+      continue;
+    }
 
     const analysis = await db.aiAnalysis.upsert({
       where: { ideaVersionId_step: { ideaVersionId: input.ideaVersionId, step } },
@@ -121,7 +159,9 @@ export async function runPipeline(
 
     const outcome = await analyseStep(provider, {
       step,
-      ideaText,
+      // Exactly the fields the hash above covered. If a step could see more than it
+      // declares, skipping it would be unsound.
+      ideaText: stepInputText(step, fields),
       fields,
       redactionEnabled: deps.redactionEnabled,
       budgetRemainingUsd: deps.budgetPerVersionUsd - spent,
@@ -172,6 +212,7 @@ export async function runPipeline(
     ideaVersionId: input.ideaVersionId,
     overall,
     stepsRun: ran,
+    stepsCarriedForward: carried,
     stepsFallenBack: fallbacks,
     totalCostUsd: spent,
   };
@@ -319,4 +360,84 @@ async function persistStep(
     default:
       return;
   }
+}
+
+/**
+ * Copy a step's result from the previous version onto this one.
+ *
+ * A copy, not a reference. The versions are independent records — an idea's v2 analysis
+ * has to stay readable after v1 is superseded, and pointing at v1's row would make the
+ * Analysis tab of one version depend on the lifetime of another.
+ *
+ * The child rows are re-created rather than moved, so both versions keep a complete set
+ * and `persistStep`'s replace-on-rerun semantics still hold.
+ */
+async function carryForward(
+  db: PrismaClient,
+  source: {
+    id: string; provider: string; model: string; tier: "A" | "B" | "C";
+    promptVersion: string; redactionApplied: boolean; rawPayload: unknown;
+    proposal: Record<string, unknown> | null;
+    useCases: Record<string, unknown>[];
+    valueFindings: Record<string, unknown>[];
+  },
+  ideaVersionId: string,
+  step: AnalysisStep,
+): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const analysis = await tx.aiAnalysis.upsert({
+      where: { ideaVersionId_step: { ideaVersionId, step } },
+      update: {
+        status: "SUCCEEDED",
+        provider: source.provider,
+        model: source.model,
+        tier: source.tier,
+        promptVersion: source.promptVersion,
+        redactionApplied: source.redactionApplied,
+        rawPayload: source.rawPayload as never,
+        // Zero cost, because none was incurred. Leaving the previous version's token
+        // counts here would double-count spend across the idea's whole history.
+        inputTokens: null, outputTokens: null, cachedInputTokens: null, costUsdMicros: null,
+        errorCode: null,
+        startedAt: new Date(),
+        finishedAt: new Date(),
+      },
+      create: {
+        ideaVersionId, step, status: "SUCCEEDED",
+        provider: source.provider, model: source.model, tier: source.tier,
+        promptVersion: source.promptVersion, redactionApplied: source.redactionApplied,
+        rawPayload: source.rawPayload as never,
+        startedAt: new Date(), finishedAt: new Date(),
+      },
+    });
+
+    if (source.proposal) {
+      const { id: _id, aiAnalysisId: _parent, ...rest } = source.proposal as Record<string, unknown>;
+      await tx.aiStructuredProposal.upsert({
+        where: { aiAnalysisId: analysis.id },
+        update: rest as never,
+        create: { aiAnalysisId: analysis.id, ...(rest as object) } as never,
+      });
+    }
+
+    if (source.useCases.length > 0) {
+      await tx.useCase.deleteMany({ where: { aiAnalysisId: analysis.id } });
+      await tx.useCase.createMany({
+        data: source.useCases.map((u) => {
+          const { id: _id, aiAnalysisId: _parent, ...rest } = u;
+          return { aiAnalysisId: analysis.id, ...(rest as object) };
+        }) as never,
+      });
+    }
+
+    if (source.valueFindings.length > 0) {
+      await tx.valueFinding.deleteMany({ where: { aiAnalysisId: analysis.id } });
+      await tx.valueFinding.createMany({
+        data: source.valueFindings.map((v) => {
+          const { id: _id, aiAnalysisId: _parent, ...rest } = v;
+          return { aiAnalysisId: analysis.id, ...(rest as object) };
+        }) as never,
+      });
+    }
+  });
 }

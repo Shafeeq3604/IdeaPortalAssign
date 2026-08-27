@@ -10,6 +10,7 @@ import { SubmitIdeaPage } from "./features/ideas/SubmitIdeaPage";
 import { ReviseIdeaPage } from "./features/ideas/ReviseIdeaPage";
 import { OverviewTab } from "./features/ideas/OverviewTab";
 import { HistoryTab } from "./features/ideas/HistoryTab";
+import { VersionPage } from "./features/ideas/VersionPage";
 import { AnalysisTab } from "./features/analysis/AnalysisTab";
 import { EvaluationTab } from "./features/evaluation/EvaluationTab";
 import { ImproveTab } from "./features/evaluation/ImproveTab";
@@ -154,6 +155,7 @@ function Shell() {
             <Route path="/rankings" element={<RankingsPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/ideas/:ideaId/history" element={<HistoryTab />} />
+            <Route path="/ideas/:ideaId/versions/:versionNo" element={<VersionPage />} />
             <Route path="/ideas/:ideaId/revise" element={<ReviseIdeaPage />} />
 
             {ROUTES.filter((r) => !["login", "home"].includes(r.id))
@@ -161,7 +163,7 @@ function Shell() {
                 (r) =>
                   !["ideas", "me.ideas", "ideas.new", "idea.overview", "idea.analysis", "idea.evaluation", "idea.improve",
                     "idea.review", "idea.history", "idea.revise", "review.queue",
-                    "rankings", "rankings.run", "rankings.compare", "dashboard"].includes(
+                    "rankings", "rankings.run", "rankings.compare", "dashboard", "idea.version"].includes(
                     r.id,
                   ),
               )

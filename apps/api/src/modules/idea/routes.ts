@@ -253,15 +253,50 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
       repo.statusHistory(ideaId),
     ]);
 
+    /**
+     * The score each version actually achieved (P8, FR-24).
+     *
+     * Per VERSION, not per idea: the whole point of the History tab is that v2 scored
+     * differently from v1, and reporting the current score against every row would make
+     * the timeline claim the idea was always where it is now.
+     */
+    const evaluations = await ctx.db.evaluation.findMany({
+      where: { ideaVersionId: { in: versions.map((v) => v.id) } },
+      orderBy: { computedAt: "desc" },
+      select: { ideaVersionId: true, compositeScore: true, maturityLevel: true },
+    });
+    const byVersion = new Map(evaluations.map((e) => [e.ideaVersionId, e]));
+
+    /**
+     * Rank is a property of a RUN, and runs are cohort-wide, so a version's rank is the
+     * one it held in the most recent run that included it. An older version's rank stays
+     * frozen at whatever it was — which is exactly the comparison FR-24 asks for.
+     */
+    const entries = await ctx.db.rankingEntry.findMany({
+      where: { ideaId },
+      orderBy: { run: { computedAt: "desc" } },
+      select: { rank: true, evaluation: { select: { ideaVersionId: true } } },
+    });
+    const rankByVersion = new Map<string, number>();
+    for (const entry of entries) {
+      // First hit wins: the list is newest-first, so this keeps the latest rank per version.
+      if (!rankByVersion.has(entry.evaluation.ideaVersionId)) {
+        rankByVersion.set(entry.evaluation.ideaVersionId, entry.rank);
+      }
+    }
+
     return {
-      // Evaluation deltas per version arrive with P4's results in P8; the shape is fixed
-      // now so the History tab does not change contract when they do.
-      versions: versions.map((v) => ({
-        ...toVersionSummary(v),
-        compositeScore: null,
-        rank: null,
-        maturityLevel: null,
-      })),
+      versions: versions.map((v) => {
+        const evaluation = byVersion.get(v.id);
+        return {
+          ...toVersionSummary(v),
+          compositeScore: evaluation ? Number(evaluation.compositeScore) : null,
+          rank: rankByVersion.get(v.id) ?? null,
+          // null, never 1. An unevaluated version has no maturity, and defaulting it
+          // would put "Level 1 — an initial thought" against a version nobody assessed.
+          maturityLevel: (evaluation?.maturityLevel ?? null) as 1 | 2 | 3 | 4 | 5 | null,
+        };
+      }),
       statusHistory: history.map(toStatusEntry),
     };
   });

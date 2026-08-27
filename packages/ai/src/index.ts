@@ -5,6 +5,7 @@ export * from "./redaction.js";
 export * from "./validate.js";
 export * from "./fallbacks.js";
 export * from "./prompts.js";
+export * from "./step-inputs.js";
 export * from "./analyse.js";
 export * from "./provider-schema.js";
 export * from "./clamp.js";
