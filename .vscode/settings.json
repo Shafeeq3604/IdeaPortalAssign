@@ -1,3 +1,27 @@
 {
-    "python-envs.defaultEnvManager": "ms-python.python:system"
+  "python-envs.defaultEnvManager": "ms-python.python:system",
+
+  // Use the workspace's TypeScript, not the one bundled with VS Code.
+  // Without this the editor type-checks with a different compiler than `pnpm build`,
+  // and reports errors the build does not (a deprecated `baseUrl` under TS 6, in our
+  // case) — or worse, misses errors the build will catch.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  // The repo is ESM with explicit .js specifiers on relative imports; keep auto-imports
+  // consistent with what already exists rather than mixing two styles.
+  "typescript.preferences.importModuleSpecifierEnding": "js",
+
+  "editor.formatOnSave": false,
+  "files.eol": "\n",
+
+  // Generated or vendored — noise in search, and not ours to edit by hand.
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.turbo": true,
+    "**/coverage": true,
+    "pnpm-lock.yaml": true,
+    "openapi.json": true
+  }
 }

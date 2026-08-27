@@ -22,8 +22,9 @@
     "jsx": "react-jsx",
 
     /* shadcn components live in packages/ui and import via "@/" (ADR-019).
-       Vite resolves this too — see apps/web/vite.config.ts. Keep both in sync. */
-    "baseUrl": ".",
+       Vite resolves this too — see apps/web/vite.config.ts. Keep both in sync.
+       No baseUrl: it is deprecated in TS 6 and removed in 7, and paths already
+       resolve relative to this file. */
     "paths": { "@/*": ["../../packages/ui/src/*"] },
 
     /* Linting */

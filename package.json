@@ -36,5 +36,10 @@
     "vitest": "^2.1.8",
     "zod": "^3.24.1",
     "zod-to-json-schema": "^3.25.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "typescript": "5.9.3"
+    }
   }
 }
