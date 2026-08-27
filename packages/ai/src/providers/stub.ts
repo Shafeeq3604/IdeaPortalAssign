@@ -25,7 +25,18 @@ function seedFrom(text: string): number {
 const pick = <T>(items: readonly T[], seed: number, salt: number): T =>
   items[(seed + salt) % items.length]!;
 
-const BANDS = ["LOW", "MODERATE", "HIGH"] as const;
+/**
+ * The FULL band range, not a comfortable middle three.
+ *
+ * The first version offered LOW/MODERATE/HIGH only. Averaged across nine value
+ * dimensions that lands every stubbed idea near 50, which — once the effort criterion
+ * inverts — puts every one of them above the attention threshold. The consequence was
+ * that no stubbed idea could ever be weak, so the entire improvement path (FR-15) was
+ * unreachable in development and in every test that did not hand-build its own rows.
+ *
+ * A stub that can only produce healthy output is not a stand-in; it is a happy path.
+ */
+const BANDS = ["NEGLIGIBLE", "LOW", "MODERATE", "HIGH", "VERY_HIGH"] as const;
 const VALUE_DIMENSIONS = [
   "BUSINESS_IMPACT", "PRODUCTIVITY", "COST_REDUCTION", "REVENUE", "EMPLOYEE_EXPERIENCE",
   "CUSTOMER_IMPACT", "OPERATIONAL", "PROBLEM_SEVERITY", "PROBLEM_FREQUENCY",
@@ -160,8 +171,10 @@ export class StubProvider implements AiProvider {
 
       case "EFFORT_TIMELINE":
         return {
-          effortClass: pick(["LOW", "MEDIUM", "HIGH"] as const, seed, 5),
-          costClass: pick(["LOW", "MEDIUM"] as const, seed, 6),
+          // VERY_HIGH included for the same reason as the bands above: an expensive,
+          // slow idea has to be reachable or nothing downstream of it is ever exercised.
+          effortClass: pick(["LOW", "MEDIUM", "HIGH", "VERY_HIGH"] as const, seed, 5),
+          costClass: pick(["LOW", "MEDIUM", "HIGH", "VERY_HIGH"] as const, seed, 6),
           operationalComplexity: "MEDIUM",
           notes: "Estimated from the described scope; no detailed design exists yet.",
           requirements: [
@@ -191,6 +204,26 @@ export class StubProvider implements AiProvider {
               projectedRankingEffect: "POSSIBLY_UP",
               targetCriterionKey: "user_reach",
               priority: 1,
+            },
+            {
+              issue: "No evidence that anyone else has this problem.",
+              whyItMatters: "Breadth of use is scored from the applications described, not assumed.",
+              recommendation: "Name one other team that hits the same problem.",
+              howToImplement: "Ask in the relevant channel, or point at an existing ticket.",
+              expectedEffect: "A second realistic use case rather than a speculative one.",
+              projectedRankingEffect: "POSSIBLY_UP",
+              targetCriterionKey: "use_case_breadth",
+              priority: 2,
+            },
+            {
+              issue: "The technical approach is unstated.",
+              whyItMatters: "Feasibility stays at \"needs investigation\" while the approach is open.",
+              recommendation: "Name the system or capability you would build on.",
+              howToImplement: "One sentence is enough — the platform it plugs into, and where the data comes from.",
+              expectedEffect: "Feasibility can be assessed against something concrete.",
+              projectedRankingEffect: "LIKELY_UP",
+              targetCriterionKey: "technical_feasibility",
+              priority: 2,
             },
           ],
         };

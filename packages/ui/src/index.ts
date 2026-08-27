@@ -45,4 +45,5 @@ export { Toaster } from "./components/ui/sonner.js";
 export * from "./components/iep/types.js";
 export * from "./components/iep/states.js";
 export * from "./components/iep/analysis.js";
+export * from "./components/iep/evaluation.js";
 export * from "./lib/form.js";
