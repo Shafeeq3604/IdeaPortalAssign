@@ -4,9 +4,29 @@ import {
   type IdeaStatus, type Role,
 } from "@iep/contracts";
 import type { Handler } from "../../server.js";
+import type { AppContext } from "../../context.js";
 import { sendError } from "../../server.js";
 import { makeIdeaRepo } from "./repo.js";
 import { toIdeaDetail, toIdeaSummary, toVersionDetail, toVersionSummary, toStatusEntry } from "./present.js";
+
+/**
+ * Start analysis. Deliberately fire-and-forget: a queue outage must not fail a
+ * submission that is already safely stored (P3).
+ */
+async function startAnalysis(
+  ctx: AppContext,
+  ideaId: string,
+  ideaVersionId: string,
+): Promise<void> {
+  const version = await ctx.db.ideaVersion.findUnique({
+    where: { id: ideaVersionId },
+    select: { contentHash: true },
+  });
+  if (!version) return;
+  // The return value is deliberately ignored: false means the queue was unavailable,
+  // which is a degraded run, not a failed submission.
+  await ctx.analysis.enqueue({ ideaId, ideaVersionId, contentHash: version.contentHash });
+}
 
 /**
  * Idea capture and lifecycle (P2 — FR-02, FR-16, FR-23, FR-24).
@@ -66,7 +86,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
       existingProcess, existingSolutions, suggestedTechnology, expectedBenefits,
       estimatedCostNote, references, departmentId, categoryId, submit } = parsed.data;
 
-    const { ideaId } = await repo.createWithFirstVersion({
+    const { ideaId, versionId } = await repo.createWithFirstVersion({
       submitterId: actor.userId,
       departmentId: departmentId ?? null,
       categoryId: categoryId ?? null,
@@ -83,7 +103,8 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     });
 
     // 202: the idea exists, and analysis continues asynchronously (SPEC §3.3).
-    // P3 enqueues the pipeline here; until then the run id is the idea's own.
+    // A draft is not analysed — there is nothing to evaluate until it is submitted.
+    if (submit) await startAnalysis(ctx, ideaId, versionId);
     return {
       analysisRunId: ideaId,
       ideaId,
@@ -165,7 +186,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     }
 
     const d = parsed.data;
-    await repo.createNextVersion({
+    const { versionId } = await repo.createNextVersion({
       ideaId,
       authorId: actor.userId,
       changeSummary: d.changeSummary,
@@ -181,6 +202,8 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
         references: d.references ?? null,
       },
     });
+
+    await startAnalysis(ctx, ideaId, versionId);
 
     return {
       analysisRunId: ideaId,

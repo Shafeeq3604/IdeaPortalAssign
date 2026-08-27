@@ -1,3 +1,12 @@
 export * from "./schemas/analysis.js";
 export * from "./routing/routes.js";
 export * from "./provider.js";
+export * from "./redaction.js";
+export * from "./validate.js";
+export * from "./fallbacks.js";
+export * from "./prompts.js";
+export * from "./analyse.js";
+export * from "./provider-schema.js";
+export * from "./clamp.js";
+export { StubProvider } from "./providers/stub.js";
+export { AnthropicProvider } from "./providers/anthropic.js";
