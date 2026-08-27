@@ -230,6 +230,8 @@ Copy this into every PR description. A slice is done when all of it is true.
 [ ] pnpm test           — unit + integration green; coverage gates met
                           (packages/scoring: 100% branch + >=80% mutation)
 [ ] pnpm test:bdd       — journey specs for the flows this slice touches
+                          (An empty suite is a FAILURE, not a pass: scripts/assert-suites-exist.mjs
+                           refuses to report success for a suite that does not exist.)
 [ ] pnpm test:e2e       — if this slice is on J-1, J-2, J-3, or J-5
 [ ] pnpm test:nav       — NAV LINKS WORK: every §6.2 row this slice adds resolves;
                           no orphans, no dead-ends, back-paths honest, per-role reachability
