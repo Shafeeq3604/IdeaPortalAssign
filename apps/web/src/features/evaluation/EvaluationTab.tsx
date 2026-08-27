@@ -6,7 +6,7 @@ import {
 import type { CriterionGroup, CriterionScore, MaturityLevel } from "@iep/contracts";
 import { ApiError } from "../../app/api-client";
 import { IdeaShell } from "../ideas/IdeaShell";
-import { GROUP_LABEL, MATURITY_LABEL, useEvaluation } from "./api";
+import { GROUP_LABEL, MATURITY_HELP, MATURITY_LABEL, useEvaluation } from "./api";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -103,6 +103,9 @@ export function EvaluationTab() {
                     <p className="text-100 text-muted-foreground">Maturity</p>
                     <p className="text-300 font-medium">
                       {MATURITY_LABEL[e.maturityLevel as MaturityLevel]}
+                    </p>
+                    <p className="text-100 text-muted-foreground">
+                      {MATURITY_HELP[e.maturityLevel as MaturityLevel]}
                     </p>
                   </div>
                 </div>

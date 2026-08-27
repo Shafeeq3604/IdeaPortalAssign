@@ -44,15 +44,31 @@ export const GROUP_LABEL: Record<CriterionGroup, string> = {
 };
 
 /**
- * FR-17 wording. Deliberately describes COMPLETENESS, never quality — "Level 2" must not
- * read as "second-rate". An immature idea is an idea with more to say, not a worse one.
+ * FR-17's own names, from REQUIREMENTS §20.
+ *
+ * These were paraphrased while requirements.md was thought to be missing from the repo.
+ * The source names them Concept / Defined Problem / Defined Solution / Validated /
+ * Implementation Ready, and those are the words the business already uses — a product
+ * that renames its own vocabulary makes every conversation about it a translation.
+ *
+ * The trailing clause stays: FR-17 exists so an immature idea is not read as a poor one,
+ * and "Level 2" alone invites exactly that reading.
  */
 export const MATURITY_LABEL: Record<MaturityLevel, string> = {
-  1: "Level 1 — an initial thought",
-  2: "Level 2 — the problem and the people are clear",
-  3: "Level 3 — with use cases and an approach",
-  4: "Level 4 — with evidence behind it",
-  5: "Level 5 — planned, with risks and measures",
+  1: "Level 1 — Concept",
+  2: "Level 2 — Defined problem",
+  3: "Level 3 — Defined solution",
+  4: "Level 4 — Validated",
+  5: "Level 5 — Implementation ready",
+};
+
+/** What each level means, in the submitter's terms. Shown alongside the label. */
+export const MATURITY_HELP: Record<MaturityLevel, string> = {
+  1: "A general idea, with limited detail so far.",
+  2: "The problem and the people it affects are identified.",
+  3: "A proposed solution and its use cases are described.",
+  4: "There is evidence of demand, or a prototype.",
+  5: "Requirements, resources, risks, costs, timeline and measures are all defined.",
 };
 
 export const RANKING_EFFECT_LABEL: Record<RankingEffect, string> = {

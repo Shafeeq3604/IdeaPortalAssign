@@ -370,50 +370,50 @@ export function registerRankingRoutes(handlers: Map<string, Handler>): void {
       });
 
     /**
-     * The nine counts (FR-26).
+     * The nine counts of REQUIREMENTS §29 (FR-26), verbatim from the source.
      *
-     * REQUIREMENTS.md is not in this repository, so §29's exact list could not be checked
-     * against the source. These nine are the lifecycle stages the M1 data model actually
-     * supports, each one linkable to a real filtered list — which is the part §6.2 row 40
-     * makes non-negotiable. If §29 names different counts, this is the file to correct.
+     * An earlier version guessed at these because requirements.md was not found in the
+     * repository — it was there under a lowercase name. Two of the real nine were missing
+     * (New ideas, Parked ideas) and two invented ones were present. Corrected against the
+     * document rather than left as a plausible-looking set.
+     *
+     * REQUIREMENTS §29 also asks for filtering by category, status, date, ranking and
+     * evaluation profile. The frozen dashboard query accepts `departmentId` only, so the
+     * rest would need a contract amendment; recorded in the reconciliation note rather
+     * than silently dropped.
      */
     const [
-      submitted, analysing, awaitingReview, ranked, needsClarification,
-      underReview, prototypes, pilots, implemented, contributors,
+      total, fresh, underEvaluation, topRanked, prototypes, pilots, implemented,
+      parked, requiringReview,
     ] = await Promise.all([
       ctx.db.idea.count({ where: { ...scope, NOT: { status: "DRAFT" } } }),
-      count("AI_ANALYSIS"),
-      count(["EVALUATED", "RANKED"]),
-      // Count through the RELATION, not a fetched id.
-      //
-      // The first version looked up the latest run and passed `?? ""` when there was
-      // none — an empty string is not a UUID, so Postgres rejected it and the whole
-      // dashboard 500ed on a fresh install. Ordering inside the relation also removes a
-      // race: the id could go stale between the two queries while a recompute lands.
+      count("SUBMITTED"),
+      count(["AI_ANALYSIS", "EVALUATED"]),
+      // Counted from the run it links to, so the number and the destination agree.
       latestRunId
-        ? ctx.db.rankingEntry.count({ where: { runId: latestRunId } })
+        ? ctx.db.rankingEntry.count({ where: { runId: latestRunId, rank: { lte: 10 } } })
         : Promise.resolve(0),
-      count("NEEDS_CLARIFICATION"),
-      count("UNDER_REVIEW"),
       count("PROTOTYPE_CANDIDATE"),
       count("PILOT"),
       count("IMPLEMENTED"),
-      ctx.db.user.count({ where: { ideas: { some: { NOT: { status: "DRAFT" } } } } }),
+      count("PARKED"),
+      // The same filter the review queue itself uses — a tile whose count disagrees with
+      // the page it opens is worse than no tile.
+      count(["EVALUATED", "RANKED", "UNDER_REVIEW", "NEEDS_CLARIFICATION"]),
     ]);
 
     // Every tile is a link (§6.2 row 40). The href is part of the contract, not a client
     // convention, so a tile physically cannot ship without a destination.
     const tiles = [
-      { key: "submitted", label: "Ideas submitted", count: submitted, href: `/ideas?sort=recent${dept}` },
-      { key: "analysing", label: "Being analysed", count: analysing, href: `/ideas?status=AI_ANALYSIS${dept}` },
-      { key: "awaiting_review", label: "Awaiting review", count: awaitingReview, href: "/review" },
-      { key: "ranked", label: "On the current board", count: ranked, href: "/rankings" },
-      { key: "needs_clarification", label: "Needs clarification", count: needsClarification, href: `/ideas?status=NEEDS_CLARIFICATION${dept}` },
-      { key: "under_review", label: "Under review", count: underReview, href: `/ideas?status=UNDER_REVIEW${dept}` },
+      { key: "total", label: "Total ideas", count: total, href: `/ideas?sort=recent${dept}` },
+      { key: "new", label: "New ideas", count: fresh, href: `/ideas?status=SUBMITTED${dept}` },
+      { key: "under_evaluation", label: "Ideas under evaluation", count: underEvaluation, href: `/ideas?status=AI_ANALYSIS&status=EVALUATED${dept}` },
+      { key: "top_ranked", label: "Top-ranked ideas", count: topRanked, href: "/rankings?rankBand=top10" },
       { key: "prototype", label: "Prototype candidates", count: prototypes, href: `/ideas?status=PROTOTYPE_CANDIDATE${dept}` },
-      { key: "pilot", label: "In pilot", count: pilots, href: `/ideas?status=PILOT${dept}` },
-      { key: "implemented", label: "Implemented", count: implemented, href: `/ideas?status=IMPLEMENTED${dept}` },
-      { key: "contributors", label: "People who have contributed", count: contributors, href: "/admin/users" },
+      { key: "pilot", label: "Pilot projects", count: pilots, href: `/ideas?status=PILOT${dept}` },
+      { key: "implemented", label: "Implemented ideas", count: implemented, href: `/ideas?status=IMPLEMENTED${dept}` },
+      { key: "parked", label: "Parked ideas", count: parked, href: `/ideas?status=PARKED${dept}` },
+      { key: "requiring_review", label: "Ideas requiring review", count: requiringReview, href: "/review" },
     ];
 
     return { tiles, generatedAt: new Date().toISOString() };
