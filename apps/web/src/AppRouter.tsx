@@ -13,6 +13,8 @@ import { HistoryTab } from "./features/ideas/HistoryTab";
 import { AnalysisTab } from "./features/analysis/AnalysisTab";
 import { EvaluationTab } from "./features/evaluation/EvaluationTab";
 import { ImproveTab } from "./features/evaluation/ImproveTab";
+import { ReviewTab } from "./features/review/ReviewTab";
+import { ReviewQueuePage } from "./features/review/ReviewQueuePage";
 import { AppProviders } from "./app/providers";
 import { RouteErrorBoundary } from "./app/error-boundary";
 import { RequireAuth } from "./app/session";
@@ -141,6 +143,8 @@ function Shell() {
             <Route path="/ideas/:ideaId/analysis" element={<AnalysisTab />} />
             <Route path="/ideas/:ideaId/evaluation" element={<EvaluationTab />} />
             <Route path="/ideas/:ideaId/improve" element={<ImproveTab />} />
+            <Route path="/ideas/:ideaId/review" element={<ReviewTab />} />
+            <Route path="/review" element={<ReviewQueuePage />} />
             <Route path="/ideas/:ideaId/history" element={<HistoryTab />} />
             <Route path="/ideas/:ideaId/revise" element={<ReviseIdeaPage />} />
 
@@ -148,7 +152,7 @@ function Shell() {
               .filter(
                 (r) =>
                   !["ideas", "me.ideas", "ideas.new", "idea.overview", "idea.analysis", "idea.evaluation", "idea.improve",
-                    "idea.history", "idea.revise"].includes(
+                    "idea.review", "idea.history", "idea.revise", "review.queue"].includes(
                     r.id,
                   ),
               )

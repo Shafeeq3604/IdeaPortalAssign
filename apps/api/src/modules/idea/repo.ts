@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { writeAudit } from "../../lib/audit.js";
 import type { PrismaClient, Prisma } from "@iep/db";
 import type { IdeaScope, IdeaStatus } from "@iep/contracts";
 
@@ -242,6 +243,7 @@ export function makeIdeaRepo(db: PrismaClient) {
       to: IdeaStatus;
       actorId: string;
       reason: string | null;
+      requestId?: string | null;
     }) {
       return db.$transaction(async (tx) => {
         await tx.idea.update({ where: { id: input.ideaId }, data: { status: input.to } });
@@ -253,6 +255,25 @@ export function makeIdeaRepo(db: PrismaClient) {
             actorId: input.actorId,
             reason: input.reason,
           },
+        });
+
+        /**
+         * FR-23/FR-29 in the SAME transaction as the change.
+         *
+         * `status_history` is the product-facing lane and `audit_log` is the
+         * governance one; they answer different questions and an auditor is not
+         * expected to read the former. Writing the audit row afterwards would let a
+         * transition commit unlogged, which is the one thing this must not allow.
+         */
+        await writeAudit(tx, {
+          actorId: input.actorId,
+          action: "idea.transition",
+          entityType: "idea",
+          entityId: input.ideaId,
+          before: { status: input.from },
+          after: { status: input.to },
+          reason: input.reason,
+          requestId: input.requestId ?? null,
         });
       });
     },

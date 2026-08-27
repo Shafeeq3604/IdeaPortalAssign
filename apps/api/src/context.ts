@@ -14,10 +14,24 @@ export interface AnalysisEnqueuer {
   enqueue(job: { ideaId: string; ideaVersionId: string; contentHash: string }): Promise<boolean>;
 }
 
+/**
+ * Recompute is cohort-wide and belongs on the queue (ADR-008), so the API asks rather
+ * than computes. Same degrade-never-throw contract as the analysis enqueuer: a write
+ * that succeeded must not be rolled back because Redis was down.
+ */
+export interface RankingEnqueuer {
+  enqueue(job: {
+    profileKey?: string | undefined;
+    triggeredById?: string | null;
+    triggerReason: string;
+  }): Promise<boolean>;
+}
+
 export interface AppContext {
   readonly env: ApiEnv;
   readonly db: PrismaClient;
   readonly sessions: SessionStore;
   readonly auth: AuthProvider;
   readonly analysis: AnalysisEnqueuer;
+  readonly ranking: RankingEnqueuer;
 }

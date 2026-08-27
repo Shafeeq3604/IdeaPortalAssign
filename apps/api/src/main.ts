@@ -5,7 +5,9 @@ import { buildServer } from "./server.js";
 import { registerDevLogin } from "./modules/auth.routes.js";
 import { DevAuthProvider, OidcAuthProvider, type AuthProvider } from "./auth/provider.js";
 import { MemorySessionStore, RedisSessionStore, type SessionStore } from "./auth/session.js";
-import { makeAnalysisEnqueuer, noopEnqueuer } from "./lib/analysis-queue.js";
+import {
+  makeAnalysisEnqueuer, makeRankingEnqueuer, noopEnqueuer, noopRankingEnqueuer,
+} from "./lib/analysis-queue.js";
 import type { AppContext } from "./context.js";
 
 /**
@@ -58,11 +60,17 @@ const ctx: AppContext = {
   // No Redis in dev means no analysis runs — but submissions still save (P3).
   // Replaced just below with a logger-aware instance once Fastify exists.
   analysis: noopEnqueuer,
+  ranking: noopRankingEnqueuer,
 };
 
 const app = buildServer(ctx);
 // The enqueuer logs through Fastify, so a queue failure is visible rather than silent.
-if (redis) Object.assign(ctx, { analysis: makeAnalysisEnqueuer(env.REDIS_URL, app.log) });
+if (redis) {
+  Object.assign(ctx, {
+    analysis: makeAnalysisEnqueuer(env.REDIS_URL, app.log),
+    ranking: makeRankingEnqueuer(env.REDIS_URL, app.log),
+  });
+}
 registerDevLogin(app, ctx);
 
 try {

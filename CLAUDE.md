@@ -96,7 +96,7 @@ MILESTONE M1 — MVP1 (must be a real, usable, navigable product on its own)
   [~] P3  AI Analysis Pipeline   (UI + pipeline done; AI evals not written)
   [x] P4  Evaluation & Ranking Engine        (parallel-safe with P2/P3)
   [x] P5  Explanation & Improvement   (AI-09 narrative deferred — optional in SPEC)
-  [ ] P6  Human Review, Overrides & Audit
+  [x] P6  Human Review, Overrides & Audit
   [ ] P7  Ranked Board & Management Dashboard
   [ ] P8  Re-evaluation & Version History
   [ ] P9  Config Viewer (read-only) + MVP1 hardening

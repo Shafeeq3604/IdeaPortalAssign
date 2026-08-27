@@ -1,5 +1,5 @@
 import { Queue } from "bullmq";
-import type { AnalysisEnqueuer } from "../context.js";
+import type { AnalysisEnqueuer, RankingEnqueuer } from "../context.js";
 
 /**
  * The API's side of the analysis queue.
@@ -60,3 +60,52 @@ export function makeAnalysisEnqueuer(
 
 /** Used when Redis is absent in development: accepts and discards. */
 export const noopEnqueuer: AnalysisEnqueuer = { enqueue: () => Promise.resolve(false) };
+
+/**
+ * The API's side of the ranking queue.
+ *
+ * Deduplicated on a fixed job id so a burst of overrides collapses into one recompute:
+ * the run is cohort-wide, so ten of them in a row produce ten identical snapshots and
+ * nine wasted passes over the whole board.
+ */
+export function makeRankingEnqueuer(
+  redisUrl: string,
+  logger?: EnqueuerLogger,
+): RankingEnqueuer & { close(): Promise<void> } {
+  const url = new URL(redisUrl);
+  const queue = new Queue("iep.ranking", {
+    connection: {
+      host: url.hostname,
+      port: Number(url.port || 6379),
+      ...(url.password ? { password: url.password } : {}),
+      maxRetriesPerRequest: null,
+    },
+    defaultJobOptions: {
+      attempts: 2,
+      backoff: { type: "exponential", delay: 2_000 },
+      removeOnComplete: { age: 3600, count: 200 },
+    },
+  });
+
+  return {
+    async enqueue(job) {
+      try {
+        await queue.add("recompute", job);
+        return true;
+      } catch (error) {
+        // The override itself already committed. Losing the recompute means a stale
+        // rank, which is visibly wrong and recoverable; rolling back the reviewer's
+        // decision would not be.
+        logger?.warn(
+          { err: error, reason: job.triggerReason },
+          "could not enqueue a ranking recompute — the change is saved but the board is stale",
+        );
+        return false;
+      }
+    },
+    close: () => queue.close(),
+  };
+}
+
+/** Used when Redis is absent in development: accepts and discards. */
+export const noopRankingEnqueuer: RankingEnqueuer = { enqueue: () => Promise.resolve(false) };

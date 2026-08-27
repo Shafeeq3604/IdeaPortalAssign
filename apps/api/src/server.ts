@@ -14,6 +14,7 @@ import { registerConfigRoutes } from "./modules/config.routes.js";
 import { registerIdeaRoutes } from "./modules/idea/routes.js";
 import { registerAnalysisRoutes } from "./modules/analysis.routes.js";
 import { registerEvaluationRoutes } from "./modules/evaluation/routes.js";
+import { registerReviewRoutes } from "./modules/review/routes.js";
 import { notImplementedYet } from "./lib/handlers.js";
 import type { AppContext } from "./context.js";
 import { sessionCookieName } from "./auth/session.js";
@@ -95,6 +96,7 @@ export function buildServer(ctx: AppContext): FastifyInstance {
   registerIdeaRoutes(handlers);
   registerAnalysisRoutes(handlers);
   registerEvaluationRoutes(handlers);
+  registerReviewRoutes(handlers);
 
   /* ── register every endpoint from the contract ── */
   const stubbed: string[] = [];

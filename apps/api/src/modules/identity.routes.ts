@@ -1,4 +1,5 @@
 import type { Handler } from "../server.js";
+import { entityHrefFor } from "../lib/audit.js";
 import { sendError } from "../server.js";
 import type { Role } from "@iep/contracts";
 
@@ -58,7 +59,10 @@ export function registerIdentityRoutes(handlers: Map<string, Handler>): void {
         action: a.action, entityType: a.entityType, entityId: a.entityId,
         before: a.before ?? null, after: a.after ?? null,
         reason: a.reason, requestId: a.requestId, at: a.at.toISOString(),
-        entityHref: a.entityType === "Idea" ? `/ideas/${a.entityId}/overview` : null,
+        // Was a literal "Idea" comparison against a writer that emits "idea", so every
+        // href came back null and every audit row was a dead end (SPEC §6.2 row 44).
+        // One helper now owns the mapping, and both sides import it.
+        entityHref: entityHrefFor(a.entityType, a.entityId),
       })),
       meta: { page, perPage, total, totalPages: Math.ceil(total / perPage) },
     };

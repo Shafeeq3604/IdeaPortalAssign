@@ -311,6 +311,9 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     await repo.transition({
       ideaId, from, to: parsed.data.to, actorId: actor.userId,
       reason: parsed.data.reason ?? null,
+      // Carried into the audit row so a support question about one request can be
+      // traced to the exact change it made.
+      requestId: request.id,
     });
 
     return toIdeaDetail((await repo.findById(ideaId))!, actor);
