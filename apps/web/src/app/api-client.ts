@@ -78,7 +78,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiUnreachableError(path, `${response.status} ${response.statusText}`);
   }
 
-  let parsed: unknown = null;
+  let parsed: unknown;
   try {
     parsed = text ? JSON.parse(text) : null;
   } catch (cause) {

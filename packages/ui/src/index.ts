@@ -44,4 +44,5 @@ export { Toaster } from "./components/ui/sonner.js";
 // ── IEP custom — signatures frozen at P0, implementations in P1 (SPEC §7.6) ──
 export * from "./components/iep/types.js";
 export * from "./components/iep/states.js";
+export * from "./components/iep/analysis.js";
 export * from "./lib/form.js";

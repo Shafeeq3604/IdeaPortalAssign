@@ -69,7 +69,7 @@ pnpm dev              # then: web + api together (worker joins at P3)
 pnpm build            # turbo build, all packages
 pnpm test             # unit + integration (Vitest)
 pnpm test:watch       # TDD loop
-pnpm test:bdd         # journey/flow specs
+pnpm test:bdd         # journey/flow specs (tests/bdd — real DB, no browser)
 pnpm test:e2e         # Playwright, critical paths only
 pnpm test:nav         # navigation & clickability contract assertions
 pnpm lint             # eslint + stylelint
@@ -93,7 +93,7 @@ MILESTONE M0 — Foundations
 MILESTONE M1 — MVP1 (must be a real, usable, navigable product on its own)
   [x] P1  Identity, Access & App Shell
   [x] P2  Idea Capture & Lifecycle
-  [~] P3  AI Analysis Pipeline   (worker+API done; stepper UI and evals remain)
+  [~] P3  AI Analysis Pipeline   (UI + pipeline done; AI evals not written)
   [x] P4  Evaluation & Ranking Engine        (parallel-safe with P2/P3)
   [ ] P5  Explanation & Improvement
   [ ] P6  Human Review, Overrides & Audit

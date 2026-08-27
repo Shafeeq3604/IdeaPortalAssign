@@ -8,7 +8,9 @@ export function SubmitIdeaPage() {
   const create = useCreateIdea();
 
   const submit = async (values: IdeaFormValues, asDraft: boolean) => {
-    const { changeSummary: _ignored, ...fields } = values;
+    // `changeSummary` belongs to revision only (FR-24); a first submission has nothing
+    // to summarise, so it is dropped rather than sent as an empty string.
+    const fields = { ...values, changeSummary: undefined };
     const result = await create.mutateAsync({ ...fields, submit: !asDraft });
     navigate(`/ideas/${result.ideaId}/overview`);
   };

@@ -1,0 +1,21 @@
+{
+  "name": "@iep/bdd",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:bdd": "vitest run",
+    "test:bdd:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo \"lint: configured in P9\""
+  },
+  "devDependencies": {
+    "@iep/ai": "workspace:*",
+    "@iep/contracts": "workspace:*",
+    "@iep/db": "workspace:*",
+    "@iep/worker": "workspace:*",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8",
+    "@iep/api": "workspace:*"
+  }
+}

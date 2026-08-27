@@ -51,7 +51,20 @@ test.describe("J-1 employee journey", () => {
 
     await expect(page).toHaveURL(/\/ideas\/[0-9a-f-]+\/overview/);
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
-    await expect(page.getByText("Submitted", { exact: true })).toBeVisible();
+    /*
+      NOT `toBeVisible("Submitted")`. That assertion was written in P2, when nothing
+      consumed the queue and an idea therefore sat in SUBMITTED forever. With P3’s worker
+      running it is a race: the pipeline picks the job up in well under a second and the
+      badge is already “Being analysed” or “Evaluated” by first paint. It failed about one
+      run in three.
+
+      What the journey actually cares about is that submitting LEFT the draft state and
+      entered the pipeline — so assert that, and let the pipeline be as fast as it likes.
+    */
+    await expect(
+      page.getByText(/^(Submitted|Being analysed|Evaluated)$/),
+    ).toBeVisible();
+    await expect(page.getByText("Draft", { exact: true })).toHaveCount(0);
 
     /* ── the primary action must be READABLE.
           A previous bug rendered indigo text on an indigo button: the click test passed
@@ -92,6 +105,37 @@ test.describe("J-1 employee journey", () => {
     /* ── and it appears in the author's own list ── */
     await page.goto("/me/ideas");
     await expect(page.getByRole("link", { name: title })).toBeVisible();
+  });
+
+
+  test("analysis progress is determinate from the first paint (F-03, SPEC §8.4)", async ({ page }) => {
+    await signInAs(page, /Erin Employee/i);
+
+    await page.goto("/ideas/new");
+    const title = unique("Determinate stepper");
+    await fillIdea(page, title);
+    await page.getByRole("button", { name: /Submit for analysis/i }).click();
+    await expect(page).toHaveURL(new RegExp(String.raw`/ideas/[0-9a-f-]+/overview`));
+
+    /* ── all six steps exist immediately, before any of them has run ──
+       This is the assertion that separates a determinate stepper from a spinner with
+       ambitions: the total is known at time zero, so nothing about it can be synthetic. */
+    const stepper = page.getByRole("group", { name: "Analysis progress" });
+    await expect(stepper).toBeVisible();
+    await expect(stepper.getByRole("listitem")).toHaveCount(6);
+
+    // A real count against a real total — never a percentage (SPEC §8.4).
+    const bar = stepper.getByRole("progressbar");
+    await expect(bar).toHaveAttribute("aria-valuemax", "6");
+    await expect(bar).not.toContainText("%");
+
+    /* ── and the Analysis tab is reachable, not a placeholder ── */
+    // Scoped to the page: the dev nav carries an "Analysis" link for the demo idea too.
+    await page.getByRole("main").getByRole("link", { name: "Analysis" }).click();
+    await expect(page).toHaveURL(new RegExp(String.raw`/analysis`));
+    await expect(page.getByRole("group", { name: "Analysis progress" })).toBeVisible();
+    // The nav map's placeholder shell must be gone for this route.
+    await expect(page.getByText(/not implemented|placeholder/i)).toHaveCount(0);
   });
 
   test("no dead ends: an unknown route offers a way out", async ({ page }) => {

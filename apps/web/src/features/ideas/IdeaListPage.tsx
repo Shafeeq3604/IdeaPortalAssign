@@ -3,7 +3,7 @@ import {
   Badge, Button, EmptyState, ErrorState, Skeleton,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@iep/ui";
-import { useSession } from "../../app/session";
+import { useSession } from "../../app/use-session";
 import { STATUS_LABEL, parseSort, useIdeaList } from "./api";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (

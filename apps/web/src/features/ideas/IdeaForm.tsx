@@ -1,10 +1,11 @@
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Button, Input, Label, Textarea, applyServerErrors, isFieldLevelError,
 } from "@iep/ui";
 import { ApiError } from "../../app/api-client";
+import { IdeaFormSchema, type IdeaFormValues } from "./idea-form.schema";
 
 /**
  * The idea form (FR-02) — shared by submission and revision.
@@ -14,25 +15,7 @@ import { ApiError } from "../../app/api-client";
  * rather than shown as a toast the user has to interpret.
  */
 
-const Required = z.string().trim().min(1, "This is needed");
-
-export const IdeaFormSchema = z.object({
-  title: Required.max(200, "Keep the title under 200 characters"),
-  description: Required.max(20_000),
-  problemStatement: Required.max(2_000),
-  expectedUsers: Required.max(2_000),
-  expectedOutcome: Required.max(2_000),
-  existingProcess: z.string().trim().max(2_000).optional(),
-  existingSolutions: z.string().trim().max(2_000).optional(),
-  suggestedTechnology: z.string().trim().max(2_000).optional(),
-  expectedBenefits: z.string().trim().max(2_000).optional(),
-  estimatedCostNote: z.string().trim().max(2_000).optional(),
-  references: z.string().trim().max(2_000).optional(),
-  /** Present only when revising. Required from v2 onward (FR-24). */
-  changeSummary: z.string().trim().max(2_000).optional(),
-});
-
-export type IdeaFormValues = z.infer<typeof IdeaFormSchema>;
+export type { IdeaFormValues };
 
 const FIELD_NAMES = Object.keys(IdeaFormSchema.shape);
 

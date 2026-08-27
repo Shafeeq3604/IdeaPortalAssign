@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@iep/ui";
 import { IdeaShell } from "./IdeaShell";
+import { AnalysisProgress } from "../analysis/AnalysisProgress";
 
 /** Overview: the submitted content as written, before any AI touches it. */
 export function OverviewTab() {
@@ -22,6 +23,15 @@ export function OverviewTab() {
 
         return (
           <div className="space-y-6">
+            {/*
+              F-03: the six-step stepper lives on Overview, not only on the Analysis tab.
+              Someone who has just pressed Submit is looking at THIS page, and progress
+              they have to go find is progress they will assume is not happening.
+            */}
+            {idea.status === "DRAFT" ? null : (
+              <AnalysisProgress ideaId={ideaId} linkToAnalysis />
+            )}
+
             <Card>
               <CardHeader><CardTitle>The problem</CardTitle></CardHeader>
               <CardContent><p className="whitespace-pre-wrap">{v.problemStatement}</p></CardContent>

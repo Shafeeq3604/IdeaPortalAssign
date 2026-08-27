@@ -119,6 +119,7 @@
   --dur-reveal: 240ms;
   --dur-slow: 320ms;
   --dur-settle: 420ms;
+  --dur-pulse: 1800ms;   /* pending-pulse, one shared clock (SPEC 8.3) */
   --dur-tally: 600ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
@@ -271,6 +272,34 @@ body {
  * Information carried by motion must survive its removal: `settle-rank`
  * drops the FLIP but keeps the highlight ring and the delta chip.
  * ══════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════
+ * Named transitions (SPEC §8.3) — the two P3 uses.
+ *
+ * Defined here, in the design system, rather than per component: "AI arrives quietly"
+ * is a product rule, and a component that reimplements the fade decides that rule for
+ * itself. The reduced-motion block below neutralises both.
+ * ══════════════════════════════════════════════════════════════════ */
+
+@keyframes iep-defer {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes iep-pending-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.85; }
+}
+
+/* `defer` — AI content mounting, analysis step completion. Fade + 2px rise, no scale. */
+.motion-defer {
+  animation: iep-defer var(--dur-base) var(--ease-standard) both;
+}
+
+/* `pending-pulse` — in-flight steps and skeletons. */
+.motion-pending-pulse {
+  animation: iep-pending-pulse var(--dur-pulse) var(--ease-in-out) infinite;
+}
 
 @media (prefers-reduced-motion: reduce) {
   :root {
