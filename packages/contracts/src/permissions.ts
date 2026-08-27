@@ -33,7 +33,19 @@ export type Permission = (typeof PERMISSIONS)[number];
 
 /** Base grants by role. A user may hold several roles; grants union. */
 export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
-  EMPLOYEE: ["idea:create", "idea:read", "idea:read:own", "idea:edit:own", "config:read"],
+  /**
+   * `idea:transition` is granted to EMPLOYEE deliberately — and it is not a widening.
+   *
+   * The two layers do different jobs: the route permission is COARSE ("this actor may
+   * attempt a status change at all"), and `can()` plus the transition table are PRECISE
+   * ("…but only their own idea, only from DRAFT/NEEDS_CLARIFICATION, only to SUBMITTED").
+   * Without the coarse grant the route rejects an employee before the precise layer can
+   * allow it, and nobody can submit their own idea.
+   */
+  EMPLOYEE: [
+    "idea:create", "idea:read", "idea:read:own", "idea:edit:own",
+    "idea:transition", "config:read",
+  ],
   REVIEWER: [
     "idea:create", "idea:read", "idea:read:own", "idea:transition",
     "review:write", "score:override", "config:read",

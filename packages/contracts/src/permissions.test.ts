@@ -157,6 +157,43 @@ describe("§4.2 — the self-review guard (the escalation path that matters)", (
   });
 });
 
+describe("the two layers must agree — coarse grant, precise decision", () => {
+  /**
+   * Regression: an employee held no `idea:transition` grant, so the route guard rejected
+   * them before `can()` could allow "your own draft → SUBMITTED". Nobody could submit an
+   * idea. The layers have to be checked together, not just individually.
+   */
+  it("every action can() may allow is also reachable at the route layer", () => {
+    const cases: { roles: readonly Role[]; action: Action; permission: string; idea: IdeaResource }[] = [
+      { roles: ["EMPLOYEE"], action: "idea:transition", permission: "idea:transition", idea: idea("DRAFT", OWNER) },
+      { roles: ["EMPLOYEE"], action: "idea:edit", permission: "idea:edit:own", idea: idea("DRAFT", OWNER) },
+      { roles: ["EMPLOYEE"], action: "idea:revise", permission: "idea:edit:own", idea: idea("RANKED", OWNER) },
+      { roles: ["REVIEWER"], action: "review:create", permission: "review:write", idea: idea("RANKED") },
+      { roles: ["REVIEWER"], action: "score:override", permission: "score:override", idea: idea("RANKED") },
+      { roles: ["ADMIN"], action: "audit:read", permission: "audit:read", idea: idea("RANKED") },
+    ];
+
+    for (const c of cases) {
+      const resourceAllows = can(actor(c.roles, OWNER), c.action, c.idea).allowed;
+      const routeAllows = hasAllPermissions(c.roles, [c.permission]);
+      if (resourceAllows) {
+        expect(
+          routeAllows,
+          `${c.roles.join("+")} may ${c.action} on the resource, but the route requires ` +
+            `"${c.permission}" which they do not hold — the request never reaches can()`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("the coarse grant does not widen what an employee can actually do", () => {
+    // Holding idea:transition must not let an employee move someone else's idea…
+    expect(can(actor(["EMPLOYEE"]), "idea:transition", idea("DRAFT")).allowed).toBe(false);
+    // …nor move their own idea once it has left their hands.
+    expect(can(actor(["EMPLOYEE"], OWNER), "idea:transition", idea("RANKED")).allowed).toBe(false);
+  });
+});
+
 describe("§4.2 — transitions and audit", () => {
   it("an employee may move only their own DRAFT forward", () => {
     expect(can(actor(["EMPLOYEE"], OWNER), "idea:transition", idea("DRAFT")).allowed).toBe(true);
