@@ -36,3 +36,31 @@ export function makeAnalysisQueue(redisUrl: string): Queue<AnalysisJob> {
     },
   });
 }
+
+/**
+ * The ranking queue (P4's recompute trigger).
+ *
+ * Separate from analysis and run at concurrency 1, because a ranking run is a snapshot of
+ * the WHOLE cohort (ADR-008): two overlapping recomputes would write two runs from the
+ * same evaluations and race over which one the board reads as current.
+ */
+export const RANKING_QUEUE = "iep.ranking";
+
+export interface RankingJob {
+  readonly profileKey?: string | undefined;
+  readonly triggeredById?: string | null;
+  /** Why this run exists. Stored on the run and shown on the board (FR-13). */
+  readonly triggerReason: string;
+}
+
+export function makeRankingQueue(redisUrl: string): Queue<RankingJob> {
+  return new Queue<RankingJob>(RANKING_QUEUE, {
+    connection: connectionFrom(redisUrl),
+    defaultJobOptions: {
+      attempts: 2,
+      backoff: { type: "exponential", delay: 2_000 },
+      removeOnComplete: { age: 3600, count: 200 },
+      removeOnFail: { age: 86_400 },
+    },
+  });
+}
