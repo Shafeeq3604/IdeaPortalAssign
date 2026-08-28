@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ExplanationItem } from "./schemas/evaluation.js";
 import type { IdeaStatus, Role } from "./enums.js";
 import {
   ROLE_PERMISSIONS, can, hasAllPermissions, ideaListScope, permissionsFor,
@@ -238,5 +239,50 @@ describe("list scope matches detail policy — no leaking rows", () => {
       expect(can(a, "idea:read", idea(status)).allowed, `${status} listed but not readable`)
         .toBe(true);
     }
+  });
+});
+
+/**
+ * Persisted-shape compatibility.
+ *
+ * Lives with the permission tests because it is the same class of assertion: a rule that
+ * is only true because somebody remembered it is not a rule.
+ */
+describe("ExplanationItem tolerates a run written before its newest fields", () => {
+  /**
+   * The exact payload the engine wrote before `normalized` and `headroom` existed.
+   *
+   * This is not hypothetical. Adding those two as REQUIRED broke the ranking board
+   * outright: rows persisted by the older engine failed validation, and the page went to
+   * its error boundary showing nothing at all. Explanations are stored as JSON on an
+   * immutable ranking run (ADR-008), so there is no migration that can fix an old row —
+   * the schema has to tolerate it, and the board has to fall back to `text`.
+   */
+  const LEGACY = {
+    criterionKey: "business_impact",
+    criterionLabel: "Business impact",
+    contribution: 15.8,
+    shareOfTotal: 0.24,
+    text: "Business impact scored 88 of 100 and carries 18% of this profile, adding 15.8 points.",
+    evidence: ["Staff retype receipt totals by hand."],
+  };
+
+  it("parses, with the new fields absent rather than defaulted", () => {
+    const parsed = ExplanationItem.safeParse(LEGACY);
+    expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+
+    /**
+     * Absent, NOT zero. A default of 0 would render "0/100" against a criterion that
+     * actually scored 88 — a wrong number is worse than a missing one, and the board
+     * decides which treatment to use by checking for undefined.
+     */
+    expect(parsed.success && parsed.data.normalized).toBeUndefined();
+    expect(parsed.success && parsed.data.headroom).toBeUndefined();
+  });
+
+  it("still refuses a payload missing a field that was always required", () => {
+    // The tolerance is specific, not a blanket "accept anything".
+    const { text: _text, ...withoutText } = LEGACY;
+    expect(ExplanationItem.safeParse(withoutText).success).toBe(false);
   });
 });

@@ -41,6 +41,66 @@ async function startAnalysis(
  * second layer (SPEC §4.2), and it is what stops one employee editing another's draft.
  */
 
+/**
+ * Score and rank for one page of ideas, in two queries rather than two per row.
+ *
+ * Both are read against the idea's CURRENT version. An older version keeps its own score
+ * on the History tab (FR-24); a list showing "this idea" means the version it is now.
+ *
+ * Rank comes from the most recent run that included the idea, because rank is a property
+ * of a run and not of an idea (ADR-008). An idea evaluated but not yet in any run has a
+ * score and no rank, which is a real state and renders as one.
+ */
+async function scoresForCurrentVersions(
+  ctx: Parameters<Handler>[2],
+  rows: readonly { id: string; currentVersionId?: string | null }[],
+): Promise<Map<string, { compositeScore: number | null; rank: number | null }>> {
+  const out = new Map<string, { compositeScore: number | null; rank: number | null }>();
+  const versionIds = rows.map((r) => r.currentVersionId).filter((v): v is string => Boolean(v));
+  if (versionIds.length === 0) return out;
+
+  const [evaluations, entries] = await Promise.all([
+    ctx.db.evaluation.findMany({
+      where: { ideaVersionId: { in: versionIds } },
+      orderBy: { computedAt: "desc" },
+      select: { ideaVersionId: true, compositeScore: true },
+    }),
+    ctx.db.rankingEntry.findMany({
+      where: { ideaId: { in: rows.map((r) => r.id) } },
+      orderBy: { run: { computedAt: "desc" } },
+      select: { ideaId: true, rank: true, evaluation: { select: { ideaVersionId: true } } },
+    }),
+  ]);
+
+  // Newest first, so the first hit for a key is the one to keep.
+  const scoreByVersion = new Map<string, number>();
+  for (const e of evaluations) {
+    if (!scoreByVersion.has(e.ideaVersionId)) {
+      scoreByVersion.set(e.ideaVersionId, Number(e.compositeScore));
+    }
+  }
+
+  const rankByIdea = new Map<string, number>();
+  for (const entry of entries) {
+    // Only a run entry for the CURRENT version counts. A rank earned by v1 is not the
+    // rank of v2, and showing it as one would be a quietly wrong number.
+    const isCurrent = rows.some(
+      (r) => r.id === entry.ideaId && r.currentVersionId === entry.evaluation.ideaVersionId,
+    );
+    if (isCurrent && !rankByIdea.has(entry.ideaId)) rankByIdea.set(entry.ideaId, entry.rank);
+  }
+
+  for (const row of rows) {
+    out.set(row.id, {
+      compositeScore: row.currentVersionId
+        ? scoreByVersion.get(row.currentVersionId) ?? null
+        : null,
+      rank: rankByIdea.get(row.id) ?? null,
+    });
+  }
+  return out;
+}
+
 /** 404, not 403, for a resource the actor may not see — existence is not disclosed. */
 const NOT_FOUND = "No idea with that id";
 
@@ -63,8 +123,12 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
       perPage: parsed.data.perPage,
     });
 
+    const scores = await scoresForCurrentVersions(ctx, rows);
+
     return {
-      items: rows.map(toIdeaSummary),
+      items: rows.map((row: { id: string }) =>
+        toIdeaSummary(row, scores.get(row.id) ?? { compositeScore: null, rank: null }),
+      ),
       meta: {
         page: parsed.data.page,
         perPage: parsed.data.perPage,

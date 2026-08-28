@@ -1847,6 +1847,13 @@
                           "minimum": 0,
                           "maximum": 1
                         },
+                        "normalized": {
+                          "$ref": "#/components/schemas/definitions/GetIdeaEvaluationResponse/properties/compositeScore"
+                        },
+                        "headroom": {
+                          "type": "number",
+                          "minimum": 0
+                        },
                         "text": {
                           "type": "string"
                         },
@@ -2615,6 +2622,13 @@
                       "type": "number",
                       "minimum": 0,
                       "maximum": 1
+                    },
+                    "normalized": {
+                      "$ref": "#/components/schemas/definitions/GetRankingRunResponse/properties/items/items/properties/compositeScore"
+                    },
+                    "headroom": {
+                      "type": "number",
+                      "minimum": 0
                     },
                     "text": {
                       "type": "string"
@@ -3680,6 +3694,13 @@
                       "minimum": 0,
                       "maximum": 1
                     },
+                    "normalized": {
+                      "$ref": "#/components/schemas/definitions/ListRankingsResponse/properties/items/items/properties/compositeScore"
+                    },
+                    "headroom": {
+                      "type": "number",
+                      "minimum": 0
+                    },
                     "text": {
                       "type": "string"
                     },
@@ -4429,6 +4450,13 @@
                           "type": "number",
                           "minimum": 0,
                           "maximum": 1
+                        },
+                        "normalized": {
+                          "$ref": "#/components/schemas/definitions/OverrideCriterionScoreResponse/properties/compositeScore"
+                        },
+                        "headroom": {
+                          "type": "number",
+                          "minimum": 0
                         },
                         "text": {
                           "type": "string"

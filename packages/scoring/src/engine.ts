@@ -367,6 +367,10 @@ function explain(
     criterionLabel: labelOf(s.criterionKey),
     contribution: s.contribution,
     shareOfTotal: Math.min(1, Math.max(0, round(s.contribution / total, 4))),
+    normalized: s.normalized,
+    // The same arithmetic the constraint sentence describes, kept as a number so a
+    // caller does not have to read it out of English.
+    headroom: round((100 - s.normalized) * s.weight),
     text,
     evidence: s.evidence,
   });

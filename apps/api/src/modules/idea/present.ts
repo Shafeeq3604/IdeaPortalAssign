@@ -26,7 +26,19 @@ const iso = (d: Date | null | undefined): string | null => d?.toISOString() ?? n
    the response shape is guaranteed by the contract schemas, which the tests validate. */
 type Row = any;
 
-export function toIdeaSummary(idea: Row) {
+/**
+ * @param scored The idea's current-version score and rank, when it has one.
+ *
+ * Passed in rather than read here because it takes two queries the caller batches across
+ * the whole page — doing it per row would be an N+1 on every list in the product.
+ */
+export function toIdeaSummary(
+  idea: Row,
+  scored: { compositeScore: number | null; rank: number | null } = {
+    compositeScore: null,
+    rank: null,
+  },
+) {
   return {
     id: idea.id,
     title: idea.currentVersion?.title ?? "(untitled)",
@@ -40,9 +52,17 @@ export function toIdeaSummary(idea: Row) {
     currentVersionNo: idea.currentVersion?.versionNo ?? 1,
     submittedAt: iso(idea.submittedAt),
     updatedAt: iso(idea.updatedAt)!,
-    // Populated once P4's ranking runs are wired in P7. Never a fabricated number.
-    rank: null,
-    compositeScore: null,
+    /**
+     * The current version's score, and the rank it holds in the latest run that included
+     * it. Null when the idea has not been evaluated — never 0, which would read as a bad
+     * score rather than an absent one (P-1).
+     *
+     * These were hard-coded null with a comment saying P7 would wire them up. P7 shipped
+     * without doing it, and nothing noticed because no list rendered the column. It
+     * surfaced the moment one did.
+     */
+    rank: scored.rank,
+    compositeScore: scored.compositeScore,
   };
 }
 

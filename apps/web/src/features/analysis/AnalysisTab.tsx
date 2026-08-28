@@ -3,7 +3,7 @@ import {
   Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, EvidenceList,
   Provenance, Skeleton, StatusPill,
 } from "@iep/ui";
-import type { Band, ScoreSource, ValueDimension } from "@iep/contracts";
+import type { Band, ScoreSource, ValueDimension, ValueFinding } from "@iep/contracts";
 import { ValueDimension as ValueDimensionEnum } from "@iep/contracts";
 import { IdeaShell } from "../ideas/IdeaShell";
 import { AnalysisProgress } from "./AnalysisProgress";
@@ -31,6 +31,35 @@ const link = ({ to, children, className }: { to: string; children: React.ReactNo
  */
 
 /** Five steps, filled to the band. Ordinal, not quantitative — no number is shown. */
+/**
+ * Everything the nine value dimensions say identically, so it can be said once.
+ *
+ * A thin submission gives the model one sentence to reason from, so it returns the same
+ * rationale and cites the same line for every dimension. Rendered per row that is nine
+ * copies of one sentence and nine copies of one quotation — roughly two hundred words
+ * carrying the information of twenty-five, on a page already accused of being a wall.
+ *
+ * Nothing is dropped. The comparison is exact equality across ALL findings, so a single
+ * dimension with its own specific finding returns null and every row prints its own
+ * again. Hoisting is the exception; per-row detail is the default.
+ */
+function allSame<Item, T>(items: readonly Item[], pick: (item: Item) => T): T | null {
+  if (items.length < 2) return null;
+  const first = JSON.stringify(pick(items[0]!));
+  return items.every((item) => JSON.stringify(pick(item)) === first) ? pick(items[0]!) : null;
+}
+
+function sharedAcrossDimensions(findings: readonly ValueFinding[]): {
+  rationale: string | null;
+  evidence: readonly string[] | null;
+} {
+  const evidence = allSame(findings, (f) => f.evidence);
+  return {
+    rationale: allSame(findings, (f) => f.rationale),
+    evidence: evidence && evidence.length > 0 ? evidence : null,
+  };
+}
+
 function BandMeter({ band }: { band: Band }) {
   const filled = BAND_STEPS[band];
   return (
@@ -103,6 +132,9 @@ export function AnalysisTab() {
         const direct = a.useCases.filter((u) => u.kind === "DIRECT");
         const indirect = a.useCases.filter((u) => u.kind === "INDIRECT");
         const byDimension = new Map(a.valueFindings.map((v) => [v.dimension, v]));
+
+        const shared = sharedAcrossDimensions(a.valueFindings);
+        const sharedFinding = allSame(a.feasibility?.findings ?? [], (f) => f.finding);
 
         return (
           <div className="space-y-6">
@@ -179,11 +211,11 @@ export function AnalysisTab() {
                 <CardHeader><CardTitle>Business value</CardTitle></CardHeader>
                 <CardContent>
                   <Provenance state="AI_UNVALIDATED">
-                    <ul className="space-y-5">
+                    <ul className="divide-y divide-border">
                       {ValueDimensionEnum.options.map((dim: ValueDimension) => {
                         const f = byDimension.get(dim);
                         return (
-                          <li key={dim}>
+                          <li key={dim} className="py-3 first:pt-0 last:pb-0">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <h4 className="text-300 font-medium">
                                 {VALUE_DIMENSION_LABEL[dim]}
@@ -196,16 +228,34 @@ export function AnalysisTab() {
                                 </span>
                               )}
                             </div>
-                            {f ? (
-                              <>
-                                <p className="mt-1 text-200">{f.rationale}</p>
-                                <EvidenceList evidence={f.evidence} source={source} />
-                              </>
+                            {/*
+                              Only what is SPECIFIC to this dimension. When the model
+                              reasoned from the same sentence for all nine — which is
+                              exactly what it does on a thin submission — the shared
+                              reasoning is hoisted below instead of repeated nine times.
+                            */}
+                            {f && !shared.rationale ? (
+                              <p className="mt-1 text-200">{f.rationale}</p>
+                            ) : null}
+                            {f && !shared.evidence ? (
+                              <EvidenceList evidence={f.evidence} source={source} />
                             ) : null}
                           </li>
                         );
                       })}
                     </ul>
+
+                    {shared.rationale ? (
+                      <p className="mt-4 border-t border-border pt-3 text-200">
+                        <span className="text-100 font-medium uppercase tracking-wider text-muted-foreground">
+                          Reasoning for all nine{" "}
+                        </span>
+                        {shared.rationale}
+                      </p>
+                    ) : null}
+                    {shared.evidence ? (
+                      <EvidenceList evidence={shared.evidence} source={source} />
+                    ) : null}
                   </Provenance>
                 </CardContent>
               </Card>
@@ -241,16 +291,19 @@ export function AnalysisTab() {
                         </div>
                       ) : null}
 
-                      <ul className="space-y-3">
+                      <ul className="divide-y divide-border">
                         {a.feasibility.findings.map((f) => (
-                          <li key={f.dimension}>
+                          <li key={f.dimension} className="py-3 first:pt-0 last:pb-0">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <h4 className="text-300 font-medium">
                                 {FEASIBILITY_DIMENSION_LABEL[f.dimension]}
                               </h4>
                               <BandMeter band={f.band} />
                             </div>
-                            <p className="mt-1 text-200">{f.finding}</p>
+                            {/* Same hoist as the value card: only what is specific here. */}
+                            {sharedFinding === null ? (
+                              <p className="mt-1 text-200">{f.finding}</p>
+                            ) : null}
                             {/* P-4: what would make it work beats what is wrong with it. */}
                             {f.condition ? (
                               <p className="mt-1 text-200 text-muted-foreground">
@@ -260,6 +313,15 @@ export function AnalysisTab() {
                           </li>
                         ))}
                       </ul>
+
+                      {sharedFinding === null ? null : (
+                        <p className="border-t border-border pt-3 text-200">
+                          <span className="text-100 font-medium uppercase tracking-wider text-muted-foreground">
+                            For every dimension{" "}
+                          </span>
+                          {sharedFinding}
+                        </p>
+                      )}
                     </div>
                   </Provenance>
                 </CardContent>

@@ -4,7 +4,7 @@ import {
   Badge, Button, Card, CardContent, Checkbox, EmptyState, ErrorState, RankBadge,
   ScoreDisplay, Skeleton, StatusPill,
 } from "@iep/ui";
-import type { ListRankingsResponse } from "@iep/contracts";
+import type { ExplanationItem, ListRankingsResponse } from "@iep/contracts";
 import { FEASIBILITY_LABEL } from "../analysis/api";
 import { MATURITY_LABEL } from "../evaluation/api";
 import { useProfiles, useRankingRun, useRankings } from "./api";
@@ -83,6 +83,67 @@ export function RankingsPage({ mode = "current" }: { mode?: "current" | "run" })
         />
       )}
     </main>
+  );
+}
+
+/**
+ * One line of "why this rank", as figures rather than a sentence.
+ *
+ * The engine writes a full sentence per factor and the board printed it whole:
+ * "Business impact — Business impact scored 88 of 100 and carries 18% of this profile,
+ * adding 15.8 points." Eighteen rows of that is nine hundred words of near-identical
+ * prose with the criterion name in it twice, and a reader gives up on it by row three —
+ * which defeats P-2 more thoroughly than showing less does.
+ *
+ * Every number here is the same number, from the same fields. The sentence is still the
+ * accessible name and the tooltip, and still appears in full on the Evaluation tab,
+ * which is the surface with room for it.
+ */
+function Factor({ kind, item }: { kind: "up" | "down"; item: ExplanationItem | null }) {
+  const up = kind === "up";
+  const tone = up ? "text-factor-up" : "text-factor-down";
+
+  /**
+   * A run computed before the engine recorded these figures.
+   *
+   * The numbers do not exist in that snapshot and never will — a ranking run is immutable
+   * (ADR-008), so there is nothing to back-fill and nothing to migrate. The sentence it
+   * DID record is shown in full instead, which is exactly what the board used to show.
+   */
+  const hasFigures = item !== null && item.normalized !== undefined && item.headroom !== undefined;
+
+  return (
+    <div>
+      <dt
+        className={`text-100 font-medium uppercase tracking-wider ${
+          item ? tone : "text-muted-foreground"
+        }`}
+      >
+        {up ? "Strongest" : "Weakest"}
+      </dt>
+
+      {item === null ? (
+        <dd className="text-200 text-muted-foreground">
+          {up ? "No criterion stood out." : "Nothing held it back."}
+        </dd>
+      ) : hasFigures ? (
+        <dd className="flex flex-wrap items-baseline gap-x-2 text-200" title={item.text}>
+          <span className="font-medium">{item.criterionLabel}</span>
+          <span className="tabular-nums text-muted-foreground">{item.normalized}/100</span>
+          <span className={`tabular-nums font-medium ${tone}`}>
+            {up
+              ? `+${item.contribution.toFixed(1)} pts`
+              : `${item.headroom!.toFixed(1)} pts available`}
+          </span>
+          {/* Nothing is lost to a screen reader — it reads the engine's own sentence. */}
+          <span className="sr-only">{item.text}</span>
+        </dd>
+      ) : (
+        <dd className="text-200">
+          <span className="font-medium">{item.criterionLabel}</span> — {item.text}
+        </dd>
+      )}
+    </div>
   );
 }
 
@@ -224,23 +285,9 @@ function Board({
                 </div>
 
                 {/* P-2 on the board itself: why this row is here, without a click. */}
-                <dl className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <dt className="text-100 font-medium text-factor-up">Strongest</dt>
-                    <dd className="text-200">
-                      {row.topStrength
-                        ? `${row.topStrength.criterionLabel} — ${row.topStrength.text}`
-                        : "No criterion stood out."}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-100 font-medium text-factor-down">Weakest</dt>
-                    <dd className="text-200">
-                      {row.topConstraint
-                        ? `${row.topConstraint.criterionLabel} — ${row.topConstraint.text}`
-                        : "Nothing held it back notably."}
-                    </dd>
-                  </div>
+                <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                  <Factor kind="up" item={row.topStrength} />
+                  <Factor kind="down" item={row.topConstraint} />
                 </dl>
               </CardContent>
             </Card>

@@ -125,6 +125,15 @@ export interface ExplanationItem {
   readonly contribution: number;
   /** Share of the composite this criterion accounts for, 0..1. */
   readonly shareOfTotal: number;
+  /**
+   * The criterion's own 0-100 score, and the points still available if it reached 100.
+   *
+   * Optional because a persisted explanation from before these existed cannot have them
+   * and, being part of an immutable run, can never be given them. The engine always
+   * writes both; a reader must still tolerate their absence.
+   */
+  readonly normalized?: number;
+  readonly headroom?: number;
   readonly text: string;
   readonly evidence: readonly string[];
 }

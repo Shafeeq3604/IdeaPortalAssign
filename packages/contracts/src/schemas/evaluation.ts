@@ -50,6 +50,25 @@ export const ExplanationItem = z.object({
   criterionLabel: z.string(),
   contribution: z.number(),
   shareOfTotal: z.number().min(0).max(1),
+  /**
+   * The criterion's own 0–100 score, and the points still on the table if it reached 100.
+   * `headroom` is 0 for a criterion already at 100.
+   *
+   * Both were already inside `text` as prose, and ONLY as prose — so the ranking board
+   * had to print a whole sentence to show a number. Exposed as data so a surface can
+   * render the figure and leave the sentence to surfaces with room for it.
+   *
+   * OPTIONAL, and this is the interesting part. Explanations are persisted as JSON on
+   * `ranking_explanations`, and a ranking run is an immutable snapshot (ADR-008) — so
+   * runs computed before these fields existed do not have them and can never be given
+   * them. Making the fields required would either break every historical board or force
+   * a back-fill that rewrites an immutable record.
+   *
+   * Absent means "this run predates the fields", not "zero". A caller must fall back to
+   * `text`, which every explanation has always carried.
+   */
+  normalized: Score.optional(),
+  headroom: z.number().min(0).optional(),
   text: z.string(),
   evidence: z.array(z.string()),
 });

@@ -1,5 +1,6 @@
 import { recomputeRankings } from "@iep/evaluation";
-import type { ExplanationItem, IdeaStatus } from "@iep/contracts";
+import { ExplanationItem } from "@iep/contracts";
+import type { IdeaStatus } from "@iep/contracts";
 import type { Handler } from "../../server.js";
 import { sendError } from "../../server.js";
 import { writeAudit } from "../../lib/audit.js";
@@ -13,10 +14,23 @@ import { presentCriterionScore } from "../evaluation/present.js";
  * 12th to 9th" unprovable. A run is a snapshot with a timestamp and a reason.
  */
 
-/** Top strength and top constraint travel with every row — the board explains inline (P-2). */
+/**
+ * Top strength and top constraint travel with every row — the board explains inline (P-2).
+ *
+ * PARSED, not cast. This was `value[0] as ExplanationItem`, and the cast is what turned
+ * an additive schema change into a blank page: rows written by an older engine lacked two
+ * fields, the response failed its own validation, and the board went to its error
+ * boundary. A cast asserts a shape; it does not check one, and stored JSON is exactly the
+ * case where the two differ.
+ *
+ * A row that cannot be parsed at all is dropped to null rather than thrown — one
+ * malformed explanation should cost that row its inline "why", not cost everybody the
+ * whole board.
+ */
 function topOf(value: unknown): ExplanationItem | null {
   if (!Array.isArray(value) || value.length === 0) return null;
-  return value[0] as ExplanationItem;
+  const parsed = ExplanationItem.safeParse(value[0]);
+  return parsed.success ? parsed.data : null;
 }
 
 const RANK_BAND_LIMIT: Record<string, number | null> = {
