@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type {
-  CriterionGroup, IdeaEvaluationResponse, ListRecommendationsResponse, MaturityLevel,
-  RankingEffect, RecommendationState,
+  CriterionGroup, IdeaEvaluationResponse, MaturityLevel,
 } from "@iep/contracts";
 import { api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
@@ -18,15 +17,6 @@ export function useEvaluation(ideaId: string) {
   return useQuery({
     queryKey: queryKeys.ideas.evaluation(ideaId),
     queryFn: () => api<IdeaEvaluationResponse>(`/ideas/${ideaId}/evaluation`),
-    enabled: Boolean(ideaId),
-    retry: false,
-  });
-}
-
-export function useRecommendations(ideaId: string) {
-  return useQuery({
-    queryKey: queryKeys.ideas.recommendations(ideaId),
-    queryFn: () => api<ListRecommendationsResponse>(`/ideas/${ideaId}/recommendations`),
     enabled: Boolean(ideaId),
     retry: false,
   });
@@ -71,21 +61,3 @@ export const MATURITY_HELP: Record<MaturityLevel, string> = {
   5: "Requirements, resources, risks, costs, timeline and measures are all defined.",
 };
 
-export const RANKING_EFFECT_LABEL: Record<RankingEffect, string> = {
-  LIKELY_UP: "Likely to help",
-  POSSIBLY_UP: "May help",
-  NEUTRAL: "Unlikely to change the score",
-  UNKNOWN: "Effect unclear",
-};
-
-export const RECOMMENDATION_STATE_LABEL: Record<RecommendationState, string> = {
-  OPEN: "Open",
-  ADDRESSED: "Addressed",
-  DISMISSED: "Dismissed",
-};
-
-export const PRIORITY_LABEL: Record<number, string> = {
-  1: "Start here",
-  2: "Worth doing",
-  3: "If you have time",
-};

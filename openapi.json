@@ -826,7 +826,6 @@
                     "FEASIBILITY",
                     "RISK",
                     "EFFORT_TIMELINE",
-                    "IMPROVEMENT",
                     "EXPLANATION"
                   ]
                 },
@@ -1012,7 +1011,6 @@
                         "FEASIBILITY",
                         "RISK",
                         "EFFORT_TIMELINE",
-                        "IMPROVEMENT",
                         "EXPLANATION"
                       ]
                     },
@@ -3771,100 +3769,6 @@
           "items",
           "meta",
           "run"
-        ],
-        "additionalProperties": false
-      },
-      "ListRecommendationsResponse": {
-        "type": "object",
-        "properties": {
-          "ideaId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "ideaVersionId": {
-            "$ref": "#/components/schemas/definitions/ListRecommendationsResponse/properties/ideaId"
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "$ref": "#/components/schemas/definitions/ListRecommendationsResponse/properties/ideaId"
-                },
-                "issue": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "whyItMatters": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "recommendation": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "howToImplement": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "expectedEffect": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "projectedRankingEffect": {
-                  "type": "string",
-                  "enum": [
-                    "LIKELY_UP",
-                    "POSSIBLY_UP",
-                    "NEUTRAL",
-                    "UNKNOWN"
-                  ]
-                },
-                "targetCriterionKey": {
-                  "type": "string",
-                  "nullable": true
-                },
-                "priority": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 3
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "OPEN",
-                    "ADDRESSED",
-                    "DISMISSED"
-                  ]
-                },
-                "resolvedInVersionNo": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "nullable": true
-                }
-              },
-              "required": [
-                "id",
-                "issue",
-                "whyItMatters",
-                "recommendation",
-                "howToImplement",
-                "expectedEffect",
-                "projectedRankingEffect",
-                "targetCriterionKey",
-                "priority",
-                "status",
-                "resolvedInVersionNo"
-              ],
-              "additionalProperties": false
-            }
-          }
-        },
-        "required": [
-          "ideaId",
-          "ideaVersionId",
-          "items"
         ],
         "additionalProperties": false
       },
@@ -7475,78 +7379,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetIdeaHistoryResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "UNAUTHENTICATED",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "NOT_FOUND",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "INTERNAL_ERROR",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/ideas/{ideaId}/recommendations": {
-      "get": {
-        "operationId": "listRecommendations",
-        "summary": "Six-part improvement recommendations (FR-15). May be empty for a strong idea.",
-        "tags": [
-          "improvement"
-        ],
-        "x-access": {
-          "requires": [
-            "idea:read:own"
-          ]
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "ideaId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListRecommendationsResponse"
                 }
               }
             }

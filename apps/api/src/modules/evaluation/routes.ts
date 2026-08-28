@@ -124,39 +124,4 @@ export function registerEvaluationRoutes(handlers: Map<string, Handler>): void {
     };
   });
 
-  handlers.set("listRecommendations", async (request, reply, ctx) => {
-    const { ideaId } = request.params as { ideaId: string };
-    const idea = await readableIdea(request, ctx, ideaId);
-    if (!idea?.currentVersion) return sendError(reply, "NOT_FOUND", NOT_FOUND);
-
-    const items = await ctx.db.improvementRecommendation.findMany({
-      where: { ideaVersionId: idea.currentVersion.id },
-      include: {
-        targetCriterion: { select: { key: true } },
-        resolvedInVersion: { select: { versionNo: true } },
-      },
-      // Priority 1 first, and open work above resolved work.
-      orderBy: [{ status: "asc" }, { priority: "asc" }, { createdAt: "asc" }],
-    });
-
-    return {
-      ideaId: idea.id,
-      ideaVersionId: idea.currentVersion.id,
-      // Legitimately empty for a strong idea (D-13). The UI has a real empty state for
-      // it rather than treating "no advice" as a failure to produce advice.
-      items: items.map((r) => ({
-        id: r.id,
-        issue: r.issue,
-        whyItMatters: r.whyItMatters,
-        recommendation: r.recommendation,
-        howToImplement: r.howToImplement,
-        expectedEffect: r.expectedEffect,
-        projectedRankingEffect: r.projectedRankingEffect,
-        targetCriterionKey: r.targetCriterion?.key ?? null,
-        priority: r.priority,
-        status: r.status,
-        resolvedInVersionNo: r.resolvedInVersion?.versionNo ?? null,
-      })),
-    };
-  });
 }

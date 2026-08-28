@@ -7,7 +7,7 @@ import {
   type AnalysisJob, type RankingJob,
 } from "./queue.js";
 import { runPipeline } from "./pipeline.js";
-import { evaluateVersion, generateRecommendations, recomputeRankings } from "@iep/evaluation";
+import { evaluateVersion, recomputeRankings } from "@iep/evaluation";
 
 /**
  * apps/worker — the AI pipeline consumer (P3).
@@ -61,16 +61,7 @@ const worker = new Worker<AnalysisJob>(
      * which is exactly the state P4 left the product in.
      */
     const evaluated = await evaluateVersion(db, job.data.ideaVersionId);
-    let advised = 0;
     if (evaluated) {
-      // AI-08 runs AFTER evaluation because it needs the contribution vector — advice
-      // aimed at the criteria that actually cost points, not at what reads badly.
-      const improvement = await generateRecommendations(
-        { db, provider, budgetUsd: env.AI_BUDGET_PER_VERSION_USD, redactionEnabled: env.PII_REDACTION_ENABLED },
-        { ideaId: job.data.ideaId, ideaVersionId: job.data.ideaVersionId },
-      );
-      advised = improvement.generated;
-
       await rankingQueue.add("recompute", {
         triggerReason: `analysis completed for idea ${job.data.ideaId}`,
       });
@@ -79,7 +70,6 @@ const worker = new Worker<AnalysisJob>(
     console.log(
       `[analysis] ${result.ideaVersionId} ${result.overall} · ` +
         `${evaluated ? `composite ${evaluated.compositeScore}, maturity ${evaluated.maturityLevel}` : "not evaluated"} · ` +
-        `${advised} recommendations · ` +
         `${result.stepsRun} steps, ${result.stepsFallenBack} fallback, ` +
         `$${result.totalCostUsd.toFixed(4)}, ${Date.now() - started}ms`,
     );

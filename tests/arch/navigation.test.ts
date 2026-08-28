@@ -40,7 +40,7 @@ describe("assertion 1 — every entity is reachable, per role", () => {
     for (const required of [
       "Idea", "IdeaVersion", "AiAnalysis", "UseCase", "ValueFinding",
       "FeasibilityAssessment", "Risk", "Evaluation", "CriterionScore",
-      "RankingEntry", "RankingExplanation", "ImprovementRecommendation",
+      "RankingEntry", "RankingExplanation",
       "EvaluationCriterion", "EvaluationProfile", "StatusHistory",
     ]) {
       expect(rendered.has(required), `EMPLOYEE cannot reach ${required}`).toBe(true);
@@ -62,9 +62,24 @@ describe("assertion 2 — no orphans: every relationship resolves to a registere
       .toBeDefined();
   });
 
-  it("covers all 46 rows of the SPEC §6.2 table, with no gaps or duplicates", () => {
+  it("covers the SPEC §6.2 table, with no duplicates and no invented rows", () => {
+    /**
+     * Three rows were REMOVED, not lost.
+     *
+     * The Improve feature was withdrawn by the product owner (see the decisions log), so
+     * §6.2's rows for it describe navigation that no longer exists. Their spec numbers
+     * stay retired rather than being renumbered: the numbers are references into the SPEC
+     * document, and shifting them would silently change what every other row points at.
+     *
+     * Asserted as an explicit set, so a genuinely missing row still fails.
+     */
+    const RETIRED = [28, 29, 30];
     const nums = RELATIONSHIPS.map((r) => r.spec).sort((a, b) => a - b);
-    expect(nums).toEqual(Array.from({ length: 46 }, (_, i) => i + 1));
+
+    expect(new Set(nums).size, "duplicate §6.2 row numbers").toBe(nums.length);
+    expect(nums).toEqual(
+      Array.from({ length: 46 }, (_, i) => i + 1).filter((n) => !RETIRED.includes(n)),
+    );
   });
 });
 

@@ -225,20 +225,6 @@ describe("fallbacks keep an idea rankable when the model is unavailable", () => 
     expect(JSON.stringify(FALLBACKS.VALUE())).toContain(NOT_ANALYSED);
   });
 
-  it("still produces improvement guidance from the gaps (P-4)", () => {
-    const sparse = { title: "t", description: "d", problemStatement: "p", expectedUsers: "u", expectedOutcome: "o" };
-    const recs = FALLBACKS.IMPROVEMENT({ fields: sparse }).recommendations;
-    expect(recs.length).toBeGreaterThan(0);
-    for (const r of recs) {
-      // All six FR-15 parts, even without a model.
-      expect(r.issue).toBeTruthy();
-      expect(r.whyItMatters).toBeTruthy();
-      expect(r.recommendation).toBeTruthy();
-      expect(r.howToImplement).toBeTruthy();
-      expect(r.expectedEffect).toBeTruthy();
-      expect(r.projectedRankingEffect).toBeTruthy();
-    }
-  });
 });
 
 /* ─────────────────────────── orchestration ─────────────────────────── */
@@ -341,7 +327,7 @@ describe("analyseStep — the redact → call → validate → escalate → fall
 describe("model routing", () => {
   it("routes judgement to Tier A and extraction to Tier B", () => {
     const tierOf = (step: string) => DEFAULT_ROUTES.find((r) => r.storyKey === step)!.tier;
-    for (const judgement of ["VALUE", "FEASIBILITY", "RISK", "IMPROVEMENT"]) {
+    for (const judgement of ["VALUE", "FEASIBILITY", "RISK"]) {
       expect(tierOf(judgement), judgement).toBe("A");
     }
     for (const extraction of ["STRUCTURE", "USE_CASES", "EFFORT_TIMELINE"]) {
@@ -377,7 +363,7 @@ describe("schema validity is 100% (SPEC §12.4)", () => {
   it("the stub satisfies every schema on the first attempt", async () => {
     const stub = new StubProvider();
     for (const step of Object.keys(AI_OUTPUT_SCHEMAS) as (keyof typeof AI_OUTPUT_SCHEMAS)[]) {
-      if (step === "EXPLANATION" || step === "IMPROVEMENT") continue; // context-dependent
+      if (step === "EXPLANATION") continue; // needs the engine's explanation as context
       const out = await analyseStep(stub, { ...baseInput, step });
       const parsed = parseAndValidate(AI_OUTPUT_SCHEMAS[step], out.data);
       expect(parsed.ok, step).toBe(true);

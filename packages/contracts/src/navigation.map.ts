@@ -68,8 +68,6 @@ export const ROUTES: readonly RouteDef[] = [
               "ImplementationPlan", "ImplementationRequirement", "TimelineEstimate"] },
   { id: "idea.evaluation", path: "/ideas/:ideaId/evaluation", title: "Evaluation", roles: ALL, backPath: "/ideas",
     renders: ["Evaluation", "CriterionScore", "ScoreOverride", "RankingEntry", "RankingExplanation"] },
-  { id: "idea.improve", path: "/ideas/:ideaId/improve", title: "Improve", roles: ALL, backPath: "/ideas",
-    renders: ["ImprovementRecommendation"] },
   { id: "idea.history", path: "/ideas/:ideaId/history", title: "History", roles: ALL, backPath: "/ideas",
     renders: ["IdeaVersion", "StatusHistory", "Evaluation"], searchParams: ["diff"] },
   { id: "idea.review", path: "/ideas/:ideaId/review", title: "Review", roles: REVIEWERS, backPath: "/review",
@@ -77,7 +75,7 @@ export const ROUTES: readonly RouteDef[] = [
   { id: "idea.version", path: "/ideas/:ideaId/versions/:versionNo", title: "Version", roles: ALL,
     backPath: "/ideas/:ideaId/history", renders: ["IdeaVersion"] },
   { id: "idea.revise", path: "/ideas/:ideaId/revise", title: "Revise", roles: ALL,
-    backPath: "/ideas/:ideaId/improve", renders: ["IdeaVersion"], searchParams: ["rec"] },
+    backPath: "/ideas/:ideaId/overview", renders: ["IdeaVersion"] },
 
   { id: "rankings", path: "/rankings", title: "Rankings", roles: ALL, backPath: "/",
     renders: ["RankingRun", "RankingEntry", "RankingExplanation", "EvaluationProfile"],
@@ -140,9 +138,6 @@ export const RELATIONSHIPS: readonly RelationshipDef[] = [
   { spec: 25, from: "RankingBoard", to: "Idea",             affordance: "row",   destinationRouteId: "idea.evaluation" },
   { spec: 26, from: "RankingBoard", to: "Comparison",       affordance: "button", destinationRouteId: "rankings.compare" },
   { spec: 27, from: "RankingRun",  to: "RankingEntry",      affordance: "link",  destinationRouteId: "rankings.run" },
-  { spec: 28, from: "Idea",        to: "ImprovementRecommendation", affordance: "tab", destinationRouteId: "idea.improve" },
-  { spec: 29, from: "ImprovementRecommendation", to: "IdeaVersion", affordance: "button", destinationRouteId: "idea.revise" },
-  { spec: 30, from: "ImprovementRecommendation", to: "EvaluationCriterion", affordance: "link", destinationRouteId: "idea.evaluation" },
   { spec: 31, from: "Idea",        to: "IdeaVersion",       affordance: "tab",   destinationRouteId: "idea.history" },
   { spec: 32, from: "IdeaVersion", to: "IdeaVersionSnapshot", affordance: "row", destinationRouteId: "idea.version" },
   { spec: 33, from: "IdeaVersion", to: "VersionDiff",       affordance: "button", destinationRouteId: "idea.history" },
@@ -174,7 +169,6 @@ export const M1_ENTITIES: readonly string[] = [
   "EvaluationCriterion", "EvaluationProfile", "ProfileWeight", "AiModelRoute",
   "Evaluation", "CriterionScore", "ScoreOverride",
   "RankingRun", "RankingEntry", "RankingExplanation",
-  "ImprovementRecommendation", "Review", "StatusHistory", "AuditLog",
 ];
 
 export function routeById(id: string): RouteDef | undefined {

@@ -9,7 +9,6 @@ import { HistoryTab } from "./features/ideas/HistoryTab";
 import { VersionPage } from "./features/ideas/VersionPage";
 import { AnalysisTab } from "./features/analysis/AnalysisTab";
 import { EvaluationTab } from "./features/evaluation/EvaluationTab";
-import { ImproveTab } from "./features/evaluation/ImproveTab";
 import { ReviewTab } from "./features/review/ReviewTab";
 import { ReviewQueuePage } from "./features/review/ReviewQueuePage";
 import { RankingsPage } from "./features/rankings/RankingsPage";
@@ -103,7 +102,6 @@ function Shell() {
             <Route path="/ideas/:ideaId/overview" element={<OverviewTab />} />
             <Route path="/ideas/:ideaId/analysis" element={<AnalysisTab />} />
             <Route path="/ideas/:ideaId/evaluation" element={<EvaluationTab />} />
-            <Route path="/ideas/:ideaId/improve" element={<ImproveTab />} />
             <Route path="/ideas/:ideaId/review" element={<ReviewTab />} />
             <Route path="/review" element={<ReviewQueuePage />} />
             {/* Static before dynamic: /rankings/compare must not be read as a run id. */}

@@ -206,36 +206,4 @@ describe("F-07 · revising an idea and seeing what changed", () => {
     expect(calls.length).toBe(PIPELINE_STEPS.length);
     expect(result.stepsCarriedForward).toBe(0);
   });
-
-  it("Given a recommendation the author addressed, Then it is resolved to that version", async () => {
-    guard();
-    const first = await givenAnAnalysedIdea("resolved");
-
-    const recommendation = await db.improvementRecommendation.create({
-      data: {
-        ideaVersionId: first.versionId,
-        issue: "The scale of the problem is not quantified.",
-        whyItMatters: "Reach is estimated from scale.",
-        recommendation: "Say how many claims a month.",
-        howToImplement: "Check the last month of records.",
-        expectedEffect: "A better-grounded reach estimate.",
-        projectedRankingEffect: "POSSIBLY_UP",
-        priority: 1,
-      },
-    });
-
-    const { versionId: v2Id } = await makeIdeaRepo(db).createNextVersion({
-      ideaId: first.ideaId, authorId: submitterId,
-      changeSummary: "Quantified the volume.",
-      addressesRecommendationIds: [recommendation.id],
-      fields: { ...first.fields, expectedBenefits: "About 400 claims a month." },
-    });
-
-    const after = await db.improvementRecommendation.findUniqueOrThrow({
-      where: { id: recommendation.id },
-    });
-    expect(after.status).toBe("ADDRESSED");
-    // Linked to the version that addressed it, so the Improve tab can say WHERE.
-    expect(after.resolvedInVersionId).toBe(v2Id);
-  });
 });

@@ -1,7 +1,6 @@
 import { z } from "zod";
 import {
-  Band, DependencyKind, EffortClass, FeasibilityDimension, FeasibilityStatus, Horizon,
-  RankingEffect, RiskCategory, RiskLevel, TimelinePhase, UseCaseKind, UserCountBand,
+  Band, DependencyKind, EffortClass, FeasibilityDimension, FeasibilityStatus, Horizon, RiskCategory, RiskLevel, TimelinePhase, UseCaseKind, UserCountBand,
   ValueDimension, RequirementKind,
 } from "@iep/contracts";
 
@@ -194,34 +193,6 @@ export const EffortTimelineOutput = z
   });
 export type EffortTimelineOutput = z.infer<typeof EffortTimelineOutput>;
 
-// ───────────────────────────── AI-08 · IMPROVEMENT (Tier A) ─────────────────────────────
-// Input is the engine's CONTRIBUTION VECTOR, not the raw idea: the model explains what
-// the deterministic engine already found weak (SPEC §12.3).
-
-export const ImprovementOutput = z
-  .object({
-    recommendations: z
-      .array(
-        z
-          .object({
-            // All six parts of FR-15. None optional — the structure cannot be half-met.
-            issue: shortText,
-            whyItMatters: shortText,
-            recommendation: shortText,
-            howToImplement: longText,
-            expectedEffect: shortText,
-            projectedRankingEffect: RankingEffect,
-            targetCriterionKey: z.string().max(64).nullable(),
-            // ALLOWED numeric: an ordinal bucket, not a magnitude.
-            priority: z.number().int().min(1).max(3),
-          })
-          .strict(),
-      )
-      .max(8), // may legitimately be empty for a strong idea (D-13, SPEC §9.6)
-  })
-  .strict();
-export type ImprovementOutput = z.infer<typeof ImprovementOutput>;
-
 // ───────────────────────────── AI-09 · NARRATIVE (Tier B, OPTIONAL) ─────────────────────────────
 // Rewrites the engine's explanation into fluent prose. It may not add claims; the
 // semantic validator rejects any criterion key the engine did not supply.
@@ -244,6 +215,5 @@ export const AI_OUTPUT_SCHEMAS = {
   FEASIBILITY: FeasibilityOutput,
   RISK: RiskOutput,
   EFFORT_TIMELINE: EffortTimelineOutput,
-  IMPROVEMENT: ImprovementOutput,
   EXPLANATION: NarrativeOutput,
 } as const;

@@ -63,7 +63,6 @@ export const DEFAULT_ROUTES: readonly ModelRoute[] = [
   { storyKey: "VALUE",       tier: "A", modelId: TIER_MODELS.A, effort: "high", thinkingMode: "ADAPTIVE", thinkingBudgetTokens: null, maxTokens: 10_000, enabled: true },
   { storyKey: "FEASIBILITY", tier: "A", modelId: TIER_MODELS.A, effort: "high", thinkingMode: "ADAPTIVE", thinkingBudgetTokens: null, maxTokens: 12_000, enabled: true },
   { storyKey: "RISK",        tier: "A", modelId: TIER_MODELS.A, effort: "high", thinkingMode: "ADAPTIVE", thinkingBudgetTokens: null, maxTokens: 12_000, enabled: true },
-  { storyKey: "IMPROVEMENT", tier: "A", modelId: TIER_MODELS.A, effort: "high", thinkingMode: "ADAPTIVE", thinkingBudgetTokens: null, maxTokens: 12_000, enabled: true },
 ];
 
 /** One tier up, for the escalate-on-validation-failure path (SPEC §12.1.2). */

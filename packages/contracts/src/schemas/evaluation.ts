@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
   Band, Confidence, CriterionDirection, CriterionGroup, CriterionSourceKind,
-  ExplanationSource, MaturityLevel, RankingEffect, RecommendationState, ScoreSource,
+  ExplanationSource, MaturityLevel, ScoreSource,
 } from "../enums.js";
 import { ActorRef, Id, PageQuery, Timestamp, paginated } from "./common.js";
 
@@ -188,32 +188,6 @@ export const RecomputeRequest = z.object({
   reason: z.string().trim().min(1).max(500),
 });
 export type RecomputeRequest = z.infer<typeof RecomputeRequest>;
-
-/* ── Improvement (FR-15) ── */
-
-export const ImprovementRecommendation = z.object({
-  id: Id,
-  // All six parts of FR-15. None nullable — the structure cannot be half-met.
-  issue: z.string().min(1),
-  whyItMatters: z.string().min(1),
-  recommendation: z.string().min(1),
-  howToImplement: z.string().min(1),
-  expectedEffect: z.string().min(1),
-  projectedRankingEffect: RankingEffect,
-  targetCriterionKey: z.string().nullable(),
-  priority: z.number().int().min(1).max(3),
-  status: RecommendationState,
-  resolvedInVersionNo: z.number().int().min(1).nullable(),
-});
-export type ImprovementRecommendation = z.infer<typeof ImprovementRecommendation>;
-
-export const ListRecommendationsResponse = z.object({
-  ideaId: Id,
-  ideaVersionId: Id,
-  /** May legitimately be empty for a strong idea (D-13) — the UI shows an empty state. */
-  items: z.array(ImprovementRecommendation),
-});
-export type ListRecommendationsResponse = z.infer<typeof ListRecommendationsResponse>;
 
 /* ── Config, read-only in M1 (FR-13, SPEC §9.10) ── */
 

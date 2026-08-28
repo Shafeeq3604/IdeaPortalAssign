@@ -14,7 +14,6 @@ const TABS = [
   { id: "idea.overview", label: "Overview", seg: "overview" },
   { id: "idea.analysis", label: "Analysis", seg: "analysis" },
   { id: "idea.evaluation", label: "Evaluation", seg: "evaluation" },
-  { id: "idea.improve", label: "Improve", seg: "improve" },
   { id: "idea.history", label: "History", seg: "history" },
   { id: "idea.review", label: "Review", seg: "review" },
 ] as const;

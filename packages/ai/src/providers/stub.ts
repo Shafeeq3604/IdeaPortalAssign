@@ -192,42 +192,6 @@ export class StubProvider implements AiProvider {
           evidence: [cite],
         };
 
-      case "IMPROVEMENT":
-        return {
-          recommendations: [
-            {
-              issue: "The scale of the problem is not quantified.",
-              whyItMatters: "Reach and impact are estimated from scale; without it they stay conservative.",
-              recommendation: "Add how often this happens and how many people it affects.",
-              howToImplement: "Check the last month of records, or ask the team that handles it.",
-              expectedEffect: "A better-grounded estimate of who benefits.",
-              projectedRankingEffect: "POSSIBLY_UP",
-              targetCriterionKey: "user_reach",
-              priority: 1,
-            },
-            {
-              issue: "No evidence that anyone else has this problem.",
-              whyItMatters: "Breadth of use is scored from the applications described, not assumed.",
-              recommendation: "Name one other team that hits the same problem.",
-              howToImplement: "Ask in the relevant channel, or point at an existing ticket.",
-              expectedEffect: "A second realistic use case rather than a speculative one.",
-              projectedRankingEffect: "POSSIBLY_UP",
-              targetCriterionKey: "use_case_breadth",
-              priority: 2,
-            },
-            {
-              issue: "The technical approach is unstated.",
-              whyItMatters: "Feasibility stays at \"needs investigation\" while the approach is open.",
-              recommendation: "Name the system or capability you would build on.",
-              howToImplement: "One sentence is enough — the platform it plugs into, and where the data comes from.",
-              expectedEffect: "Feasibility can be assessed against something concrete.",
-              projectedRankingEffect: "LIKELY_UP",
-              targetCriterionKey: "technical_feasibility",
-              priority: 2,
-            },
-          ],
-        };
-
       case "EXPLANATION":
         return {
           summary: "This idea ranks where it does because of the factors listed below.",

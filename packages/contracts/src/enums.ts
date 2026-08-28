@@ -37,7 +37,7 @@ export const M1_REACHABLE_STATUSES: readonly IdeaStatus[] = [
 
 export const AnalysisStep = z.enum([
   "STRUCTURE", "USE_CASES", "VALUE", "FEASIBILITY", "RISK", "EFFORT_TIMELINE",
-  "IMPROVEMENT", "EXPLANATION",
+  "EXPLANATION",
 ]);
 export type AnalysisStep = z.infer<typeof AnalysisStep>;
 

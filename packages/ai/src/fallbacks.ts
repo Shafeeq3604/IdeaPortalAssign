@@ -153,23 +153,6 @@ export function fallbackEffortTimeline() {
  * P-4 ("improvement over rejection") must survive an outage: an idea that could not be
  * analysed still gets actionable guidance, because the gaps are visible without a model.
  */
-export function fallbackImprovement(input: FallbackInput) {
-  const structure = fallbackStructure(input);
-  return {
-    recommendations: structure.missingInformation.slice(0, 3).map((gap, i) => ({
-      issue: `The submission does not include ${gap}.`,
-      whyItMatters:
-        "Missing detail lowers confidence in the evaluation and limits the guidance the platform can give.",
-      recommendation: `Add ${gap}.`,
-      howToImplement: "Edit the idea and fill in the field, or create a new version if it has been submitted.",
-      expectedEffect: "A better-grounded evaluation with fewer unknowns.",
-      projectedRankingEffect: "UNKNOWN" as const,
-      targetCriterionKey: null,
-      priority: (i + 1) as 1 | 2 | 3,
-    })),
-  };
-}
-
 export const FALLBACKS = {
   STRUCTURE: fallbackStructure,
   USE_CASES: fallbackUseCases,
@@ -177,5 +160,4 @@ export const FALLBACKS = {
   FEASIBILITY: fallbackFeasibility,
   RISK: fallbackRisk,
   EFFORT_TIMELINE: fallbackEffortTimeline,
-  IMPROVEMENT: fallbackImprovement,
 } as const;

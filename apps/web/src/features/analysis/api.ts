@@ -73,7 +73,6 @@ export const STEP_LABEL: Record<AnalysisStep, string> = {
   FEASIBILITY: "Checking feasibility",
   RISK: "Identifying risks",
   EFFORT_TIMELINE: "Estimating effort and timeline",
-  IMPROVEMENT: "Recommending improvements",
   EXPLANATION: "Writing the explanation",
 };
 

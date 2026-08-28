@@ -90,17 +90,6 @@ Classes are coarse on purpose (LOW / MEDIUM / HIGH / VERY_HIGH). Timeline phases
 RANGES in weeks and are always preliminary — they will be shown to people as estimates,
 not commitments, so keep the ranges honest and wide where you are unsure.`,
 
-  IMPROVEMENT: `${SHARED_RULES}
-
-TASK — Recommend improvements.
-You are given the scoring engine's contribution vector: which criteria scored low and how
-much each one costs this idea. Explain what the employee can DO about the weakest ones.
-
-Every recommendation needs all six parts: the issue, why it matters, what to do, how to do
-it, the expected effect, and the likely direction of movement. Be concrete — "add more
-detail" is useless; "state how many claims per month" is actionable.
-
-Never promise a rank will improve. The engine decides that.`,
 
   EXPLANATION: `${SHARED_RULES}
 

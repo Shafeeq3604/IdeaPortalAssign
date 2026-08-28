@@ -186,13 +186,6 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     successStatus: 202, errors: ["ROLE_NOT_PERMITTED", "VALIDATION_FAILED"],
   },
 
-  /* ── improvement ── */
-  {
-    operationId: "listRecommendations", method: "GET", path: "/ideas/{ideaId}/recommendations", tag: "improvement",
-    summary: "Six-part improvement recommendations (FR-15). May be empty for a strong idea.",
-    access: { requires: [...OWN] }, params: IdeaParams, response: E.ListRecommendationsResponse,
-    successStatus: 200, errors: ["NOT_FOUND"],
-  },
 
   /* ── review ── */
   {
