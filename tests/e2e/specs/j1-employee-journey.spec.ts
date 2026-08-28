@@ -164,6 +164,53 @@ test.describe("J-1 employee journey", () => {
     await expect(page.getByText(/not implemented|placeholder/i)).toHaveCount(0);
   });
 
+
+  test("anyone can react to an idea, and it never touches the score (§14)", async ({ page }) => {
+    await signInAs(page, /Rae Reviewer/i);
+
+    await page.goto("/ideas");
+    const firstIdea = page.locator('main a[href*="/overview"]').first();
+    await expect(firstIdea, "no ideas — run `pnpm db:seed && pnpm demo:data`").toBeVisible();
+    await firstIdea.click();
+    await expect(page).toHaveURL(new RegExp(String.raw`/ideas/[0-9a-f-]+/overview`));
+
+    /*
+      Matched case-insensitively. The accessible name flips between "Thumbs up (n so far)"
+      and "Remove your thumbs up (n so far)" depending on whether you have already voted,
+      and a case-sensitive pattern silently stops matching after the first click.
+    */
+    const up = page.getByRole("button", { name: /thumbs up/i });
+    await expect(up).toBeVisible();
+
+    const before = Number((await up.innerText()).trim());
+    await up.click();
+    await expect(up).toHaveAttribute("aria-pressed", "true");
+    await expect(up).toContainText(String(before + 1));
+
+    // Pressing the same thumb again takes the vote back rather than adding a second.
+    await up.click();
+    await expect(up).toHaveAttribute("aria-pressed", "false");
+    await expect(up).toContainText(String(before));
+
+    /*
+      The score must not move. This is the whole reason reactions are kept out of the
+      engine — §14 and P-1 both require that popularity does not determine the ranking.
+    */
+    const ideaUrl = page.url();
+    await page.goto(ideaUrl.replace("/overview", "/evaluation"));
+    const scoreBefore = await page.getByText("/ 100").first().innerText();
+
+    await page.goto(ideaUrl);
+    await page.getByRole("button", { name: /thumbs up/i }).click();
+    await page.waitForTimeout(600);
+
+    await page.goto(ideaUrl.replace("/overview", "/evaluation"));
+    await expect(
+      page.getByText("/ 100").first(),
+      "a reaction changed the composite score — reactions must never reach the engine",
+    ).toHaveText(scoreBefore);
+  });
+
   test("no dead ends: an unknown route offers a way out", async ({ page }) => {
     await signInAs(page, /Erin Employee/i);
     await page.goto("/ideas/no-such-route-at-all");

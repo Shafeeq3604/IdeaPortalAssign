@@ -8,7 +8,7 @@ The platform should make submitting an idea feel as easy as sending a message.
 
 Core principle:
 
-Employees provide the idea. The platform helps understand, improve, and evaluate it. Humans make important decisions.
+Employees provide the idea. The platform helps understand and evaluate it, and colleagues react to it. Humans make important decisions.
 
 Priorities:
 
@@ -307,22 +307,24 @@ Score breakdown for a selected idea
 
 Do not display every chart simultaneously.
 
-14. Improving Ideas
+14. Reactions
 
-Instead of simply saying an idea has a low score, explain how it can improve.
+Ideas are for sharing and reacting to, not for critiquing.
 
-Example:
+Any employee viewing an idea can give it a thumbs up or a thumbs down, and the totals are
+visible at a glance. A reaction is an opinion from a colleague, shown next to — and clearly
+apart from — the platform's own evaluation.
 
-This idea has potential, but we need more information.
+Popularity must not directly determine the ranking. The two are separate signals and are
+labelled as such:
 
-What could make it stronger?
-- Clarify the problem
-- Identify who benefits
-- Provide an example
-- Start with a smaller version
-- Explain the expected benefit
+- AI Evaluation — the platform's score, with its reasoning
+- Team Feedback — what colleagues think
 
-The experience should feel helpful rather than judgmental.
+Removed: the platform previously suggested how an author could make their idea stronger.
+That has been withdrawn. It made the experience read as a critique of the person's idea,
+and this platform is for posting ideas and seeing how people respond to them. The
+evaluation still explains its score; it no longer tells anyone what to change.
 
 15. Duplicate and Related Ideas
 
@@ -616,8 +618,6 @@ Extraction
 
 Reasoning
 
-Recommendations
-
 27. Large Dataset Support
 
 The system should be capable of growing from 10 to 100,000+ ideas, but the MVP should not be over-engineered for the largest scale.
@@ -722,7 +722,7 @@ Evaluation
 
 Explainable score
 
-Improvement suggestions
+Thumbs up / thumbs down reactions
 
 Reviewer
 
@@ -905,8 +905,6 @@ Checks for similar ideas.
 Evaluates the idea.
 
 Explains its potential.
-
-Suggests improvements.
 
 Allows human reviewers to provide feedback.
 

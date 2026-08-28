@@ -2,8 +2,7 @@
  * `pnpm demo:data` — bring a seeded database to a demonstrable state.
  *
  * Runs the real pipeline over every submitted idea that has not been analysed, evaluates
- * it, writes improvement recommendations where the score warrants them, and computes a
- * ranking run. The result is a product you can open and look at, rather than an empty
+ * it, and computes a ranking run. The result is a product you can open and look at, rather than an empty
  * shell with a working submit button.
  *
  * Three deliberate choices:
@@ -20,7 +19,7 @@
  */
 import { PrismaClient } from "@iep/db";
 import { AnthropicProvider, StubProvider, type AiProvider } from "@iep/ai";
-import { evaluateVersion, generateRecommendations, recomputeRankings } from "@iep/evaluation";
+import { evaluateVersion, recomputeRankings } from "@iep/evaluation";
 import { runPipeline } from "@iep/worker/src/pipeline.js";
 
 const argv = process.argv.slice(2);
@@ -71,7 +70,6 @@ async function main(): Promise<void> {
   }
 
   let analysed = 0;
-  let advised = 0;
 
   for (const idea of pending) {
     if (!idea.currentVersion) continue;
@@ -87,21 +85,12 @@ async function main(): Promise<void> {
     );
 
     const evaluated = await evaluateVersion(db, idea.currentVersion.id);
-
-    // Only below the attention threshold, which is the point of the threshold.
-    const improvement = await generateRecommendations(
-      { db, provider, budgetUsd: 0.75, redactionEnabled: true },
-      { ideaId: idea.id, ideaVersionId: idea.currentVersion.id },
-    );
-
     analysed += 1;
-    advised += improvement.generated;
 
     console.log(
       `  ${label.padEnd(54)} ${result.overall.padEnd(10)} ` +
         `composite ${(evaluated?.compositeScore ?? 0).toFixed(1).padStart(5)} · ` +
-        `maturity ${evaluated?.maturityLevel ?? "-"} · ` +
-        `${improvement.generated} recommendation(s)`,
+        `maturity ${evaluated?.maturityLevel ?? "-"}`,
     );
   }
 
@@ -110,7 +99,7 @@ async function main(): Promise<void> {
   });
 
   console.log("");
-  console.log(`analysed ${analysed} idea(s), wrote ${advised} recommendation(s)`);
+  console.log(`analysed ${analysed} idea(s)`);
   console.log(
     run
       ? `ranking run ${run.runId} · ${run.cohortSize} ideas on the board · profile ${run.profileKey}`

@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { Badge, Button, ErrorState, Skeleton } from "@iep/ui";
 import { ROUTES } from "@iep/contracts";
 import { STATUS_LABEL, useIdea, useTransition } from "./api";
+import { VoteButtons } from "../feedback/VoteButtons";
 import type { IdeaDetail } from "@iep/contracts";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
@@ -109,6 +110,26 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
           );
         })}
       </div>
+
+      {/*
+        Reactions sit at the top of every idea, next to its actions.
+
+        Deliberately above the tabs' content and outside them: reacting is something you do
+        to the IDEA, not to its analysis, and burying it on one tab would mean most people
+        never find it. A draft has nothing to react to yet.
+      */}
+      {idea.status === "DRAFT" ? null : (
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <span className="text-100 font-medium uppercase tracking-widest text-muted-foreground">
+            Team feedback
+          </span>
+          <VoteButtons ideaId={ideaId} />
+          <span className="text-100 text-muted-foreground">
+            What colleagues think. Separate from the platform's own evaluation, and it does
+            not affect the score.
+          </span>
+        </div>
+      )}
 
       {/* Actions the API confirmed THIS actor may take — never guessed client-side. */}
       <div className="mb-8 flex flex-wrap gap-3">

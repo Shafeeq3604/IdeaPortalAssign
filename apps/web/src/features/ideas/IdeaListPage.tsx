@@ -5,6 +5,7 @@ import {
 } from "@iep/ui";
 import { useSession } from "../../app/use-session";
 import { STATUS_LABEL, parseSort, useIdeaList } from "./api";
+import { VoteCount } from "../feedback/VoteButtons";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -87,6 +88,8 @@ export function IdeaListPage({ scope }: Props) {
                 <TableHead>Idea</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Submitted by</TableHead>
+                {/* §14: voting activity visible at a glance, not only on the idea. */}
+                <TableHead className="text-right">Reactions</TableHead>
                 <TableHead className="text-right">Version</TableHead>
               </TableRow>
             </TableHeader>
@@ -106,6 +109,14 @@ export function IdeaListPage({ scope }: Props) {
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {idea.submitter.displayName}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {/*
+                      Counts only, no controls. A row is for scanning; voting from a list
+                      you are skimming means voting on a title, which is not an opinion
+                      worth recording. The buttons live on the idea itself.
+                    */}
+                    {idea.status === "DRAFT" ? null : <VoteCount ideaId={idea.id} />}
                   </TableCell>
                   <TableCell className="text-right tabular">v{idea.currentVersionNo}</TableCell>
                 </TableRow>
