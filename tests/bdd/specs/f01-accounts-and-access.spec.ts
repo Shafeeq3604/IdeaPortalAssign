@@ -475,3 +475,119 @@ describe("F-01 · what a response may carry", () => {
     await app.close();
   });
 });
+
+describe("F-01 · escalation is refused by the server, not hidden by the UI", () => {
+  /**
+   * Every assertion here is made with a real EMPLOYEE session cookie against the real
+   * router. Hiding a control is a courtesy; these are the checks that actually hold when
+   * somebody skips the interface and posts at the endpoint directly.
+   */
+
+  /** Sign up, then return the cookie header a browser would send back. */
+  async function employeeSession(app: ReturnType<typeof makeApp>, label: string) {
+    const email = freshEmail(label);
+    const signup = await app.inject({
+      method: "POST",
+      url: "/auth/signup",
+      payload: { displayName: "Ordinary Person", email, password: GOOD_PASSWORD },
+    });
+    const user = await trackByEmail(email);
+    const cookie = signup.cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+    return { cookie, userId: user!.id, email };
+  }
+
+  it("Given an employee session, When they POST to /admin/users, Then 403", async () => {
+    guard();
+    const app = makeApp();
+    const { cookie } = await employeeSession(app, "cannot-create");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/admin/users",
+      headers: { cookie },
+      payload: {
+        displayName: "Puppet Admin",
+        email: freshEmail("puppet"),
+        initialPassword: GOOD_PASSWORD,
+        roles: ["ADMIN"],
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    await app.close();
+  });
+
+  it("Given an employee session, When they PATCH themselves to ADMIN, Then 403 and the roles do not move", async () => {
+    guard();
+    const app = makeApp();
+    const { cookie, userId } = await employeeSession(app, "cannot-promote");
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/admin/users/${userId}`,
+      headers: { cookie },
+      payload: { roles: ["EMPLOYEE", "ADMIN"] },
+    });
+
+    expect(response.statusCode).toBe(403);
+
+    // The database is the assertion that matters. A 403 with the write already done
+    // would be the worst of both.
+    const roles = await db.userRole.findMany({ where: { userId }, select: { role: true } });
+    expect(roles.map((r) => r.role)).toEqual(["EMPLOYEE"]);
+
+    await app.close();
+  });
+
+  it("Given an employee session, Then every admin-only read is refused too", async () => {
+    guard();
+    const app = makeApp();
+    const { cookie } = await employeeSession(app, "cannot-read");
+
+    for (const url of ["/admin/users", "/admin/audit", "/admin/departments"]) {
+      const response = await app.inject({ method: "GET", url, headers: { cookie } });
+      expect(response.statusCode, `${url} was readable by an employee`).toBe(403);
+    }
+
+    await app.close();
+  });
+
+  it("Given no session at all, Then the admin endpoints are 401, not 404", async () => {
+    guard();
+    const app = makeApp();
+
+    const response = await app.inject({ method: "GET", url: "/admin/users" });
+    expect(response.statusCode).toBe(401);
+
+    await app.close();
+  });
+});
+
+describe("F-01 · the rate limiter is actually attached", () => {
+  /**
+   * This exists because the limiter was silently inert for an entire phase — routes were
+   * registered before the plugin's `onRoute` hook existed, so 130 requests against a
+   * max of 100 were all served and no header was ever sent. Reading the config proved
+   * nothing; only counting responses does.
+   */
+  it("Given enough anonymous requests, Then the limiter engages and says so", async () => {
+    guard();
+    const app = makeApp();
+    await app.ready();
+
+    let limited = 0;
+    let sawHeader = false;
+    // Comfortably past the 300/minute anonymous budget, on the cheapest public route.
+    for (let i = 0; i < 340; i += 1) {
+      const response = await app.inject({ method: "GET", url: "/auth/signup-options" });
+      if (response.headers["x-ratelimit-limit"] !== undefined) sawHeader = true;
+      if (response.statusCode === 429) limited += 1;
+    }
+
+    expect(sawHeader, "no x-ratelimit-* headers — the limiter is not attached").toBe(true);
+    expect(limited, "340 anonymous requests all succeeded against a 300/minute budget")
+      .toBeGreaterThan(0);
+
+    await app.close();
+  });
+});
