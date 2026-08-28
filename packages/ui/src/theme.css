@@ -71,6 +71,15 @@
   --color-ramp-4: var(--ramp-4);
   --color-ramp-5: var(--ramp-5);
 
+  /* ── Welcome surfaces — sign-in and sign-up only (see tokens.css) ── */
+  --color-welcome-canvas: var(--welcome-canvas);
+  --color-welcome-surface: var(--welcome-surface);
+  --color-welcome-ink: var(--welcome-ink);
+  --color-welcome-ink-soft: var(--welcome-ink-soft);
+  --color-welcome-rule: var(--welcome-rule);
+  --color-welcome-accent: var(--welcome-accent);
+  --color-welcome-accent-soft: var(--welcome-accent-soft);
+
   /* ── Type scale (SPEC §7.2, 1.200 minor third) ──
      NOTE: --font-sans is NOT mapped here. Tailwind's theme key and our token share the
      name, so var(--font-sans) inside --font-sans is circular and voids the whole block.

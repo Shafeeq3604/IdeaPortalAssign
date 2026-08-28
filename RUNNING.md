@@ -52,17 +52,46 @@ crashed database is a visible failure rather than a silent restart.
 
 ## Signing in
 
-There is no password. The login page lists four seeded accounts; pick one.
+Email and password (ADR-023). The seed sets the same password on all four accounts:
 
-| Account | Roles | What it can reach that others cannot |
-|---|---|---|
-| **Erin Employee** | EMPLOYEE | Nothing extra — this is the submitter's view |
-| **Rae Reviewer** | EMPLOYEE, REVIEWER | Review queue, review decisions, score overrides |
-| **Mo Manager** | EMPLOYEE, MANAGEMENT | Dashboard |
-| **Ash Admin** | EMPLOYEE, ADMIN | Everything, including the audit log and users |
+```
+innovation-2026
+```
 
-This is dev-mode authentication (`AUTH_PROVIDER=dev`). Real OIDC is not wired up — see
-the open assumption A1.
+| Account | Email | Roles | What it can reach that others cannot |
+|---|---|---|---|
+| **Erin Employee** | `employee@example.invalid` | EMPLOYEE | Nothing extra — the submitter's view |
+| **Rae Reviewer** | `reviewer@example.invalid` | EMPLOYEE, REVIEWER | Review queue, decisions, score overrides |
+| **Mo Manager** | `manager@example.invalid` | EMPLOYEE, MANAGEMENT | Dashboard |
+| **Ash Admin** | `admin@example.invalid` | EMPLOYEE, ADMIN | Everything, including the audit log and accounts |
+
+Five wrong passwords locks the account for fifteen minutes. If you do that to yourself,
+sign in as Ash Admin from another browser and set a new password — that clears the lock.
+
+### Making your own account
+
+**Create an account** on the sign-in page. You get an EMPLOYEE account and are signed in
+immediately. Two things to know:
+
+- You arrive with **no department**, so you will not appear in the department filters
+  until an administrator sets one (**Administration → People & access → Manage**).
+- There is no way to give yourself a role. The sign-up request has no field for it.
+
+### On a deployment that was never seeded
+
+There is no administrator, so nobody can promote anybody. Set `ADMIN_INVITE_CODE` in
+`.env`, restart the API, and the sign-up page will show an invite-code field. The account
+created with it is an administrator.
+
+**That field disappears the moment an administrator exists, and the code stops working**
+— permanently. Every administrator after the first is promoted by an existing one, on the
+audit trail (ADR-024).
+
+### Before anyone outside the team can reach this
+
+Set `SIGNUP_ALLOWED_EMAIL_DOMAINS=sageitinc.com` in `.env`. Left empty, **anyone who can
+reach the URL can register and read every submitted idea.** Or set `SIGNUP_ENABLED=false`
+and create accounts by hand.
 
 ---
 
@@ -100,13 +129,16 @@ The thing worth pointing at: **the AI never produced any of these numbers.** It 
 ordinal bands; a deterministic engine turned them into scores. Run the same analysis twice
 and you get the same number.
 
-### 4 · Get told what to do about it — *Improve tab*
+### 4 · React to it — *anywhere on the idea*
 
-Six-part recommendations, aimed at the criteria that cost this idea the most — ranked by
-lost contribution, not by which score looked lowest.
+**Team feedback**, above the tabs. Press the thumb up; the count moves immediately. Press
+it again and the vote is withdrawn — one vote per person per idea, and changing your mind
+replaces it rather than adding a second.
 
-Try **Auto-release meeting rooms nobody turned up to**: it scored above the attention
-threshold and correctly gets *nothing*. Silence is a result, not a gap.
+Now look at the composite score. **It has not moved, and it never will.** Popularity is
+shown next to the evaluation and is kept out of it: an idea nobody voted for can outrank
+one everybody liked, and the platform will show you exactly why. An end-to-end test
+asserts the score is byte-identical before and after a vote.
 
 ### 5 · Change the score, and account for it — *as Rae Reviewer*
 

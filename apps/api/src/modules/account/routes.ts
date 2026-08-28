@@ -1,12 +1,13 @@
 import {
-  CreateUserRequest, LoginRequest, SetFeedbackRequest, UpdateUserRequest, can,
+  CreateUserRequest, LoginRequest, SetFeedbackRequest, SignupRequest, UpdateUserRequest, can,
 } from "@iep/contracts";
-import type { IdeaStatus, Role, SessionResponse } from "@iep/contracts";
+import type { IdeaStatus, Role, SessionResponse, SignupOptions } from "@iep/contracts";
 import type { Handler } from "../../server.js";
 import { sendError } from "../../server.js";
 import { sessionCookieName, sessionCookieOptions } from "../../auth/session.js";
-import { hashPassword, passwordProblem, verifyPassword } from "../../auth/password.js";
+import { hashPassword, passwordProblem, safeEqual, verifyPassword } from "../../auth/password.js";
 import { writeAudit } from "../../lib/audit.js";
+import type { Tx } from "../../lib/audit.js";
 
 /**
  * Sign-in, account management and idea feedback (ADR-023, FR-01, FR-18).
@@ -108,6 +109,163 @@ export function registerAccountRoutes(handlers: Map<string, Handler>): void {
     return body;
   });
 
+  /* ── Self-registration (FR-01a) ── */
+
+  handlers.set("signupOptions", async (_request, _reply, ctx) => {
+    const body: SignupOptions = {
+      enabled: ctx.env.SIGNUP_ENABLED,
+      allowedEmailDomains: ctx.env.SIGNUP_ALLOWED_EMAIL_DOMAINS,
+      // Whether the bootstrap window is open, not whether a code was configured. Saying
+      // "a code exists" to an anonymous caller would be an invitation to guess it.
+      adminBootstrapAvailable:
+        Boolean(ctx.env.ADMIN_INVITE_CODE) && (await bootstrapOpen(ctx.db)),
+    };
+    return body;
+  });
+
+  handlers.set("signup", async (request, reply, ctx) => {
+    if (!ctx.env.SIGNUP_ENABLED) {
+      return sendError(
+        reply, "ROLE_NOT_PERMITTED",
+        "Self-registration is turned off here. Ask an administrator for an account.",
+      );
+    }
+
+    const parsed = SignupRequest.safeParse(request.body);
+    if (!parsed.success) {
+      const first = parsed.error.issues[0];
+      return sendError(reply, "VALIDATION_FAILED", first?.message ?? "Check the details");
+    }
+
+    const problem = passwordProblem(parsed.data.password);
+    if (problem) return sendError(reply, "VALIDATION_FAILED", problem);
+
+    const email = parsed.data.email.toLowerCase();
+    const domain = email.slice(email.lastIndexOf("@") + 1);
+    const allowed = ctx.env.SIGNUP_ALLOWED_EMAIL_DOMAINS;
+    if (allowed.length > 0 && !allowed.includes(domain)) {
+      return sendError(
+        reply, "VALIDATION_FAILED",
+        `Registration is open to ${allowed.map((d) => "@" + d).join(", ")} addresses.`,
+      );
+    }
+
+    /**
+     * ADMIN, but only into an empty building.
+     *
+     * Both halves are checked here and again inside the transaction, because between the
+     * two a real administrator may have been created and the window must have closed. The
+     * unique index on `email` plus the re-check under the transaction is what makes two
+     * simultaneous bootstrap attempts resolve to one administrator rather than two.
+     */
+    const wantsAdmin = Boolean(
+      parsed.data.inviteCode &&
+        ctx.env.ADMIN_INVITE_CODE &&
+        safeEqual(parsed.data.inviteCode, ctx.env.ADMIN_INVITE_CODE),
+    );
+    if (parsed.data.inviteCode && !wantsAdmin) {
+      return sendError(reply, "VALIDATION_FAILED", "That invite code is not valid.");
+    }
+
+    if (await ctx.db.user.findUnique({ where: { email } })) {
+      return sendError(
+        reply, "CONCURRENT_MODIFICATION",
+        "An account already exists for that email. Try signing in instead.",
+      );
+    }
+
+    let created;
+    try {
+      created = await ctx.db.$transaction(async (tx) => {
+        const stillOpen = wantsAdmin && (await bootstrapOpen(tx));
+        if (wantsAdmin && !stillOpen) {
+          throw new BootstrapClosed();
+        }
+
+        const roles: Role[] = stillOpen ? ["EMPLOYEE", "ADMIN"] : ["EMPLOYEE"];
+
+        const user = await tx.user.create({
+          data: {
+            email,
+            displayName: parsed.data.displayName,
+            externalSubject: `password|${email}`,
+            // Left unset on purpose: an administrator assigns the department, because a
+            // self-declared one would end up in the dashboards as fact.
+            departmentId: null,
+            passwordHash: await hashPassword(parsed.data.password),
+            passwordSetAt: new Date(),
+          },
+        });
+        await tx.userRole.createMany({
+          data: roles.map((role) => ({ userId: user.id, role })),
+        });
+
+        /**
+         * Only the bootstrap admin is audited, and it is audited as its own actor.
+         *
+         * An ordinary person registering themselves is not a decision anybody made — the
+         * account row and its createdAt already record it, and writing every signup to
+         * the governance trail would bury the decisions that trail exists for. Same
+         * argument that keeps thumbs up and down out of it.
+         *
+         * Granting the very FIRST administrator is a decision, taken by whoever held
+         * the code, and it is the one signup somebody will need to find later.
+         *
+         * A second consequence worth naming: `audit_log` is append-only by trigger and
+         * its actor foreign key is Restrict, so an audited account can never be deleted
+         * afterwards. Right for an administrator; wrong as a blanket rule for everyone
+         * who ever filled in the sign-up form.
+         */
+        if (stillOpen) {
+          await writeAudit(tx, {
+            actorId: user.id,
+            action: "user.signup",
+            entityType: "user",
+            entityId: user.id,
+            after: { email, roles, adminBootstrap: true },
+            requestId: request.id,
+          });
+        }
+
+        return { user, roles };
+      });
+    } catch (error) {
+      if (error instanceof BootstrapClosed) {
+        return sendError(
+          reply, "CONCURRENT_MODIFICATION",
+          "An administrator already exists, so the invite code no longer applies. Sign up " +
+            "without it and ask them to grant you access.",
+        );
+      }
+      throw error;
+    }
+
+    // Signed in immediately: making someone type the password they just chose, on the
+    // screen they just left, is a step with no purpose.
+    const isProd = ctx.env.NODE_ENV === "production";
+    const sid = await ctx.sessions.create({
+      userId: created.user.id,
+      roles: created.roles,
+      createdAt: Date.now(),
+    });
+    void reply.setCookie(sessionCookieName(isProd), sid, sessionCookieOptions(isProd));
+    await ctx.db.user.update({
+      where: { id: created.user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    const body: SessionResponse = {
+      user: {
+        id: created.user.id,
+        displayName: created.user.displayName,
+        email: created.user.email,
+        roles: created.roles as [Role, ...Role[]],
+        department: null,
+      },
+    };
+    return reply.status(201).send(body);
+  });
+
   handlers.set("createUser", async (request, reply, ctx) => {
     const parsed = CreateUserRequest.safeParse(request.body);
     if (!parsed.success) {
@@ -153,6 +311,14 @@ export function registerAccountRoutes(handlers: Map<string, Handler>): void {
     });
 
     return reply.status(201).send(await presentAdminUser(ctx, created.id));
+  });
+
+  handlers.set("listDepartments", async (_request, _reply, ctx) => {
+    const items = await ctx.db.department.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+    return { items };
   });
 
   handlers.set("updateUser", async (request, reply, ctx) => {
@@ -289,6 +455,22 @@ export function registerAccountRoutes(handlers: Map<string, Handler>): void {
 }
 
 /* ── helpers ── */
+
+/**
+ * True while the platform has no active administrator. Closes for good on the first.
+ *
+ * Takes a transaction client OR the root client, because the answer has to be re-read
+ * inside the signup transaction as well as outside it.
+ */
+async function bootstrapOpen(db: Tx | Parameters<Handler>[2]["db"]): Promise<boolean> {
+  const admins = await db.user.count({
+    where: { isActive: true, roles: { some: { role: "ADMIN" } } },
+  });
+  return admins === 0;
+}
+
+/** Thrown inside the signup transaction when an administrator appeared underneath it. */
+class BootstrapClosed extends Error {}
 
 async function readableIdea(
   request: Parameters<Handler>[0],

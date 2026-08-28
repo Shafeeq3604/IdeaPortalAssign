@@ -26,6 +26,48 @@ export const ApiEnv = Base.extend({
   OIDC_CLIENT_SECRET: nonEmpty,
   OIDC_REDIRECT_URI: z.string().url(),
   ATTACHMENT_STORAGE_DIR: nonEmpty,
+
+  /**
+   * Self-registration (FR-01a).
+   *
+   * On by default, because an internal platform nobody can join is an internal platform
+   * nobody uses. The control that matters is the domain list below, not this switch.
+   */
+  SIGNUP_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+
+  /**
+   * Comma-separated email domains permitted to self-register, e.g. `sageitinc.com`.
+   *
+   * EMPTY MEANS ANY DOMAIN. That default is deliberate — it is the only one that does not
+   * silently lock out an organisation whose mail domain we cannot know — but on an
+   * internet-reachable deployment it means anyone with the URL can read every submitted
+   * idea. Set it before going public. `.env.example` says the same thing louder.
+   */
+  SIGNUP_ALLOWED_EMAIL_DOMAINS: z
+    .string()
+    .default("")
+    .transform((v) =>
+      v
+        .split(",")
+        .map((d) => d.trim().toLowerCase().replace(/^@/, ""))
+        .filter(Boolean),
+    ),
+
+  /**
+   * First-run administrator bootstrap.
+   *
+   * Presenting this code at signup grants ADMIN — but ONLY while the database contains no
+   * active administrator at all. The moment one exists the code is inert, and every
+   * subsequent administrator is promoted by an existing one, on the audit trail. That is
+   * the whole guardrail: a shared secret can open an empty building, never an occupied
+   * one.
+   *
+   * Unset means there is no bootstrap path, and the seeded admin is the only way in.
+   */
+  ADMIN_INVITE_CODE: z.string().min(16, "Make the invite code at least 16 characters").optional(),
   /**
    * The API process must NOT be able to reach the model provider (SPEC §4.4).
    * Only the worker holds the key. Boot fails if a real one leaks into this environment.

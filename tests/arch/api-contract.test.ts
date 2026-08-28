@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import { join } from "node:path";
 import { ENDPOINTS } from "../../packages/contracts/src/api.js";
 import { HTTP_STATUS_BY_CODE } from "../../packages/contracts/src/errors.js";
@@ -75,19 +76,49 @@ describe("endpoint registry integrity", () => {
     expect(dead, `defined but granted to no role: ${dead.join(", ")}`).toEqual([]);
   });
 
-  it("only health and sign-in are public — everything else is authenticated", () => {
+  it("the public endpoints are exactly these four, and each is argued for", () => {
     /**
-     * An allow-list of exactly two, not a rule of thumb.
+     * An allow-list, not a rule of thumb. Each entry states why a session cannot be
+     * required, because the whole value of asserting the exact set is that a fifth
+     * public endpoint has to be argued for in a diff rather than appearing quietly.
      *
-     * `login` joined `getHealth` with ADR-023: a sign-in endpoint cannot require a session,
-     * because establishing one is its whole job. Every other endpoint must be
-     * authenticated, and the point of asserting the exact set is that a third public
-     * endpoint has to be argued for in a diff rather than appearing quietly.
+     *  - `getHealth`       a liveness probe cannot hold a session, and discloses nothing
+     *                      beyond process state.
+     *  - `login`           establishing the session IS the endpoint (ADR-023).
+     *  - `signup`          same, for someone who does not have an account yet (FR-01a).
+     *  - `signupOptions`   the sign-up form has to know whether the door is open before
+     *                      anyone types a password. It returns two booleans and a list of
+     *                      permitted email domains — no accounts, no names, no counts.
+     *
+     * The one that deserves a second look is `signupOptions`, because it is the only
+     * public GET. `adminBootstrapAvailable` is true ONLY on an installation that has no
+     * administrator, which is an installation with no accounts, no ideas and nothing yet
+     * to protect. Once one exists it is false forever.
      */
     const publicOnes = ENDPOINTS.filter((e) => e.access === "public")
       .map((e) => e.operationId)
       .sort();
-    expect(publicOnes).toEqual(["getHealth", "login"]);
+    expect(publicOnes).toEqual(["getHealth", "login", "signup", "signupOptions"]);
+  });
+
+  it("no public endpoint returns anything about a person", () => {
+    /**
+     * The failure this catches is a public endpoint growing a convenience field — a
+     * department list on the sign-up form, a count of colleagues, an example address.
+     * Each one is individually reasonable and collectively an unauthenticated directory.
+     */
+    const PERSON_SHAPED = /user|person|email|name|department|actor|submitter/i;
+
+    for (const ep of ENDPOINTS.filter((e) => e.access === "public")) {
+      if (ep.operationId === "login" || ep.operationId === "signup") continue; // return YOUR own session
+      const shape = JSON.stringify(zodToJsonSchema(ep.response));
+      const leaks = [...shape.matchAll(/"(w+)":/g)]
+        .map((m) => m[1]!)
+        .filter((key) => PERSON_SHAPED.test(key));
+      expect(leaks, `${ep.operationId} exposes ${leaks.join(", ")} without a session`).toEqual(
+        [],
+      );
+    }
   });
 
   it("path params in the URL have a matching schema", () => {

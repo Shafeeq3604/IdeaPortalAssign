@@ -1,10 +1,12 @@
+import * as React from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Badge, Card, CardContent, EmptyState, ErrorState, Skeleton, Table, TableBody, TableCell,
-  TableHead, TableHeader, TableRow,
+  Badge, Button, Card, CardContent, EmptyState, ErrorState, Skeleton, Table, TableBody,
+  TableCell, TableHead, TableHeader, TableRow,
 } from "@iep/ui";
-import type { AdminUsersResponse, AuditResponse } from "@iep/contracts";
+import type { AdminUser, AdminUsersResponse, AuditResponse } from "@iep/contracts";
+import { AddUserDialog, EditUserDialog, RoleBadges, RoleLegend } from "./UserForms";
 import { api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
 
@@ -164,6 +166,7 @@ export function AuditPage() {
 export function UsersPage() {
   const [params] = useSearchParams();
   const page = Math.max(1, Number(params.get("page") ?? 1));
+  const [editing, setEditing] = React.useState<AdminUser | null>(null);
 
   const query = useQuery({
     queryKey: queryKeys.admin.users({ page }),
@@ -173,12 +176,18 @@ export function UsersPage() {
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  Users &amp; roles
+        <Link to="/ideas">Ideas</Link>  ›  People &amp; access
       </nav>
-      <h1>Users &amp; roles</h1>
-      <p className="muted">
-        Read-only in this milestone. Roles decide what each person can see and do.
-      </p>
+
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1>People &amp; access</h1>
+          <p className="muted">
+            Who can sign in, and what each of them can do.
+          </p>
+        </div>
+        <AddUserDialog />
+      </div>
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-96 w-full" aria-busy="true" />
@@ -200,6 +209,9 @@ export function UsersPage() {
                   <TableHead>Roles</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead className="text-right">Ideas</TableHead>
+                  <TableHead className="text-right">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -210,16 +222,27 @@ export function UsersPage() {
                       {!user.isActive ? (
                         <Badge variant="outline" className="ml-2">Inactive</Badge>
                       ) : null}
+                      <span className="block text-100 text-muted-foreground">{user.email}</span>
                     </TableCell>
-                    <TableCell className="text-200">{user.roles.join(" · ")}</TableCell>
+                    <TableCell><RoleBadges roles={user.roles} /></TableCell>
                     <TableCell>
                       {user.department ? (
                         <Link to={`/departments/${user.department.id}`}>{user.department.name}</Link>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">Not set</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{user.ideaCount}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditing(user)}
+                      >
+                        Manage
+                        <span className="sr-only"> {user.displayName}</span>
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -227,6 +250,10 @@ export function UsersPage() {
           </CardContent>
         </Card>
       )}
+
+      <RoleLegend />
+
+      <EditUserDialog user={editing} onClose={() => setEditing(null)} />
     </main>
   );
 }

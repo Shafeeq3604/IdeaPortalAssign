@@ -25,6 +25,8 @@ type Filters = object;
 
 export const queryKeys = {
   session: () => ["session"] as const,
+  /** Public. Whether self-registration is open, and on what terms (FR-01a). */
+  signupOptions: () => ["signup-options"] as const,
 
   ideas: {
     all: () => ["ideas"] as const,
@@ -64,6 +66,7 @@ export const queryKeys = {
   admin: {
     audit: (filters: Filters) => ["admin", "audit", filters] as const,
     users: (filters: Filters) => ["admin", "users", filters] as const,
+    departments: () => ["admin", "departments"] as const,
   },
 } as const;
 

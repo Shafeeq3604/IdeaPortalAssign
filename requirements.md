@@ -476,7 +476,24 @@ Support:
 
 Authentication
 
+Email and password. People can create their own account; an administrator can also
+create one for them. A self-created account is always an ordinary employee — the
+sign-up form has no way to ask for anything more.
+
+Registration can be limited to the organisation's own email domains, and can be turned
+off entirely, in which case accounts are created by an administrator only.
+
 Role-based access
+
+An administrator grants every role above employee, and every grant is on the audit
+trail with their name against it. Nobody promotes themselves.
+
+The one exception is the very first administrator on a brand-new installation, who can
+be created with a one-off invite code. That code stops working the moment an
+administrator exists, and never works again.
+
+Accounts are deactivated, never deleted, because the audit trail refers to them. An
+administrator cannot deactivate themselves or drop their own last administrator role.
 
 Appropriate idea visibility
 
@@ -684,7 +701,9 @@ Do not build every future entity into the first release.
 
 Employee
 
-Login
+Create an account
+
+Sign in and sign out
 
 Submit an idea
 
@@ -723,6 +742,12 @@ Evaluation
 Explainable score
 
 Thumbs up / thumbs down reactions
+
+Administrator
+
+Add someone and set their roles
+
+Change roles, set a department, reset a password, deactivate an account
 
 Reviewer
 

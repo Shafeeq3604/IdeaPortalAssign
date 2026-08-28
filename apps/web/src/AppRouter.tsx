@@ -1,6 +1,7 @@
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { matchRouteId, type Role } from "@iep/contracts";
 import { LoginPage } from "./features/auth/LoginPage";
+import { SignupPage } from "./features/auth/SignupPage";
 import { IdeaListPage } from "./features/ideas/IdeaListPage";
 import { SubmitIdeaPage } from "./features/ideas/SubmitIdeaPage";
 import { ReviseIdeaPage } from "./features/ideas/ReviseIdeaPage";
@@ -134,6 +135,7 @@ export function AppRouter() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
           <Route
             path="*"
             element={

@@ -183,3 +183,58 @@ export const SetFeedbackRequest = z.object({
   vote: FeedbackVote.nullable(),
 });
 export type SetFeedbackRequest = z.infer<typeof SetFeedbackRequest>;
+
+/* ── Self-registration (FR-01a, ADR-023 amendment) ── */
+
+/**
+ * Signing yourself up.
+ *
+ * Note what is NOT here: `roles`. A self-registered account is an EMPLOYEE and nothing
+ * else, and the field to ask for more does not exist in the contract — so no request can
+ * carry it, no handler can read it, and no future refactor can accidentally honour it.
+ *
+ * `inviteCode` is the ONE exception, and it is deliberately not a role either. It is a
+ * shared secret that only does anything while the platform has no administrator at all;
+ * see `SignupRequest.inviteCode` in the API handler for why that window closes for good.
+ */
+export const SignupRequest = z.object({
+  displayName: z.string().trim().min(1, "Tell us your name").max(120),
+  email: z.string().trim().email("That does not look like an email address"),
+  password: z.string().min(12, "Use at least 12 characters — a short phrase works well"),
+  /** Only meaningful during first-run bootstrap. Absent in every ordinary signup. */
+  inviteCode: z.string().trim().min(1).max(200).optional(),
+});
+export type SignupRequest = z.infer<typeof SignupRequest>;
+
+/**
+ * What the signup form needs to know before anyone types anything, without being signed
+ * in. Deliberately two booleans and no data: it says whether the door is open, not who
+ * is inside.
+ */
+export const SignupOptions = z.object({
+  /** False when the organisation has turned self-registration off. */
+  enabled: z.boolean(),
+  /**
+   * The email domains that may register, for the form to say so up front rather than
+   * rejecting someone after they have typed a password. Empty = no restriction.
+   */
+  allowedEmailDomains: z.array(z.string()),
+  /**
+   * True only while the platform has no administrator — the first-run window in which an
+   * invite code can create one. Public because it is only ever true on an installation
+   * that has no accounts, no ideas and nothing to protect yet.
+   */
+  adminBootstrapAvailable: z.boolean(),
+});
+export type SignupOptions = z.infer<typeof SignupOptions>;
+
+/* ── Departments, for the admin's account forms ── */
+
+/**
+ * A flat list, not the tree. The only question the account forms ask is "which one",
+ * and a hierarchy that nothing renders is a hierarchy that will drift.
+ */
+export const DepartmentListResponse = z.object({
+  items: z.array(DepartmentRef),
+});
+export type DepartmentListResponse = z.infer<typeof DepartmentListResponse>;

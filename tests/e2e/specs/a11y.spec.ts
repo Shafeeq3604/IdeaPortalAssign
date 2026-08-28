@@ -43,8 +43,11 @@ async function signIn(page: Page): Promise<void> {
 const scan = (page: Page) =>
   new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
 
-const PAGES: readonly { name: string; path: string }[] = [
-  { name: "sign-in", path: "/login" },
+const PAGES: readonly { name: string; path: string; public?: boolean }[] = [
+  // The two signed-out screens use their own warm palette, so their contrast is not
+  // covered by any other page in this list. They are the reason it is worth listing them.
+  { name: "sign-in", path: "/login", public: true },
+  { name: "sign-up", path: "/signup", public: true },
   { name: "idea list", path: "/ideas" },
   { name: "submission form", path: "/ideas/new" },
   { name: "rankings", path: "/rankings" },
@@ -53,13 +56,14 @@ const PAGES: readonly { name: string; path: string }[] = [
   { name: "criteria", path: "/config/criteria" },
   { name: "profiles", path: "/config/profiles" },
   { name: "audit log", path: "/admin/audit" },
+  { name: "people & access", path: "/admin/users" },
   { name: "data & AI notice", path: "/help/data-and-ai" },
 ];
 
 test.describe("accessibility", () => {
   for (const target of PAGES) {
     test(`${target.name} has no WCAG AA violations`, async ({ page }) => {
-      if (target.path !== "/login") await signIn(page);
+      if (!target.public) await signIn(page);
       await page.goto(target.path);
       // Let the query settle: scanning a skeleton tests the skeleton.
       await page.waitForTimeout(1200);

@@ -25,6 +25,7 @@ export type AuditAction =
   | "idea.review"
   | "score.override"
   | "ranking.recompute"
+  | "user.signup"
   | "user.create"
   | "user.update";
 

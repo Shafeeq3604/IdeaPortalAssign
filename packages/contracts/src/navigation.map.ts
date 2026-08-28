@@ -54,6 +54,7 @@ const ADMIN_ONLY: readonly Role[] = ["ADMIN"];
 
 export const ROUTES: readonly RouteDef[] = [
   { id: "login", path: "/login", title: "Sign in", roles: ALL, backPath: null, renders: [] },
+  { id: "signup", path: "/signup", title: "Create an account", roles: ALL, backPath: "/login", renders: [] },
   { id: "home", path: "/", title: "Home", roles: ALL, backPath: null, renders: [] },
 
   { id: "ideas", path: "/ideas", title: "Ideas", roles: ALL, backPath: "/", renders: ["Idea", "IdeaCategory"],

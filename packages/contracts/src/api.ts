@@ -253,6 +253,25 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     successStatus: 200, errors: ["UNAUTHENTICATED", "VALIDATION_FAILED", "RATE_LIMITED"],
   },
   {
+    operationId: "signupOptions", method: "GET", path: "/auth/signup-options", tag: "auth",
+    summary: "Whether self-registration is open, and on what terms (FR-01a).",
+    access: "public", response: R.SignupOptions,
+    successStatus: 200, errors: [],
+  },
+  {
+    operationId: "signup", method: "POST", path: "/auth/signup", tag: "auth",
+    summary: "Create your own EMPLOYEE account and sign in (FR-01a).",
+    access: "public", body: R.SignupRequest, response: I.SessionResponse,
+    successStatus: 201,
+    errors: ["VALIDATION_FAILED", "CONCURRENT_MODIFICATION", "ROLE_NOT_PERMITTED", "RATE_LIMITED"],
+  },
+  {
+    operationId: "listDepartments", method: "GET", path: "/admin/departments", tag: "admin",
+    summary: "Departments, for assigning one to an account.",
+    access: { requires: [...USERS] }, response: R.DepartmentListResponse,
+    successStatus: 200, errors: ["ROLE_NOT_PERMITTED"],
+  },
+  {
     operationId: "createUser", method: "POST", path: "/admin/users", tag: "admin",
     summary: "Create an account and assign its roles.",
     access: { requires: [...USERS] }, body: R.CreateUserRequest, response: R.AdminUser,

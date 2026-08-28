@@ -68,6 +68,33 @@
   --state-danger: #b03a3a;
 
   /* ── Type: 1.200 minor third, base 16px ── */
+  /* ── Welcome surfaces: sign-in and sign-up ONLY (SPEC §7.1 amendment) ──
+   *
+   * A deliberately separate, warm palette for the two screens seen before anyone signs
+   * in. Everything past the door stays on the cool ink-and-indigo scale, because the
+   * working application should be quiet and the front door should not be.
+   *
+   * These names appear nowhere else. If a third screen wants them, that is a design
+   * decision taken on purpose, not one made by importing a token.
+   */
+  --welcome-canvas: #faf6f0;      /* warm paper, not grey */
+  --welcome-surface: #fffdfa;
+  --welcome-ink: #221d18;         /* 17:1 on canvas */
+  --welcome-ink-soft: #6b6055;    /* 5.7:1 on canvas — AA for body text */
+  --welcome-rule: #e3d9cc;
+  --welcome-accent: #a34f2b;      /* terracotta, 5.0:1 on canvas */
+  --welcome-accent-soft: #f3e4da;
+
+  /*
+   * A real serif, from the system.
+   *
+   * No webfont on purpose: the sign-in page is the one screen that must render correctly
+   * on a cold cache over a bad connection, and a display face that arrives late is worse
+   * than one that was never asked for.
+   */
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+    Georgia, "Times New Roman", serif;
+
   --font-sans: "Inter var", -apple-system, "Segoe UI", Roboto, sans-serif;
   --fs-100: 0.694rem;
   --fs-200: 0.833rem;
@@ -166,6 +193,15 @@
     --ramp-4: #6f7fbe;
     --ramp-5: #8e9bff;
 
+    /* ── Welcome surfaces (see the light block for why these exist) ── */
+    --welcome-canvas: #17140f;
+    --welcome-surface: #1f1b16;
+    --welcome-ink: #f3ece2;
+    --welcome-ink-soft: #b3a696;   /* 7.8:1 on canvas */
+    --welcome-rule: #3a332a;
+    --welcome-accent: #e08a5c;     /* 7.1:1 on canvas */
+    --welcome-accent-soft: #33241a;
+
     --ai-surface: #221e33;
     --ai-border: #3b3357;
     --ai-ink: #b6a8e0;
@@ -210,6 +246,15 @@
   --ramp-3: #55638f;
   --ramp-4: #6f7fbe;
   --ramp-5: #8e9bff;
+
+  /* ── Welcome surfaces (see the light block for why these exist) ── */
+  --welcome-canvas: #17140f;
+  --welcome-surface: #1f1b16;
+  --welcome-ink: #f3ece2;
+  --welcome-ink-soft: #b3a696;   /* 7.8:1 on canvas */
+  --welcome-rule: #3a332a;
+  --welcome-accent: #e08a5c;     /* 7.1:1 on canvas */
+  --welcome-accent-soft: #33241a;
 
   --ai-surface: #221e33;
   --ai-border: #3b3357;
