@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 import {
-  Badge, Card, CardContent, EmptyState, ErrorState, Skeleton, Table, TableBody, TableCell,
-  TableHead, TableHeader, TableRow,
+  Badge, Button, Card, CardContent, EmptyState, ErrorState, Skeleton, Table, TableBody,
+  TableCell, TableHead, TableHeader, TableRow,
 } from "@iep/ui";
 import { STATUS_LABEL } from "../ideas/api";
 import { useReviewQueue } from "./api";
@@ -63,19 +63,22 @@ export function ReviewQueuePage() {
             <p className="text-200 text-muted-foreground">
               {query.data.meta.total} waiting
             </p>
+            {/*
+              Buttons, not links. These change how the list is ORDERED — they do not
+              navigate anywhere new — and rendering them as inline links put two
+              colour-only links inside a line of text, which axe flagged as a WCAG 1.4.1
+              failure the moment administrators could finally reach this page.
+            */}
             {(["oldest", "recent", "rank"] as const).map((option) => (
-              <Link
+              <Button
                 key={option}
-                to={`/review?sort=${option}`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  setParam("sort", option);
-                }}
-                aria-current={sort === option ? "true" : undefined}
-                className={sort === option ? "text-200 font-medium" : "text-200 text-muted-foreground"}
+                size="sm"
+                variant={sort === option ? "default" : "outline"}
+                aria-pressed={sort === option}
+                onClick={() => setParam("sort", option)}
               >
                 {option === "oldest" ? "Longest waiting" : option === "recent" ? "Newest" : "By rank"}
-              </Link>
+              </Button>
             ))}
           </div>
 

@@ -219,12 +219,12 @@ export const ENDPOINTS: readonly EndpointDef[] = [
   {
     operationId: "listCriteria", method: "GET", path: "/config/criteria", tag: "config",
     summary: "Evaluation criteria. Read-only in M1 — underwrites explainability (NFR-03).",
-    access: { requires: [] }, response: E.ListCriteriaResponse, successStatus: 200, errors: [],
+    access: { requires: ["config:read"] }, response: E.ListCriteriaResponse, successStatus: 200, errors: [],
   },
   {
     operationId: "listProfiles", method: "GET", path: "/config/profiles", tag: "config",
     summary: "Evaluation profiles and their weights, each summing to 100%.",
-    access: { requires: [] }, response: E.ListProfilesResponse, successStatus: 200, errors: [],
+    access: { requires: ["config:read"] }, response: E.ListProfilesResponse, successStatus: 200, errors: [],
   },
   {
     operationId: "updateProfileWeights", method: "PATCH", path: "/config/profiles/{profileKey}", tag: "config",

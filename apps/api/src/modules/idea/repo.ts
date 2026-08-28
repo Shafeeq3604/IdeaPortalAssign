@@ -35,11 +35,29 @@ export function scopeToWhere(scope: IdeaScope): Prisma.IdeaWhereInput {
   };
 }
 
+/**
+ * The only user columns any read path needs.
+ *
+ * `include: { department: true }` selects EVERY column on `users` — including
+ * `password_hash`, `failed_logins` and `locked_until`. Nothing leaked it, because every
+ * presenter maps fields explicitly, but it was loaded into memory on ordinary idea reads
+ * and sat one careless spread away from going out over the wire.
+ *
+ * The dev-mode response check would NOT have caught that: Zod strips unknown keys when it
+ * parses, and the handler sends the original object rather than the parsed one. So the
+ * defence has to be here — never load the hash at all.
+ */
+const USER_SUMMARY_SELECT = {
+  id: true,
+  displayName: true,
+  department: { select: { id: true, name: true } },
+} as const;
+
 export const IDEA_DETAIL_INCLUDE = {
-  submitter: { include: { department: true } },
+  submitter: { select: USER_SUMMARY_SELECT },
   department: true,
   category: true,
-  currentVersion: { include: { attachments: true, author: { include: { department: true } } } },
+  currentVersion: { include: { attachments: true, author: { select: USER_SUMMARY_SELECT } } },
   _count: { select: { versions: true } },
 } as const;
 
@@ -94,7 +112,7 @@ export function makeIdeaRepo(db: PrismaClient) {
     listVersions(ideaId: string) {
       return db.ideaVersion.findMany({
         where: { ideaId },
-        include: { author: { include: { department: true } } },
+        include: { author: { select: USER_SUMMARY_SELECT } },
         orderBy: { versionNo: "asc" },
       });
     },
@@ -102,14 +120,14 @@ export function makeIdeaRepo(db: PrismaClient) {
     findVersion(ideaId: string, versionNo: number) {
       return db.ideaVersion.findFirst({
         where: { ideaId, versionNo },
-        include: { attachments: true, author: { include: { department: true } } },
+        include: { attachments: true, author: { select: USER_SUMMARY_SELECT } },
       });
     },
 
     statusHistory(ideaId: string) {
       return db.statusHistory.findMany({
         where: { ideaId },
-        include: { actor: { include: { department: true } } },
+        include: { actor: { select: USER_SUMMARY_SELECT } },
         orderBy: { at: "desc" },
       });
     },

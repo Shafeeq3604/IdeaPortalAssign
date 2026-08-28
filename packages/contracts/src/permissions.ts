@@ -53,6 +53,11 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   MANAGEMENT: ["idea:create", "idea:read", "idea:read:own", "config:read", "dashboard:read"],
   ADMIN: [
     "idea:create", "idea:read", "idea:read:own", "idea:transition",
+    // `review:write` was missing while every other capability was present. The navigation
+    // map has always offered administrators the review queue, and the API refused it —
+    // a 403 on a link the product itself put in front of them. The governance rule that
+    // matters is unaffected: `can()` still stops anyone reviewing their OWN idea.
+    "review:write",
     "config:read", "config:write", "dashboard:read", "audit:read", "user:manage", "ranking:recompute",
   ],
 };

@@ -78,7 +78,27 @@ export function buildServer(ctx: AppContext): FastifyInstance {
   });
   void app.register(cors, { origin: env.PUBLIC_WEB_ORIGIN, credentials: true });
   void app.register(cookie, { secret: env.SESSION_SECRET });
-  void app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
+  /**
+   * Keyed on the SESSION where there is one, on the address only when there is not.
+   *
+   * Per-IP was the default and it was harmless purely because the limiter was inert (see
+   * the route-registration comment below). The moment it started working it throttled a
+   * test suite — and a test suite is a mild version of the real case: an internal platform
+   * sits behind one corporate egress address, so a per-IP budget is shared by everybody in
+   * the building. One busy person would slow the whole office.
+   *
+   * A signed-in request gets its own budget. Anonymous traffic — essentially just the
+   * sign-in page — still shares the address bucket, which is what you want, because that
+   * is where abuse arrives from.
+   */
+  void app.register(rateLimit, {
+    max: 300,
+    timeWindow: "1 minute",
+    keyGenerator: (request) => {
+      const sid = request.cookies?.[sessionCookieName(isProd)];
+      return sid ? `session:${sid}` : `ip:${request.ip}`;
+    },
+  });
 
   /* ── resolve the actor for every request, before any handler ── */
   app.addHook("preHandler", async (request) => {
@@ -105,15 +125,31 @@ export function buildServer(ctx: AppContext): FastifyInstance {
   /* ── register every endpoint from the contract ── */
   const stubbed: string[] = [];
 
-  for (const ep of ENDPOINTS) {
-    if (!handlers.has(ep.operationId)) {
-      // Endpoints whose phase has not landed answer 501 rather than 404, so a missing
-      // feature is never a broken link.
-      handlers.set(ep.operationId, notImplementedYet(ep));
-      stubbed.push(ep.operationId);
+  /**
+   * Routes go inside a plugin, and the reason is a bug that made rate limiting inert.
+   *
+   * `@fastify/rate-limit` attaches itself to each route through an `onRoute` hook, and an
+   * `onRoute` hook only fires for routes registered AFTER it exists. Plugins load during
+   * `ready()`; a `app.route()` call made synchronously in this function happens before
+   * that. So every route was declared before the limiter was listening, and the limiter
+   * silently governed nothing — 130 requests against a `max: 100` config were all served,
+   * and no `x-ratelimit-*` header was ever sent.
+   *
+   * Registering the routes as their own plugin puts them behind the plugins registered
+   * above, which is the order the hooks need.
+   */
+  void app.register((instance, _opts, done) => {
+    for (const ep of ENDPOINTS) {
+      if (!handlers.has(ep.operationId)) {
+        // Endpoints whose phase has not landed answer 501 rather than 404, so a missing
+        // feature is never a broken link.
+        handlers.set(ep.operationId, notImplementedYet(ep));
+        stubbed.push(ep.operationId);
+      }
+      registerEndpoint(instance, ep, handlers.get(ep.operationId)!, ctx);
     }
-    registerEndpoint(app, ep, handlers.get(ep.operationId)!, ctx);
-  }
+    done();
+  });
 
   /**
    * Report the stub list at boot.
@@ -194,6 +230,23 @@ function registerEndpoint(
   app.route({
     method: ep.method,
     url: toFastifyPath(ep.path),
+
+    /**
+     * Sign-in has NO per-route request limit, and that is deliberate.
+     *
+     * A request-count limit punishes attempts, and most attempts are legitimate: someone
+     * mistypes, a shared office arrives from one NAT'd address, an automated suite signs
+     * in repeatedly. Two versions of this were tried and both were wrong — per-IP locked
+     * out colleagues, and per-account throttled correct sign-ins as readily as wrong ones.
+     *
+     * What actually needs limiting is FAILURE, and that already exists: five consecutive
+     * failed attempts lock an account for fifteen minutes (see `account/routes.ts`), and a
+     * success resets the counter. An attacker gets five guesses; someone who simply keeps
+     * signing in correctly is never affected. That is the stricter control and the more
+     * precise one.
+     *
+     * The global 100/minute limit still applies here as everywhere, covering gross abuse.
+     */
     handler: async (request, reply) => {
       if (ep.access !== "public") {
         if (!request.actor) {

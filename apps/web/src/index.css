@@ -60,6 +60,12 @@
   /* A breadcrumb is a text block too: the crumb sits in a line of separators and muted
      text, so the same rule applies to it. */
   .crumbs a,
+  /*
+    A link sharing a table cell with other content — a title next to a status badge — is
+    a link in a text block by any reasonable reading, and axe agrees. A cell containing
+    ONLY a link is unambiguous and stays clean.
+  */
+  td a:not(:only-child),
   li > a:not(:only-child) {
     text-decoration: underline;
     text-underline-offset: 0.2em;

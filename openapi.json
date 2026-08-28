@@ -6253,7 +6253,9 @@
           "config"
         ],
         "x-access": {
-          "requires": []
+          "requires": [
+            "config:read"
+          ]
         },
         "security": [
           {
@@ -6303,7 +6305,9 @@
           "config"
         ],
         "x-access": {
-          "requires": []
+          "requires": [
+            "config:read"
+          ]
         },
         "security": [
           {

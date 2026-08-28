@@ -43,7 +43,11 @@ export function registerIdentityRoutes(handlers: Map<string, Handler>): void {
 
     const [rows, total] = await Promise.all([
       ctx.db.auditLog.findMany({
-        where, include: { actor: { include: { department: true } } },
+        where,
+        // Never load the password hash to render an audit row (see repo.ts).
+        include: {
+          actor: { select: { id: true, displayName: true, department: { select: { name: true } } } },
+        },
         orderBy: { at: "desc" }, skip: (page - 1) * perPage, take: perPage,
       }),
       ctx.db.auditLog.count({ where }),
