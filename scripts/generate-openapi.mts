@@ -60,7 +60,12 @@ function responses(ep: EndpointDef): Record<string, unknown> {
   const out: Record<string, unknown> = {
     [String(ep.successStatus)]: {
       description: "Success",
-      content: { "application/json": { schema: schema(ep.response, `${pascal}Response`) } },
+      // A file download returns bytes. Documenting a JSON schema for it would describe a
+      // response no client will ever receive.
+      content:
+        ep.responseKind === "binary"
+          ? { "application/octet-stream": { schema: { type: "string", format: "binary" } } }
+          : { "application/json": { schema: schema(ep.response, `${pascal}Response`) } },
     },
   };
 
@@ -100,10 +105,30 @@ for (const ep of ENDPOINTS) {
   };
 
   if (ep.body) {
-    operation["requestBody"] = {
-      required: true,
-      content: { "application/json": { schema: schema(ep.body, `${pascal}Request`) } },
-    };
+    /**
+     * A multipart endpoint is documented as what it actually accepts — a binary file part
+     * — not as the JSON object its `body` schema describes. That schema exists so the
+     * registry stays uniform and so the field names are written down; it is not the wire
+     * format, and generating it as one would produce a document that lies to a client.
+     */
+    operation["requestBody"] =
+      ep.requestKind === "multipart"
+        ? {
+            required: true,
+            content: {
+              "multipart/form-data": {
+                schema: {
+                  type: "object",
+                  properties: { file: { type: "string", format: "binary" } },
+                  required: ["file"],
+                },
+              },
+            },
+          }
+        : {
+            required: true,
+            content: { "application/json": { schema: schema(ep.body, `${pascal}Request`) } },
+          };
   }
 
   paths[ep.path] ??= {};

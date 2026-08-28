@@ -3,11 +3,11 @@ import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
+import multipart from "@fastify/multipart";
 import { ApiEnv, loadEnv } from "@iep/contracts/env";
 import {
   ENDPOINTS, HTTP_STATUS_BY_CODE, hasAllPermissions, permissionsFor,
-  type EndpointDef, type ErrorCode, type Role,
-} from "@iep/contracts";
+  type EndpointDef, type ErrorCode, type Role, MAX_ATTACHMENT_BYTES } from "@iep/contracts";
 import { registerAuthRoutes } from "./modules/auth.routes.js";
 import { registerIdentityRoutes } from "./modules/identity.routes.js";
 import { registerConfigRoutes } from "./modules/config.routes.js";
@@ -17,6 +17,7 @@ import { registerEvaluationRoutes } from "./modules/evaluation/routes.js";
 import { registerReviewRoutes } from "./modules/review/routes.js";
 import { registerRankingRoutes } from "./modules/rankings/routes.js";
 import { registerAccountRoutes } from "./modules/account/routes.js";
+import { registerAttachmentRoutes } from "./modules/idea/attachment-routes.js";
 import { notImplementedYet } from "./lib/handlers.js";
 import type { AppContext } from "./context.js";
 import { sessionCookieName } from "./auth/session.js";
@@ -91,6 +92,20 @@ export function buildServer(ctx: AppContext): FastifyInstance {
    * sign-in page — still shares the address bucket, which is what you want, because that
    * is where abuse arrives from.
    */
+  /**
+   * File uploads (SPEC §4.3).
+   *
+   * The limits here are a FLOOR, not the policy. `fileSize` aborts a stream that runs
+   * past the cap so an attacker cannot make the process hold an arbitrary amount of
+   * memory, but the authoritative check is in `storeUpload`, which counts bytes as they
+   * arrive and refuses having written nothing. One file per request: an endpoint that
+   * accepts a file returns that file's row, and a partial success over a batch is a
+   * result nobody can act on.
+   */
+  void app.register(multipart, {
+    limits: { fileSize: MAX_ATTACHMENT_BYTES + 1, files: 1, fields: 4 },
+  });
+
   void app.register(rateLimit, {
     max: 300,
     timeWindow: "1 minute",
@@ -121,6 +136,7 @@ export function buildServer(ctx: AppContext): FastifyInstance {
   registerReviewRoutes(handlers);
   registerRankingRoutes(handlers);
   registerAccountRoutes(handlers);
+  registerAttachmentRoutes(handlers);
 
   /* ── register every endpoint from the contract ── */
   const stubbed: string[] = [];
@@ -275,7 +291,8 @@ function registerEndpoint(
        * Loud in development, off in production: a shape mismatch is a bug to fix at the
        * source, not a 500 to hand a user.
        */
-      if (ctx.env.NODE_ENV !== "production") {
+      // A file download writes its own bytes; there is no object to check it against.
+      if (ctx.env.NODE_ENV !== "production" && ep.responseKind !== "binary") {
         const parsed = ep.response.safeParse(result);
         if (!parsed.success) {
           request.log.error(

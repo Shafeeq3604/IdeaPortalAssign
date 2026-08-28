@@ -42,6 +42,7 @@ export const queryKeys = {
     recommendations: (ideaId: string) => ["ideas", "detail", ideaId, "recommendations"] as const,
     reviews: (ideaId: string) => ["ideas", "detail", ideaId, "reviews"] as const,
     feedback: (ideaId: string) => ["ideas", "detail", ideaId, "feedback"] as const,
+    attachments: (ideaId: string) => ["ideas", ideaId, "attachments"] as const,
   },
 
   rankings: {

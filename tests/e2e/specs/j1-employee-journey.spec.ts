@@ -211,6 +211,56 @@ test.describe("J-1 employee journey", () => {
     ).toHaveText(scoreBefore);
   });
 
+  test("a file can be attached to a draft, and a disguised one cannot (FR-02, SPEC §9.2)", async ({
+    page,
+  }) => {
+    await signInAs(page, /Erin Employee/i);
+
+    await page.goto("/ideas/new");
+    await page.locator("#field-title").fill(`Attachment journey ${Date.now()}`);
+    await page
+      .locator("#field-description")
+      .fill("A description long enough to pass the submission validation checks.");
+    await page.locator("#field-problemStatement").fill("A weekly task is done by hand.");
+    await page.locator("#field-expectedUsers").fill("The team that does it.");
+    await page.locator("#field-expectedOutcome").fill("It takes less time.");
+
+    // A DRAFT, not a submission: a submitted version's attachments are fixed (§4.3).
+    await page.getByRole("button", { name: "Save as draft" }).click();
+    await expect(page.getByRole("button", { name: /Add a file/i })).toBeVisible();
+
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "supporting-notes.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("The receipts are retyped by hand every week.\n"),
+    });
+    await expect(
+      page.getByRole("link", { name: "supporting-notes.txt" }),
+      "the upload did not appear in the list",
+    ).toBeVisible();
+
+    /**
+     * SPEC §9.2, through a real browser: a Windows executable named `.pdf`.
+     *
+     * The BDD suite asserts this at the endpoint. This asserts the other half — that the
+     * refusal reaches the person, in words, on the screen they are looking at. A control
+     * that fails silently is a control nobody knows about.
+     */
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "report.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.concat([
+        Buffer.from([0x4d, 0x5a, 0x90, 0x00]),
+        Buffer.from("This program cannot be run in DOS mode."),
+        Buffer.from([0x00, 0x01]),
+      ]),
+    });
+    await expect(page.getByRole("alert")).toContainText(/not a PDF/i);
+
+    // Refused, and the list is unchanged.
+    await expect(page.getByRole("link", { name: "report.pdf" })).toHaveCount(0);
+  });
+
   test("no dead ends: an unknown route offers a way out", async ({ page }) => {
     await signInAs(page, /Erin Employee/i);
     await page.goto("/ideas/no-such-route-at-all");

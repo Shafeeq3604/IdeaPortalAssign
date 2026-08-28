@@ -32,7 +32,21 @@ export interface EndpointDef {
   readonly params?: z.ZodTypeAny | undefined;
   readonly query?: z.ZodTypeAny | undefined;
   readonly body?: z.ZodTypeAny | undefined;
+  /**
+   * How the request body arrives. Defaults to JSON.
+   *
+   * `multipart` means the body is a file upload: `body` still describes the accompanying
+   * fields for documentation, but the router hands the handler a stream rather than a
+   * parsed object, and the handler does its own validation of the bytes.
+   */
+  readonly requestKind?: "json" | "multipart" | undefined;
   readonly response: z.ZodTypeAny;
+  /**
+   * `binary` means the handler writes the response itself — a file download. The
+   * response schema is still required so the registry stays uniform, but nothing
+   * validates a byte stream against it.
+   */
+  readonly responseKind?: "json" | "binary" | undefined;
   readonly successStatus: 200 | 201 | 202 | 204;
   /** Documented failure modes beyond the universal 401/500. */
   readonly errors: readonly ErrorCode[];
@@ -251,6 +265,41 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     summary: "Sign in with email and password (ADR-023).",
     access: "public", body: R.LoginRequest, response: I.SessionResponse,
     successStatus: 200, errors: ["UNAUTHENTICATED", "VALIDATION_FAILED", "RATE_LIMITED"],
+  },
+  {
+    operationId: "listAttachments", method: "GET", path: "/ideas/{ideaId}/attachments",
+    tag: "idea", summary: "Files attached to the idea's current version (FR-02).",
+    access: { requires: [...OWN] }, params: IdeaParams, response: I.AttachmentListResponse,
+    successStatus: 200, errors: ["NOT_FOUND"],
+  },
+  {
+    operationId: "uploadAttachment", method: "POST", path: "/ideas/{ideaId}/attachments",
+    tag: "idea",
+    summary: "Attach a PDF, DOCX or TXT. Type is sniffed from magic bytes (SPEC §4.3).",
+    access: { requires: ["idea:edit:own"] }, params: IdeaParams,
+    // Documentation only — the bytes arrive as a stream, not as a parsed object.
+    body: z.object({ file: z.string().describe("the file part") }),
+    requestKind: "multipart",
+    response: I.Attachment, successStatus: 201,
+    errors: [
+      "VALIDATION_FAILED", "UNSUPPORTED_FILE_TYPE", "FILE_TOO_LARGE",
+      "NOT_FOUND", "ROLE_NOT_PERMITTED", "IDEA_VERSION_IMMUTABLE",
+    ],
+  },
+  {
+    operationId: "downloadAttachment", method: "GET", path: "/attachments/{attachmentId}",
+    tag: "idea",
+    summary: "Download an attachment. Authorises against the idea, then streams the bytes.",
+    access: { requires: [...OWN] }, params: z.object({ attachmentId: C.Id }),
+    response: z.unknown(), responseKind: "binary",
+    successStatus: 200, errors: ["NOT_FOUND"],
+  },
+  {
+    operationId: "deleteAttachment", method: "DELETE", path: "/attachments/{attachmentId}",
+    tag: "idea", summary: "Remove an attachment from an editable version.",
+    access: { requires: ["idea:edit:own"] }, params: z.object({ attachmentId: C.Id }),
+    response: z.object({ id: C.Id }), successStatus: 200,
+    errors: ["NOT_FOUND", "ROLE_NOT_PERMITTED", "IDEA_VERSION_IMMUTABLE"],
   },
   {
     operationId: "signupOptions", method: "GET", path: "/auth/signup-options", tag: "auth",

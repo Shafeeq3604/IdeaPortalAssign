@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@iep/ui";
 import { IdeaShell } from "./IdeaShell";
 import { AnalysisProgress } from "../analysis/AnalysisProgress";
+import { AttachmentsPanel } from "./Attachments";
 
 /** Overview: the submitted content as written, before any AI touches it. */
 export function OverviewTab() {
@@ -80,6 +81,12 @@ export function OverviewTab() {
                 </CardContent>
               </Card>
             )}
+            {/*
+              Files sit with the written content, because that is what they are: more of
+              what the person submitted. Editable only while the idea is a draft — a
+              submitted version is part of what was analysed (SPEC §4.3).
+            */}
+            <AttachmentsPanel ideaId={ideaId} canEdit={idea.permissions.canEdit} />
           </div>
         );
       }}

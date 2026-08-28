@@ -53,7 +53,15 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       // Session cookie must travel; the API sets CORS credentials to match.
       credentials: "include",
       headers: {
-        ...(init.body ? { "content-type": "application/json" } : {}),
+        /*
+         * JSON unless the body is a FormData, in which case the browser MUST set the
+         * header itself — only it knows the multipart boundary it generated. Setting
+         * "application/json" over a file upload produces a body the server cannot parse
+         * and an error that appears to blame the file.
+         */
+        ...(init.body && !(init.body instanceof FormData)
+          ? { "content-type": "application/json" }
+          : {}),
         ...init.headers,
       },
     });
