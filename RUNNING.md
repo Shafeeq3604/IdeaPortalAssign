@@ -95,6 +95,114 @@ and create accounts by hand.
 
 ---
 
+## Presenting it to other people
+
+The walkthrough below is the full tour, in the order a developer would want it. This is
+the shorter version for an audience — about ten minutes, ordered by what is persuasive
+rather than by what is complete.
+
+**Lead with the evaluation and the rankings.** Everyone in the room has seen an AI
+summarise a document. Almost nobody has seen one where the number is defensible, the
+weights are published, and a person signs their name to the decision. That is the part
+that is genuinely hard, and it is the part worth the time.
+
+### Do not run the test suites before a demo
+
+`pnpm test:bdd` and `pnpm test:e2e` run against the REAL development database, on
+purpose — that is what makes them worth having. They also leave their fixtures behind:
+ideas named `Determinate stepper mtcrr6re`, accounts named `bdd-lockout-12@example.test`.
+
+Test users cannot be cleaned up afterwards. An account that appears in `audit_log` cannot
+be deleted, by anyone, because the table is append-only and its actor key is `Restrict`.
+The only way back to a clean list of people is to rebuild the database.
+
+So: run the tests, then prepare the demo data. Never the other way round.
+
+### Before you start
+
+- `pnpm deps:up` and `pnpm dev`, and open the app once so the first render is warm.
+- Sign in and out once. A failed sign-in on stage costs more than it should.
+- Know which idea you are going to open. **Automatic receipt extraction for expense
+  claims** ranks first and reads well; **Auto-release meeting rooms nobody turned up to**
+  is the useful contrast — it scores well without being anybody's favourite.
+- Decide whether you will submit a live idea. Against the real model it takes a couple of
+  minutes to analyse, which is a long silence in a demo. Submitting one you prepared
+  earlier is not cheating.
+
+### The run
+
+| # | Screen | The one sentence |
+|---|---|---|
+| 1 | Sign-in | Don't rush past it — it sets the tone for everything after. |
+| 2 | Submit an idea | "No form to decode. Write it the way you would say it." |
+| 3 | Six-step stepper | Real per-step state, not a spinner. |
+| 4 | Analysis tab | "It restates the idea and tells you what is *missing*." Point at the AI-generated chip. |
+| 5 | **Evaluation tab** | **"The AI did not produce this number."** Criteria, weights, the arithmetic. |
+| 6 | **Rankings → switch profile** | Same ideas, different priorities, different order — and it says why each moved. |
+| 7 | Review → override | Refuse it without a reason. Then give one. |
+| 8 | Audit log | Who decided, and why. Append-only, enforced by the database. |
+| 9 | Thumbs up/down | "Popularity is visible, and deliberately kept out of the score." |
+
+Close on **Administration → People & access**, or on the audit log if the room is more
+governance-minded than operational.
+
+### Steps 5 and 6 in more detail, because they carry the demo
+
+**5 — the Evaluation tab.** The composite score, then every criterion with its own score,
+its weight under this profile, and what the two multiply to. Say the quiet part out loud:
+the model emitted ordinal bands — *low, moderate, high* — and a deterministic engine
+turned those into numbers. Run the same analysis twice and you get the same score. That is
+an architectural decision (ADR-005), not a setting.
+
+**6 — switching the ranking profile.** On **Rankings**, move from **Balanced** to **Cost
+Reduction** and let the room watch the order change. Then point at any row: it names the
+criterion that carried it and the one that held it back, with the figures. The URL changes
+too, so the view is shareable and Back restores it.
+
+If you want one more beat, tick two ideas and press **Compare** — it leads with where they
+differ, widest gap first, rather than listing both in full.
+
+### Questions you should expect
+
+**"Does the AI decide which ideas win?"**
+No. It never emits a score, and there is a test that fails the build if a number appears in
+an AI output schema. It describes; the engine scores; a person decides and is named for it.
+
+**"What if it gets something wrong?"**
+A reviewer overrides any criterion, and the platform refuses the override without a written
+reason — in the form, at the API, and in a database constraint. The original value, the new
+one and the reason all land in the audit log.
+
+**"Can anyone just sign up?"**
+Registration is limited to our own email domain, and a self-registered account is always an
+ordinary employee — the sign-up form has no field that could ask for more. Every role above
+employee is granted by an administrator, on the audit trail. Before this is reachable from
+outside it sits behind the VPN, which also handles identity; email verification is on the
+list and is not built yet.
+
+**"Is it secure?"**
+Passwords are Argon2id, five failures lock an account, every endpoint declares the
+permission it needs and the server refuses at the endpoint rather than hiding a button.
+Attachments are identified by their leading bytes rather than their name — an executable
+renamed `.pdf` is refused. The known gap is email verification; say so.
+
+**"What does it cost to run?"**
+Roughly thirteen cents an idea, because the work is routed by difficulty: extraction goes
+to a cheaper model and judgement to the strongest one. There are hard per-idea and
+per-organisation caps that fall back rather than overspend.
+
+**"What isn't built yet?"**
+Notifications, duplicate detection, analytics, and outcome tracking — the prototype, pilot
+and implemented counts on the dashboard read zero for that reason, and the dashboard says
+so rather than pretending. Be straight about this; the roadmap is in `IEP-SPEC.md` §14.
+
+### If something breaks on stage
+
+Every error screen has a way out by design — there is a test for it. Click the escape
+link, keep talking, and come back to it. Do not open dev tools.
+
+---
+
 ## A demo that shows what the product actually claims
 
 Roughly ten minutes. Each step is chosen because it demonstrates a claim that is easy to
