@@ -1,125 +1,223 @@
-import { useLocation, useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, CardContent, CardHeader, CardTitle, ErrorState } from "@iep/ui";
-import { Link } from "react-router-dom";
-import { api, ApiError, ApiUnreachableError } from "../../app/api-client";
+import * as React from "react";
+import { useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowRight, Eye, EyeOff, FileText, Lightbulb, ListChecks, ScanSearch, Scale, Users,
+} from "lucide-react";
+import { Button, Input, Label } from "@iep/ui";
+import type { SessionResponse } from "@iep/contracts";
+import { ApiError, api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
+import { ThemeToggle } from "../../app/theme";
+import { PRODUCT_NAME, PRODUCT_SHORT } from "../../app/product";
 
 /**
- * Sign-in (FR-01).
+ * Sign-in (ADR-023).
  *
- * Assumption **A1** (an OIDC provider exists) is unanswered, so this renders the dev
- * provider's user picker. When A1 is answered, this page becomes a single "Sign in with
- * <IdP>" button and the picker disappears with the provider — nothing else changes,
- * because everything downstream depends on the session, not on how it was obtained.
+ * Replaces the P0 development stand-in — a list of seeded users as buttons, with no
+ * credential — which was the first screen anyone saw and read as an unfinished tool.
+ *
+ * Split layout: what the product is on the left, the way in on the right. The left panel
+ * is the only marketing surface in the whole application, and it exists because somebody
+ * arriving at a link needs to know what they have been sent to before they type a
+ * password into it.
  */
 
-interface DevUser {
-  email: string;
-  displayName: string;
-  roles: string[];
-}
+const WHAT_IT_DOES = [
+  {
+    icon: Lightbulb,
+    title: "Share an idea in your own words",
+    body: "No form to decode and no jargon. Write it the way you would say it.",
+  },
+  {
+    icon: ScanSearch,
+    title: "The platform works it out",
+    body: "It restates your idea, finds where it applies, and says what is missing.",
+  },
+  {
+    icon: Scale,
+    title: "Scored on published criteria",
+    body: "Every number is explained, and the rules behind it are public.",
+  },
+  {
+    icon: Users,
+    title: "People make the decisions",
+    body: "AI describes. Reviewers decide, and their reasons are on the record.",
+  },
+] as const;
+
+/** The employee's journey, in the four words REQUIREMENTS §33 uses for it. */
+const JOURNEY = [
+  { icon: FileText, label: "Submit" },
+  { icon: ScanSearch, label: "Understand" },
+  { icon: ListChecks, label: "Review" },
+  { icon: ArrowRight, label: "Track" },
+] as const;
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const location = useLocation() as { state?: { from?: string } };
   const queryClient = useQueryClient();
-  const returnTo = location.state?.from ?? "/ideas";
 
-  const devUsers = useQuery({
-    queryKey: ["dev-users"],
-    queryFn: () => api<{ users: DevUser[] }>("/auth/dev/users"),
-    retry: false,
-  });
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [reveal, setReveal] = React.useState(false);
 
-  const login = useMutation({
-    mutationFn: (email: string) =>
-      api<{ ok: true }>("/auth/dev/login", { method: "POST", body: JSON.stringify({ email }) }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.session() });
-      navigate(returnTo, { replace: true });
+  const signIn = useMutation({
+    mutationFn: (body: { email: string; password: string }) =>
+      api<SessionResponse>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: (session) => {
+      // Seed the cache so the shell renders without a second round trip.
+      queryClient.setQueryData(queryKeys.session(), session);
+      navigate("/", { replace: true });
     },
   });
 
-  if (devUsers.isError) {
-    const unreachable = devUsers.error instanceof ApiUnreachableError;
-    // The API is up but its database is not — a different fix from the API being down.
-    const dbDown =
-      devUsers.error instanceof ApiError && devUsers.error.body.code === "DEPENDENCY_UNAVAILABLE";
-    const notConfigured =
-      devUsers.error instanceof ApiError && devUsers.error.status === 404;
-    return (
-      <main className="page">
-        <ErrorState
-          title={
-            unreachable ? "The API server is not running"
-              : dbDown ? "The database is not running"
-              : notConfigured ? "Sign-in is not configured"
-              : "Could not reach the server"
-          }
-          description={
-            unreachable
-              ? "The web app is running, but nothing is answering on port 3001. Stop this process and start both with: corepack pnpm dev"
-              : dbDown
-              ? "The API is running but cannot reach Postgres. Open Docker Desktop, then run: corepack pnpm deps:up"
-              : notConfigured
-                ? "No identity provider is configured yet (assumption A1). Set AUTH_PROVIDER=dev and run pnpm db:seed for local development."
-                : "The API responded, but not in a way this page understands."
-          }
-          onRetry={() => void devUsers.refetch()}
-          escapeTo={{ label: "Data & AI notice", to: "/help/data-and-ai" }}
-          renderLink={({ to, children, className }) => (
-            <Link to={to} className={className}>
-              {children}
-            </Link>
-          )}
-        />
-      </main>
-    );
-  }
+  const message =
+    signIn.error instanceof ApiError
+      ? signIn.error.message
+      : signIn.error
+        ? "Could not reach the server. Check your connection and try again."
+        : null;
 
   return (
-    <main className="page" style={{ maxWidth: "32rem" }}>
-      <h1>Sign in</h1>
-      <p className="muted">Employee Idea Evaluation &amp; Innovation Platform</p>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Development sign-in</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-200 text-muted-foreground">
-            No identity provider is connected yet. Pick a seeded user to sign in as — each
-            has a different role, so you can walk the permission model.
+    <div className="grid min-h-dvh lg:grid-cols-2">
+      {/* ── what this is ── */}
+      <section className="hidden flex-col justify-between bg-muted/40 p-10 lg:flex xl:p-14">
+        <div>
+          <p className="text-100 font-medium uppercase tracking-widest text-muted-foreground">
+            Sage IT · Internal platform
           </p>
+          <h1 className="mt-6 max-w-lg text-700 font-semibold leading-tight">
+            {PRODUCT_NAME}
+          </h1>
+          <p className="mt-4 max-w-md text-300 text-muted-foreground">
+            Tell the organisation what could be better. The platform structures it, scores
+            it against published criteria, and shows its working.
+          </p>
+        </div>
 
-          {devUsers.isPending ? (
-            <p className="text-200 text-muted-foreground">Loading users…</p>
-          ) : (
-            <ul className="space-y-2">
-              {devUsers.data?.users.map((u) => (
-                <li key={u.email}>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between"
-                    disabled={login.isPending}
-                    onClick={() => login.mutate(u.email)}
-                  >
-                    <span>{u.displayName}</span>
-                    <span className="text-100 text-muted-foreground">{u.roles.join(" · ")}</span>
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
+        <ul className="my-10 grid max-w-xl gap-3 sm:grid-cols-2">
+          {WHAT_IT_DOES.map((item) => (
+            <li key={item.title} className="rounded-lg border border-border bg-card p-4">
+              <item.icon aria-hidden className="size-5 text-primary" />
+              <p className="mt-2 text-200 font-medium">{item.title}</p>
+              <p className="mt-1 text-100 text-muted-foreground">{item.body}</p>
+            </li>
+          ))}
+        </ul>
 
-          {login.isError ? (
-            <p role="alert" className="text-200 text-destructive">
-              {login.error instanceof ApiError ? login.error.body.message : "Sign-in failed"}
+        <div>
+          <p className="text-100 font-medium uppercase tracking-widest text-muted-foreground">
+            How it works
+          </p>
+          <ol className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-3">
+            {JOURNEY.map((step, i) => (
+              <li key={step.label} className="flex items-center gap-2">
+                <span className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5">
+                  <step.icon aria-hidden className="size-3.5 text-primary" />
+                  <span className="text-100 font-medium">{step.label}</span>
+                </span>
+                {i < JOURNEY.length - 1 ? (
+                  <span aria-hidden className="text-muted-foreground">›</span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* ── the way in ── */}
+      <section className="flex flex-col p-6 sm:p-10">
+        <div className="flex items-center justify-end gap-2">
+          <ThemeToggle />
+        </div>
+
+        <div className="flex flex-1 items-center justify-center">
+          <div className="w-full max-w-sm">
+            {/* Only shown where the brand panel is hidden, so the page still says what it is. */}
+            <p className="mb-2 text-100 font-medium uppercase tracking-widest text-muted-foreground lg:hidden">
+              Sage IT · Internal platform
             </p>
-          ) : null}
-        </CardContent>
-      </Card>
-    </main>
+            <h2 className="text-500 font-semibold lg:text-600">Sign in</h2>
+            <p className="mt-1 text-200 text-muted-foreground lg:hidden">{PRODUCT_NAME}</p>
+            <p className="mt-1 hidden text-200 text-muted-foreground lg:block">
+              Use your {PRODUCT_SHORT} account.
+            </p>
+
+            <form
+              className="mt-8 space-y-5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                signIn.mutate({ email: email.trim(), password });
+              }}
+            >
+              <div>
+                <Label htmlFor="field-email">Email address</Label>
+                <Input
+                  id="field-email"
+                  type="email"
+                  autoComplete="username"
+                  required
+                  placeholder="you@sageitinc.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="mt-1.5"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="field-password">Password</Label>
+                <div className="relative mt-1.5">
+                  <Input
+                    id="field-password"
+                    type={reveal ? "text" : "password"}
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pr-10"
+                  />
+                  {/*
+                    A reveal toggle, because forcing someone to retype a long password they
+                    cannot see is how people end up choosing short ones.
+                  */}
+                  <button
+                    type="button"
+                    onClick={() => setReveal((v) => !v)}
+                    aria-label={reveal ? "Hide password" : "Show password"}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                  >
+                    {reveal ? (
+                      <EyeOff aria-hidden className="size-4" />
+                    ) : (
+                      <Eye aria-hidden className="size-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {message ? (
+                <p role="alert" className="text-200 text-destructive">
+                  {message}
+                </p>
+              ) : null}
+
+              <Button type="submit" className="w-full" disabled={signIn.isPending}>
+                {signIn.isPending ? "Signing in…" : "Sign in"}
+              </Button>
+            </form>
+
+            <p className="mt-6 text-100 text-muted-foreground">
+              No account, or locked out? Your administrator can set one up or reset your
+              password.
+            </p>
+          </div>
+        </div>
+
+        <p className="text-center text-100 text-muted-foreground">
+          Confidential — internal use only
+        </p>
+      </section>
+    </div>
   );
 }

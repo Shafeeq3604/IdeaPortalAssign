@@ -13,11 +13,29 @@ import { expect, test, type Page } from "@playwright/test";
  * button, which every click test passed. That is the failure mode this exists for.
  */
 
-const ADMIN = /Ash Admin/i;
+
+/**
+ * Sign-in credentials for the seeded demo accounts (ADR-023).
+ *
+ * These replaced the development user-picker, which had no password at all. The seed sets
+ * the same password on all four accounts and RUNNING.md documents it; the value living in
+ * the test suite as well is deliberate — a test that reads it from the environment fails
+ * confusingly on a fresh clone.
+ */
+const DEMO_PASSWORD = "innovation-2026";
+
+const EMAIL_BY_NAME: Record<string, string> = {
+  "Erin Employee": "employee@example.invalid",
+  "Rae Reviewer": "reviewer@example.invalid",
+  "Ash Admin": "admin@example.invalid",
+  "Mo Manager": "manager@example.invalid",
+};
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");
-  await page.getByRole("button", { name: ADMIN }).click();
+  await page.locator("#field-email").fill(EMAIL_BY_NAME["Ash Admin"]!);
+  await page.locator("#field-password").fill(DEMO_PASSWORD);
+  await page.getByRole("button", { name: /^Sign in$/ }).click();
   await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
 }
 

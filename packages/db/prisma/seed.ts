@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { hash as argon2 } from "@node-rs/argon2";
 import { PrismaClient } from "@prisma/client";
 import { CRITERIA, PROFILES, profileWeightSum } from "@iep/contracts";
 import { DEFAULT_ROUTES } from "@iep/ai";
@@ -28,6 +29,14 @@ const CATEGORIES = [
   { key: "compliance-and-risk", label: "Compliance & risk" },
 ];
 
+/**
+ * The demo password, shared by all four seeded accounts.
+ *
+ * A real credential in a development database, documented in RUNNING.md. The seed refuses
+ * to run against production below, so this cannot become a live account by accident.
+ */
+const DEMO_PASSWORD = "innovation-2026";
+
 /** Mirrors SPEC §4.2 so a developer can exercise every role locally. */
 const DEMO_USERS = [
   { email: "employee@example.invalid", displayName: "Erin Employee", roles: ["EMPLOYEE"] },
@@ -37,6 +46,12 @@ const DEMO_USERS = [
 ] as const;
 
 async function main(): Promise<void> {
+  if (process.env["NODE_ENV"] === "production") {
+    // The seed creates accounts with a published password. That is fine in development
+    // and unacceptable anywhere else, so it refuses rather than warns.
+    throw new Error("db:seed creates demo accounts with a known password — never run it in production");
+  }
+
   // Fail before writing anything if the config is internally inconsistent. The DB trigger
   // would also reject it, but a clear message here beats a constraint violation.
   for (const profile of PROFILES) {
@@ -128,15 +143,29 @@ async function main(): Promise<void> {
   }
 
   const deptNames = [...departments.keys()];
+  // Hashed once, reused for all four: Argon2id is deliberately slow, and four separate
+  // hashes of the same string would add seconds to every seed for no benefit.
+  const demoHash = await argon2(DEMO_PASSWORD, { memoryCost: 19_456, timeCost: 2, parallelism: 1 });
+
   for (const [i, u] of DEMO_USERS.entries()) {
     const user = await prisma.user.upsert({
       where: { email: u.email },
-      update: { displayName: u.displayName },
+      update: {
+        displayName: u.displayName,
+        // Re-seeding restores the known password, which is what you want when you have
+        // been testing the lockout.
+        passwordHash: demoHash,
+        passwordSetAt: new Date(),
+        failedLogins: 0,
+        lockedUntil: null,
+      },
       create: {
         email: u.email,
         displayName: u.displayName,
-        externalSubject: `dev|${u.email}`,
+        externalSubject: `password|${u.email}`,
         departmentId: departments.get(deptNames[i % deptNames.length]!)!,
+        passwordHash: demoHash,
+        passwordSetAt: new Date(),
       },
     });
     await prisma.userRole.deleteMany({ where: { userId: user.id } });

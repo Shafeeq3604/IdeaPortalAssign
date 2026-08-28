@@ -8,9 +8,35 @@ import { expect, test, type Page } from "@playwright/test";
  * properties that let anyone downstream trust a number a human touched.
  */
 
+/**
+ * Sign-in credentials for the seeded demo accounts (ADR-023).
+ *
+ * These replaced the development user-picker, which had no password at all. The seed sets
+ * the same password on all four accounts and RUNNING.md documents it; the value living in
+ * the test suite as well is deliberate — a test that reads it from the environment fails
+ * confusingly on a fresh clone.
+ */
+const DEMO_PASSWORD = "innovation-2026";
+
+const EMAIL_BY_NAME: Record<string, string> = {
+  "Erin Employee": "employee@example.invalid",
+  "Rae Reviewer": "reviewer@example.invalid",
+  "Ash Admin": "admin@example.invalid",
+  "Mo Manager": "manager@example.invalid",
+};
+
+function emailFor(name: RegExp): string {
+  const match = Object.keys(EMAIL_BY_NAME).find((n) => name.test(n));
+  if (!match) throw new Error(`no seeded account matches ${name}`);
+  return EMAIL_BY_NAME[match]!;
+}
+
 async function signInAs(page: Page, name: RegExp): Promise<void> {
   await page.goto("/login");
-  await page.getByRole("button", { name }).click();
+  await page.locator("#field-email").fill(emailFor(name));
+  await page.locator("#field-password").fill(DEMO_PASSWORD);
+  await page.getByRole("button", { name: /^Sign in$/ }).click();
+  // Signing in must land somewhere useful, not on a blank shell.
   await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
 }
 

@@ -253,6 +253,37 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     access: { requires: [...USERS] }, query: R.AdminUsersQuery, response: R.AdminUsersResponse,
     successStatus: 200, errors: ["ROLE_NOT_PERMITTED"],
   },
+  {
+    operationId: "login", method: "POST", path: "/auth/login", tag: "auth",
+    summary: "Sign in with email and password (ADR-023).",
+    access: "public", body: R.LoginRequest, response: I.SessionResponse,
+    successStatus: 200, errors: ["UNAUTHENTICATED", "VALIDATION_FAILED", "RATE_LIMITED"],
+  },
+  {
+    operationId: "createUser", method: "POST", path: "/admin/users", tag: "admin",
+    summary: "Create an account and assign its roles.",
+    access: { requires: [...USERS] }, body: R.CreateUserRequest, response: R.AdminUser,
+    successStatus: 201, errors: ["VALIDATION_FAILED", "ROLE_NOT_PERMITTED", "CONCURRENT_MODIFICATION"],
+  },
+  {
+    operationId: "updateUser", method: "PATCH", path: "/admin/users/{userId}", tag: "admin",
+    summary: "Change roles, department, active state, or set a new password.",
+    access: { requires: [...USERS] }, params: z.object({ userId: C.Id }),
+    body: R.UpdateUserRequest, response: R.AdminUser,
+    successStatus: 200, errors: ["VALIDATION_FAILED", "ROLE_NOT_PERMITTED", "NOT_FOUND"],
+  },
+  {
+    operationId: "getIdeaFeedback", method: "GET", path: "/ideas/{ideaId}/feedback", tag: "feedback",
+    summary: "Thumbs up and down totals, plus this person's own vote (FR-18).",
+    access: { requires: [...OWN] }, params: IdeaParams, response: R.IdeaFeedbackSummary,
+    successStatus: 200, errors: ["NOT_FOUND"],
+  },
+  {
+    operationId: "setIdeaFeedback", method: "POST", path: "/ideas/{ideaId}/feedback", tag: "feedback",
+    summary: "Record, change or clear your vote. Never affects the ranking (FR-18, P-1).",
+    access: { requires: [...OWN] }, params: IdeaParams, body: R.SetFeedbackRequest,
+    response: R.IdeaFeedbackSummary, successStatus: 200, errors: ["NOT_FOUND"],
+  },
 ];
 
 export function endpointByOperationId(id: string): EndpointDef | undefined {

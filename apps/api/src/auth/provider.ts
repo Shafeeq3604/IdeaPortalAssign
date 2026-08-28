@@ -26,11 +26,38 @@ export interface AuthenticatedIdentity {
 }
 
 export interface AuthProvider {
-  readonly kind: "dev" | "oidc";
+  readonly kind: "dev" | "oidc" | "password";
   /** Where to send the browser to begin sign-in. */
   authorizationUrl(state: string): string;
   /** Exchange whatever came back for an identity. */
   completeLogin(input: Readonly<Record<string, string>>): Promise<AuthenticatedIdentity>;
+}
+
+/**
+ * Email and password (ADR-023).
+ *
+ * Deliberately thin. Verification needs the stored hash, which means the database, and
+ * this seam has none — so the route owns the lookup and `apps/api/src/auth/password.ts`
+ * owns the cryptography. What this class carries is the DECISION that password sign-in is
+ * the active mechanism, which is what `AUTH_PROVIDER` selects.
+ *
+ * `completeLogin` throws: there is no external callback to complete. That asymmetry is
+ * honest — a redirect-based provider and a credential-based one are not the same shape,
+ * and pretending otherwise would put a fake authorization URL in the codebase.
+ */
+export class PasswordAuthProvider implements AuthProvider {
+  readonly kind = "password" as const;
+
+  authorizationUrl(): string {
+    return "/login";
+  }
+
+  completeLogin(): Promise<AuthenticatedIdentity> {
+    throw new Error(
+      "Password sign-in is verified in the auth route against the stored hash, " +
+        "not through completeLogin (ADR-023).",
+    );
+  }
 }
 
 export class DevAuthProvider implements AuthProvider {

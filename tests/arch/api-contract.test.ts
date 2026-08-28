@@ -75,9 +75,19 @@ describe("endpoint registry integrity", () => {
     expect(dead, `defined but granted to no role: ${dead.join(", ")}`).toEqual([]);
   });
 
-  it("only /health is public — everything else is authenticated", () => {
-    const publicOnes = ENDPOINTS.filter((e) => e.access === "public").map((e) => e.operationId);
-    expect(publicOnes).toEqual(["getHealth"]);
+  it("only health and sign-in are public — everything else is authenticated", () => {
+    /**
+     * An allow-list of exactly two, not a rule of thumb.
+     *
+     * `login` joined `getHealth` with ADR-023: a sign-in endpoint cannot require a session,
+     * because establishing one is its whole job. Every other endpoint must be
+     * authenticated, and the point of asserting the exact set is that a third public
+     * endpoint has to be argued for in a diff rather than appearing quietly.
+     */
+    const publicOnes = ENDPOINTS.filter((e) => e.access === "public")
+      .map((e) => e.operationId)
+      .sort();
+    expect(publicOnes).toEqual(["getHealth", "login"]);
   });
 
   it("path params in the URL have a matching schema", () => {

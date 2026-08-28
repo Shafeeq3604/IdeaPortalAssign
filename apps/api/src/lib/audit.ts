@@ -24,7 +24,9 @@ export type AuditAction =
   | "idea.transition"
   | "idea.review"
   | "score.override"
-  | "ranking.recompute";
+  | "ranking.recompute"
+  | "user.create"
+  | "user.update";
 
 export interface AuditInput {
   readonly actorId: string | null;
@@ -68,6 +70,8 @@ export function entityHrefFor(entityType: string, entityId: string): string | nu
       return `/ideas/${entityId}/evaluation`;
     case "ranking_run":
       return `/rankings/${entityId}`;
+    case "user":
+      return `/people/${entityId}`;
     default:
       return null;
   }

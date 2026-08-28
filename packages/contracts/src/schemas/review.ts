@@ -124,3 +124,62 @@ export const DashboardResponse = z.object({
   generatedAt: Timestamp,
 });
 export type DashboardResponse = z.infer<typeof DashboardResponse>;
+
+/* ── Sign-in and account management (ADR-023, FR-01) ── */
+
+export const LoginRequest = z.object({
+  email: z.string().trim().email("That does not look like an email address"),
+  password: z.string().min(1, "Enter your password"),
+});
+export type LoginRequest = z.infer<typeof LoginRequest>;
+
+/**
+ * Creating a user does NOT take a password hash, and no response anywhere returns one.
+ * The admin sets an initial password, the API hashes it, and it is never readable again.
+ */
+export const CreateUserRequest = z.object({
+  email: z.string().trim().email(),
+  displayName: z.string().trim().min(1).max(120),
+  roles: z.array(Role).min(1, "Every account needs at least one role"),
+  departmentId: Id.nullable().optional(),
+  initialPassword: z.string().min(12, "Use at least 12 characters"),
+});
+export type CreateUserRequest = z.infer<typeof CreateUserRequest>;
+
+export const UpdateUserRequest = z.object({
+  displayName: z.string().trim().min(1).max(120).optional(),
+  roles: z.array(Role).min(1).optional(),
+  departmentId: Id.nullable().optional(),
+  /** Deactivate rather than delete: audit_log references users and is append-only. */
+  isActive: z.boolean().optional(),
+  /** Set a new password for someone locked out. There is no self-service reset in M1. */
+  newPassword: z.string().min(12).optional(),
+});
+export type UpdateUserRequest = z.infer<typeof UpdateUserRequest>;
+
+/* ── Feedback (FR-18) ── */
+
+/**
+ * Deliberately two values, not a rating.
+ *
+ * REQUIREMENTS §32 warns against "complex voting systems" and §16 says popularity must not
+ * directly determine ranking. A five-star scale invites both mistakes; a thumb is a signal
+ * of interest, and it stays out of the scoring engine entirely.
+ */
+export const FeedbackVote = z.enum(["UP", "DOWN"]);
+export type FeedbackVote = z.infer<typeof FeedbackVote>;
+
+export const IdeaFeedbackSummary = z.object({
+  ideaId: Id,
+  up: z.number().int().min(0),
+  down: z.number().int().min(0),
+  /** What the signed-in person voted, so the control can show its own state. */
+  myVote: FeedbackVote.nullable(),
+});
+export type IdeaFeedbackSummary = z.infer<typeof IdeaFeedbackSummary>;
+
+export const SetFeedbackRequest = z.object({
+  /** null clears the vote — pressing the same thumb twice takes it back. */
+  vote: FeedbackVote.nullable(),
+});
+export type SetFeedbackRequest = z.infer<typeof SetFeedbackRequest>;

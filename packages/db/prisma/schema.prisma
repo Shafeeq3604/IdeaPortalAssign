@@ -246,6 +246,16 @@ model User {
   department      Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   isActive        Boolean    @default(true) @map("is_active")
 
+  /// Argon2id (ADR-023). Null for an account that has never been given a password —
+  /// an SSO-only user, or one an admin created but has not set one for yet.
+  /// NEVER selected into a response; `AdminUser` has no field it could populate.
+  passwordHash    String?    @map("password_hash")
+  passwordSetAt   DateTime?  @map("password_set_at") @db.Timestamptz(3)
+  /// Consecutive failures since the last success. Drives lockout (NFR-01).
+  failedLogins    Int        @default(0) @map("failed_logins")
+  lockedUntil     DateTime?  @map("locked_until") @db.Timestamptz(3)
+  lastLoginAt     DateTime?  @map("last_login_at") @db.Timestamptz(3)
+
   roles                UserRole[]
   ideas                Idea[]                       @relation("Submitter")
   authoredVersions     IdeaVersion[]                @relation("VersionAuthor")

@@ -1,1280 +1,925 @@
-# Employee Idea Evaluation & Innovation Platform
-
-## Requirements Document
-
-**Document Type:** Project Requirements\
-**Version:** 1.0\
-**Purpose:** Define the functional, non-functional, and business
-requirements for an internal platform that allows employees to submit
-ideas, evaluate their potential, rank them using transparent criteria,
-provide feasibility and implementation analysis, and continuously
-improve ideas through structured feedback.
-
-------------------------------------------------------------------------
-
-## 1. Project Overview
-
-The proposed platform is an internal **Employee Idea Evaluation &
-Innovation Platform**.
-
-The platform will allow employees to submit ideas in their own words and
-will use structured evaluation mechanisms to analyze:
-
--   Potential use cases
--   Business value
--   Organizational impact
--   Potential user reach
--   Technical feasibility
--   Implementation effort
--   Estimated implementation timeline
--   Cost and resource requirements
--   Risks and dependencies
--   Short-term and long-term potential
--   Strategic alignment
--   Improvement opportunities
-
-The platform will rank ideas relative to one another based on
-configurable evaluation criteria.
-
-### Core Principle
-
-The platform must **not determine that an idea is simply "good" or
-"bad."**
-
-Instead, it should provide an explainable evaluation of each idea and
-show:
-
--   Why the idea received its current ranking
--   Which factors increased or decreased its ranking
--   Whether it appears feasible under current organizational constraints
--   What would be required to implement it
--   What improvements could make the idea stronger
--   How the idea could be re-evaluated after improvements
+# Idea Innovation Platform — Simplified Product Requirements
 
-The final implementation decision should remain with authorized human
-reviewers.
-
-------------------------------------------------------------------------
-
-# 2. Project Objectives
+1. Product Goal
 
-The platform should achieve the following objectives:
+Build a simple, friendly internal website where employees can easily share ideas that could improve the organization.
 
-1.  Provide employees with a simple mechanism for submitting ideas.
-2.  Convert unstructured employee ideas into structured proposals.
-3.  Identify potential use cases and applications.
-4.  Evaluate business value and organizational impact.
-5.  Evaluate technical and operational feasibility.
-6.  Identify risks, dependencies, and required resources.
-7.  Estimate implementation effort and timeline.
-8.  Rank ideas using transparent and configurable criteria.
-9.  Explain the reasons behind each ranking.
-10. Provide detailed recommendations for improving lower-ranked or
-    immature ideas.
-11. Allow improved ideas to be re-evaluated.
-12. Maintain idea history and evolution over time.
-13. Enable human reviewers to validate AI-generated evaluations.
-14. Provide management with dashboards and analytics.
-15. Eventually track ideas from concept through prototype, pilot,
-    implementation, and measurable outcomes.
+The platform should make submitting an idea feel as easy as sending a message.
 
-------------------------------------------------------------------------
+Core principle:
 
-# 3. Primary Users
+Employees provide the idea. The platform helps understand, improve, and evaluate it. Humans make important decisions.
 
-## 3.1 Employees
+Priorities:
 
-Employees should be able to:
+Ease of use
 
--   Submit ideas
--   View their submitted ideas
--   View idea analysis
--   Receive improvement recommendations
--   Improve and resubmit ideas
--   View ranking and ranking explanations
--   Provide additional information
--   Receive feedback
--   Track idea status
+Simple navigation
 
-## 3.2 Reviewers
+Minimal forms
 
-Authorized reviewers should be able to:
+Clear language
 
--   Review submitted ideas
--   Validate AI-generated analysis
--   Modify evaluation scores where appropriate
--   Request additional information
--   Add comments
--   Approve ideas for further consideration
--   Move ideas between lifecycle stages
--   Recommend prototype or pilot development
+Fast submission
 
-## 3.3 Administrators
+Useful feedback
 
-Administrators should be able to:
+Transparent evaluation
 
--   Manage users and roles
--   Configure evaluation criteria
--   Configure ranking weights
--   Configure categories
--   Manage lifecycle statuses
--   Manage platform settings
--   Review audit logs
--   Manage permissions
--   Configure organizational evaluation profiles
+Human oversight
 
-## 3.4 Management / Decision Makers
+Avoid making the platform feel like a complex enterprise management system.
 
-Management should be able to:
+2. Employee Experience
 
--   View ranked ideas
--   Compare ideas
--   View organizational trends
--   Review high-potential ideas
--   Review implementation requirements
--   Review cost and effort estimates
--   Track ideas selected for prototypes or pilots
--   Monitor implemented ideas and outcomes
+The employee should not need to understand evaluation criteria, business scoring, AI models, technical feasibility, implementation planning, ranking algorithms, or data models.
 
-------------------------------------------------------------------------
+They should simply:
 
-# 4. Core Functional Requirements
+Open the website.
 
-## FR-01: User Authentication and Authorization
+Click "Submit an Idea."
 
-The platform shall provide secure authentication for employees and
-authorized users.
+Choose how to provide it.
 
-The platform shall support role-based access control.
+Submit it.
 
-Suggested roles:
+See what the platform understood.
 
--   Employee
--   Reviewer
--   Administrator
--   Management / Decision Maker
+Optionally answer a few questions.
 
-The system shall ensure users can only perform actions permitted by
-their role.
+Track the idea later.
 
-------------------------------------------------------------------------
+3. Idea Submission
 
-# 5. Idea Submission
+Provide three simple choices.
 
-## FR-02: Idea Creation
+Write an Idea
 
-Employees shall be able to submit an idea through a simple submission
-interface.
+Idea title — Optional
 
-The minimum submission information should include:
+Idea description — Required
 
--   Idea title
--   Idea description
--   Problem being addressed
--   Expected users or beneficiaries
--   Department or business area
--   Expected outcome
+Additional information — Optional
 
-Optional information may include:
+Main prompt:
 
--   Example use cases
--   Existing process
--   Existing solutions
--   Suggested technology
--   Expected benefits
--   Estimated cost
--   Attachments
--   Supporting documents
--   References
+Tell us about your idea.
 
-The platform should allow employees to describe ideas naturally without
-requiring technical knowledge.
+Upload a File
 
-------------------------------------------------------------------------
+MVP-supported formats:
 
-# 6. AI-Assisted Idea Structuring
+PDF
 
-## FR-03: Idea Understanding and Structuring
+DOCX
 
-The platform shall analyze the submitted idea and convert unstructured
-information into a structured proposal.
+TXT
 
-The analysis should identify:
+The platform validates the file, extracts text, and processes it automatically.
 
--   Problem statement
--   Proposed solution
--   Target users
--   Potential departments
--   Primary use cases
--   Secondary use cases
--   Expected benefits
--   Required capabilities
--   Assumptions
--   Missing information
+Paste Text
 
-The system should identify areas where clarification is required.
+Allow users to paste an idea from email, notes, documents, or another source.
 
-------------------------------------------------------------------------
-
-# 7. Use-Case Analysis
-
-## FR-04: Use-Case Identification
-
-The platform shall identify potential use cases for each submitted idea.
-
-It should identify:
-
--   Direct use cases
--   Indirect use cases
--   Potential departments
--   Potential user groups
--   Number or scale of potential users
--   Potential applications
--   Short-term applications
--   Long-term applications
-
-The platform should distinguish between currently realistic use cases
-and potential future applications.
-
-------------------------------------------------------------------------
-
-# 8. Business Value and Impact Evaluation
-
-## FR-05: Business Value Evaluation
-
-The platform shall evaluate the potential business value of an idea.
-
-Possible evaluation dimensions include:
-
--   Business impact
--   Productivity improvement
--   Cost reduction
--   Revenue potential
--   Employee experience
--   Customer impact
--   Operational improvement
--   Problem severity
--   Frequency of the problem
-
-The evaluation should provide both scores and explanations.
-
-------------------------------------------------------------------------
-
-# 9. Feasibility Evaluation
-
-## FR-06: Feasibility Analysis
-
-The platform shall determine whether an idea appears feasible under
-current organizational constraints.
-
-Feasibility should be evaluated across multiple dimensions:
-
--   Technical feasibility
--   Data availability
--   Infrastructure availability
--   Integration requirements
--   Security requirements
--   Privacy requirements
--   Compliance requirements
--   Required expertise
--   Resource availability
--   Cost considerations
--   External dependencies
-
-The platform should use statuses such as:
-
--   Highly Feasible
--   Feasible with Conditions
--   Requires Further Investigation
--   Currently Not Feasible
-
-The platform must provide reasons for the assigned feasibility status.
-
-It should avoid absolute statements such as "this idea is impossible"
-unless supported by explicit organizational constraints.
-
-------------------------------------------------------------------------
-
-# 10. Implementation Requirements
-
-## FR-07: Implementation Requirement Identification
-
-For feasible or conditionally feasible ideas, the platform shall
-identify what would be required to implement the idea.
-
-The analysis may include:
-
-### People
-
--   Developers
--   AI/ML engineers
--   Product owners
--   Designers
--   Security reviewers
--   Subject matter experts
-
-### Technology
-
--   Applications
--   APIs
--   Databases
--   AI/ML systems
--   Cloud infrastructure
--   Authentication
--   Monitoring
--   Integration systems
-
-### Data
-
--   Internal documents
--   Databases
--   APIs
--   Historical records
--   External data sources
-
-### Organizational Requirements
-
--   Security approval
--   Privacy review
--   Legal review
--   Department approval
--   Budget approval
-
-------------------------------------------------------------------------
-
-# 11. Implementation Time Estimation
-
-## FR-08: Timeline Estimation
-
-The platform shall provide preliminary implementation estimates.
-
-The estimate should distinguish between:
-
--   Discovery
--   Proof of Concept / Prototype
--   MVP
--   Testing
--   Production Deployment
+4. Submission UX
 
 Example:
 
--   Discovery: 1 week
--   Prototype: 2--3 weeks
--   MVP: 4--8 weeks
--   Testing: 1--2 weeks
--   Deployment: 1 week
+Submit Your Idea
 
-All AI-generated estimates should be clearly labelled as **preliminary
-estimates** and should be reviewable by technical stakeholders.
+Have an idea that could improve the organization?
 
-------------------------------------------------------------------------
+Choose how you'd like to share it:
 
-# 12. Cost and Effort Estimation
+[ Write an Idea ]
 
-## FR-09: Effort and Cost Evaluation
+[ Upload a File ]
+PDF • DOCX • TXT
 
-The platform should estimate:
+[ Paste Text ]
 
--   Development effort
--   Infrastructure requirements
--   Third-party services
--   Licensing requirements
--   Maintenance effort
--   Operational complexity
+Only show fields relevant to the selected method.
 
-A high-level classification should be supported:
+Do not force employees to complete a long form.
 
--   Low
--   Medium
--   High
--   Very High
+5. Optional Information
 
-Where sufficient information is available, more detailed estimates may
-be provided.
+Do not require employees to provide:
 
-------------------------------------------------------------------------
+Business impact
 
-# 13. Risk Analysis
+Implementation cost
 
-## FR-10: Risk Identification
+Technical requirements
 
-The platform shall identify potential risks associated with an idea.
+Dependencies
 
-Risk categories should include:
+Risks
 
--   Technical risk
--   Security risk
--   Privacy risk
--   Compliance risk
--   Financial risk
--   Operational risk
--   Adoption risk
--   Data risk
--   Vendor/dependency risk
+Department impact
 
-Each identified risk should include:
+Estimated timeline
 
--   Risk description
--   Risk level
--   Potential impact
--   Recommended mitigation
+Required resources
 
-------------------------------------------------------------------------
+Technologies
 
-# 14. Short-Term and Long-Term Potential
+Alternatives
 
-## FR-11: Time Horizon Analysis
+These can be discovered later by the platform or reviewers.
 
-The platform shall distinguish between:
+6. AI in the Background
 
--   Immediate / short-term opportunity
--   Medium-term opportunity
--   Long-term opportunity
+AI may help identify:
 
-The system should allow an idea to have high long-term potential even
-when its immediate feasibility is low.
+What the idea is
 
-This prevents long-term strategic ideas from being treated the same way
-as quick-win ideas.
+What problem it appears to solve
 
-------------------------------------------------------------------------
+Who might benefit
 
-# 15. Ranking Engine
+Potential benefits
 
-## FR-12: Idea Ranking
+Possible use cases
 
-The platform shall rank ideas relative to other ideas.
+Relevant departments
 
-Ranking should be based on configurable evaluation dimensions rather
-than a single subjective judgement.
+Possible risks
 
-Possible dimensions include:
+Implementation considerations
 
--   Business impact
--   Potential user reach
--   Use-case breadth
--   Technical feasibility
--   Implementation effort
--   Cost efficiency
--   Scalability
--   Time to value
--   Strategic alignment
--   Risk
+Similar ideas
 
-The ranking system should support weighted scoring.
+Missing information
 
-------------------------------------------------------------------------
+Normal employees should not see technical AI terminology such as embeddings, vector search, LLM routing, prompt chains, RAG pipelines, or model orchestration.
 
-# 16. Configurable Ranking Weights
+7. Clarification
 
-## FR-13: Evaluation Profiles
-
-Administrators shall be able to configure the weighting of evaluation
-criteria.
+If more information is useful, ask only a few simple questions.
 
 Example:
 
--   Business Impact: 25%
--   Feasibility: 20%
--   User Reach: 15%
--   Cost Efficiency: 10%
--   Implementation Time: 10%
--   Scalability: 10%
--   Strategic Alignment: 10%
+We understand your idea.
 
-The system should support multiple evaluation profiles, such as:
+To help us evaluate it better:
 
-### Quick Wins
+Who would benefit from this?
+[ Your answer ]
 
-Emphasis on:
+What problem does this solve today?
+[ Your answer ]
 
--   Low effort
--   Low cost
--   Fast implementation
+[ Continue ]
 
-### Strategic Innovation
+Optional questions should be skippable. Never turn clarification into another long form.
 
-Emphasis on:
+8. Idea Confirmation
 
--   Long-term value
--   Scalability
--   Strategic alignment
+Before continuing, show the employee a simple summary:
 
-### Cost Reduction
+Here's what we understood
 
-Emphasis on:
+Idea:
+AI assistant for HR questions
 
--   Cost savings
--   Automation
--   Operational efficiency
+Problem:
+Employees spend time contacting HR for common questions.
 
-------------------------------------------------------------------------
+Potential benefit:
+Faster access to HR information.
 
-# 17. Explainable Ranking
+[ Edit ] [ Confirm ]
 
-## FR-14: Ranking Explanation
+This gives the employee control over AI interpretation.
 
-The platform shall explain why an idea received its ranking.
+9. Idea Details Page
 
-For every ranked idea, the system should show:
+Keep this as the main place for tracking an idea.
 
-### Strengths
+Sections:
 
-Factors that increased the ranking.
+Idea: title, description, date, status
 
-### Ranking Constraints
+What We Understood: problem, proposed solution, potential benefit
 
-Factors that reduced the ranking.
+Evaluation: overall score/status, short explanation, strengths, concerns
 
-### Comparison
+Feedback: reviewer comments, questions, responses
 
-Where appropriate, explain how the idea differs from nearby-ranked
-ideas.
+Next Step: one clear next action
 
-Example:
+Avoid displaying too much information at once.
 
-> Idea #4 ranked above Idea #7 because it has a broader potential user
-> base and stronger scalability, while Idea #7 has lower implementation
-> complexity.
+10. Simple Idea Status
 
-The ranking should never be presented as an unexplained number.
+Employee-facing statuses:
 
-------------------------------------------------------------------------
+Submitted
 
-# 18. Improvement Recommendations
+Being Reviewed
 
-## FR-15: Idea Improvement Engine
+Needs More Information
 
-The platform shall provide detailed improvement recommendations.
+Under Consideration
 
-For lower-ranked or immature ideas, it should identify:
+Selected for Further Investigation
 
--   Weaknesses
--   Missing information
--   Unclear requirements
--   Feasibility limitations
--   Scope problems
--   Risk factors
--   Missing use cases
--   Missing success criteria
+In Progress
 
-For every improvement, the platform should provide:
+Completed
 
-1.  Current issue
-2.  Why it matters
-3.  Recommended improvement
-4.  How to implement the improvement
-5.  Expected effect on the idea
-6.  Potential effect on feasibility/ranking
+Not Proceeding
 
-------------------------------------------------------------------------
+Internal workflows may contain more detailed states, but users should see simple language.
 
-# 19. Improve and Re-Evaluate
+11. Evaluation
 
-## FR-16: Idea Improvement Workflow
+The platform can still evaluate ideas across:
 
-Employees should be able to improve an idea based on the platform's
-recommendations.
+Business value
 
-The platform should support:
+Feasibility
 
-**Original Idea → Improvement → Re-evaluation**
+Effort
 
-The system should show whether the idea's evaluation changed after
-improvements.
+Time-to-value
+
+Risk
+
+Strategic alignment
+
+Adoption potential
+
+User-facing presentation should be simple.
 
 Example:
 
--   Version 1: Rank #31
--   Version 2: Rank #18
--   Version 3: Rank #9
+Overall Opportunity
+82 / 100
 
-------------------------------------------------------------------------
+High potential business value
+Good feasibility
+Moderate implementation effort
+Strong alignment
+Some technical dependencies
 
-# 20. Idea Maturity
+Use "See why" for more detail.
 
-## FR-17: Idea Maturity Classification
+12. Ranking
 
-The platform should distinguish ranking from idea maturity.
+Ranking should not dominate the employee experience or make idea submission feel like a competition.
 
-Suggested maturity levels:
+For employees, prefer messages such as:
 
-### Level 1 --- Concept
+Your idea is being considered.
 
-General idea with limited detail.
+Your idea has high potential.
 
-### Level 2 --- Defined Problem
+Your idea has been selected for further investigation.
 
-Problem and affected users are identified.
+Authorized managers and innovation teams can access detailed rankings.
 
-### Level 3 --- Defined Solution
+13. Ranking Dashboard
 
-Proposed solution and use cases are defined.
+For managers/reviewers show:
 
-### Level 4 --- Validated
+Top ideas
 
-User demand or prototype evidence exists.
+Overall score
 
-### Level 5 --- Implementation Ready
+Business value
 
-Requirements, resources, risks, costs, timeline, and KPIs are defined.
+Feasibility
 
-This prevents immature ideas from being interpreted as inherently poor
-ideas.
+Effort
 
-------------------------------------------------------------------------
+Status
 
-# 21. Feedback and Collaboration
+Recommended visualizations:
 
-## FR-18: Employee Feedback
+Ranked list / horizontal bar chart
 
-Employees should be able to provide structured feedback.
+Impact vs Effort matrix
 
-Possible feedback types:
+Score breakdown for a selected idea
 
--   I would use this
--   I experience this problem
--   I have a similar use case
--   I can provide data
--   I can help implement this
--   I see a potential risk
--   I have an improvement suggestion
+Do not display every chart simultaneously.
 
-Users should also be able to provide comments where permitted.
+14. Improving Ideas
 
-------------------------------------------------------------------------
+Instead of simply saying an idea has a low score, explain how it can improve.
 
-# 22. Evidence of Demand
+Example:
 
-## FR-19: Demand Signals
+This idea has potential, but we need more information.
 
-The platform should capture evidence that an idea addresses a real
-organizational need.
+What could make it stronger?
+- Clarify the problem
+- Identify who benefits
+- Provide an example
+- Start with a smaller version
+- Explain the expected benefit
 
-Possible indicators:
+The experience should feel helpful rather than judgmental.
 
--   Number of interested employees
--   Number of departments interested
--   Employees willing to participate in a pilot
--   Number of users reporting the same problem
--   Number of supporting comments
--   Number of potential use cases
+15. Duplicate and Related Ideas
 
-These signals may be included as ranking inputs where appropriate.
+If a similar idea exists, show:
 
-------------------------------------------------------------------------
+We found a similar idea.
 
-# 23. Duplicate Idea Detection
+Options:
 
-## FR-20: Similar Idea Detection
+View similar idea
 
-When an employee submits an idea, the platform should detect potentially
-similar existing ideas.
+Link your idea
 
-The system should show:
+Combine ideas
 
--   Similar ideas
--   Similarity level
--   Differences
--   Existing feedback
--   Existing ranking
--   Existing implementation status
+Continue with your idea
 
-The platform should optionally allow similar ideas to be merged.
+Do not expose similarity/AI technical details.
 
-------------------------------------------------------------------------
+16. Collaboration
 
-# 24. Existing Solution Detection
+MVP:
 
-## FR-21: Existing Capability Detection
+Comments
 
-The platform should identify whether an existing internal or approved
-external solution may already address the proposed problem.
+Reviewer feedback
 
-The platform should recommend:
+Questions
 
--   Build a new solution
--   Buy an existing solution
--   Extend an existing solution
--   Integrate existing tools
+Responses
 
-The purpose is to prevent unnecessary duplication of existing
-capabilities.
+Basic notifications
 
-------------------------------------------------------------------------
+Later:
 
-# 25. Human Review
+Upvotes
 
-## FR-22: Human Validation
+Endorsements
 
-AI-generated analysis shall not automatically become the final
-organizational decision.
+Suggested collaborators
 
-Authorized reviewers should be able to:
+Idea merging
 
--   Review AI analysis
--   Adjust scores
--   Add comments
--   Request clarification
--   Override recommendations where justified
--   Approve or change idea status
+Team collaboration
 
-Changes made by reviewers should be recorded.
+Popularity should not directly determine the final ranking.
 
-------------------------------------------------------------------------
+17. Employee Dashboard
 
-# 26. Idea Lifecycle Management
+Show:
 
-## FR-23: Idea Status
+My ideas
 
-The platform should support a defined lifecycle.
+Idea status
 
-Suggested lifecycle:
+Submission date
 
-**Draft → Submitted → AI Analysis → Needs Clarification → Evaluated →
-Ranked → Under Review → Prototype Candidate → Pilot → Production
-Candidate → Implemented**
+Latest update
 
-Additional states:
+Feedback
 
--   Parked
--   Blocked
--   Needs More Information
--   Rejected with Reason
--   Archived
+Quick action: Submit a New Idea
 
-Every status change should be tracked.
+Keep analytics out of the employee dashboard unless genuinely useful.
 
-------------------------------------------------------------------------
+18. Manager / Reviewer Dashboard
 
-# 27. Version History
+Show:
 
-## FR-24: Idea Versioning
+Ideas requiring review
 
-The platform shall maintain the history of idea changes.
+High-potential ideas
 
-Each version should store:
+Ideas needing clarification
 
--   Version number
--   Previous content
--   Updated content
--   Evaluation before change
--   Evaluation after change
--   Changes made
--   Date/time
--   User responsible for change
+Ideas by status
 
-This allows users to see how an idea evolved.
+Basic score information
 
-------------------------------------------------------------------------
+Recent activity
 
-# 28. Success Metrics
+Filters:
 
-## FR-25: KPI Definition
+Department
 
-Ideas selected for implementation should have measurable success
-criteria.
+Status
 
-Possible KPIs include:
+Category
 
--   Time saved
--   Cost saved
--   User adoption
--   Number of users
--   Error reduction
--   Processing time reduction
--   Employee satisfaction
--   Customer satisfaction
--   Revenue impact
+Date
 
-The platform should eventually allow actual results to be compared with
-predicted benefits.
+Score
 
-------------------------------------------------------------------------
+19. Leadership / Innovation Dashboard
 
-# 29. Management Dashboard
+For authorized users:
 
-## FR-26: Organizational Dashboard
+Top opportunities
 
-Management should have access to an overview dashboard showing:
+Impact vs effort
 
--   Total ideas
--   New ideas
--   Ideas under evaluation
--   Top-ranked ideas
--   Prototype candidates
--   Pilot projects
--   Implemented ideas
--   Parked ideas
--   Ideas requiring review
+Potential business value
 
-The dashboard should support filtering by:
+Feasibility
 
--   Department
--   Category
--   Status
--   Date
--   Ranking
--   Evaluation profile
+Investment requirements
 
-------------------------------------------------------------------------
+Ideas in progress
 
-# 30. Analytics and Reporting
+Realized outcomes
 
-## FR-27: Organizational Analytics
+20. Navigation
 
-The platform should provide analytics such as:
+Keep the main navigation small:
 
--   Ideas by department
--   Ideas by category
--   Ideas by lifecycle stage
--   Average implementation effort
--   Most common organizational problems
--   Most common use cases
--   Number of implemented ideas
--   Idea-to-implementation conversion rate
--   Average time from submission to decision
--   Improvement in ranking after revisions
+Dashboard
+Submit Idea
+Explore Ideas
+My Ideas
 
-These analytics can help management identify recurring organizational
-opportunities.
+For authorized users:
+Reviews
+Rankings
+Administration
 
-------------------------------------------------------------------------
+Do not put every feature in the main navigation.
 
-# 31. Notifications
+21. Explore Ideas
 
-## FR-28: Notifications
+Show permitted ideas using simple cards:
 
-The platform should notify users when relevant events occur.
+Title
 
-Examples:
+Short description
 
--   Idea submitted
--   Analysis completed
--   Clarification requested
--   Ranking updated
--   Feedback received
--   Idea approved
--   Idea moved to prototype
--   Idea selected for pilot
--   Idea requires reviewer action
+Category
 
-Notification channels may initially include in-platform notifications
-and email, with additional integrations considered later.
+Status
 
-------------------------------------------------------------------------
+Potential value
 
-# 32. Auditability
+Related ideas
 
-## FR-29: Audit Trail
+Provide search and filters.
 
-The system shall maintain an audit trail for important actions.
+22. Security and Privacy
 
-Audit information should include:
+Support:
 
--   User
--   Action
--   Timestamp
--   Previous value
--   New value
--   Reason where applicable
+Authentication
 
-This is particularly important for ranking changes, reviewer overrides,
-approvals, and status changes.
+Role-based access
 
-------------------------------------------------------------------------
+Appropriate idea visibility
 
-# 33. Non-Functional Requirements
+Private/confidential ideas
 
-## NFR-01: Security
+Secure file uploads
 
-The platform shall:
+Encryption
 
--   Use secure authentication
--   Enforce role-based access control
--   Protect stored data
--   Encrypt sensitive data where required
--   Secure APIs
--   Maintain audit logs
--   Prevent unauthorized access
+Audit logs
 
-## NFR-02: Privacy
+Data retention
 
-The platform shall protect employee and organizational information.
+Secure AI processing
 
-The system should clearly define:
+Security controls should be mostly invisible to normal users.
 
--   What information is stored
--   Who can access it
--   How long information is retained
--   How AI services process submitted information
+23. AI Safety
 
-## NFR-03: Explainability
+Treat uploaded documents and submitted text as untrusted input.
 
-AI-generated evaluations must provide understandable reasons rather than
-unexplained scores.
+Protect against:
 
-## NFR-04: Reliability
+Prompt injection
 
-The platform should be designed to remain available and recover
-gracefully from failures.
+Malicious files
 
-## NFR-05: Scalability
+Incorrect AI assumptions
 
-The system should support growth in:
+Hallucinations
 
--   Employees
--   Ideas
--   Feedback
--   Evaluations
--   Historical data
--   AI analysis requests
+Sensitive information exposure
 
-## NFR-06: Performance
+AI-generated information is an assessment, not automatically truth. Important decisions require human review.
 
-Normal user interactions should provide timely responses.
+24. High-Level System Flow
 
-Long-running AI analysis should use an asynchronous process where
-appropriate, with progress/status information.
+Employee
+    ↓
+Submit Idea
+    ↓
+Write / Upload / Paste
+    ↓
+Process Content
+    ↓
+AI Understands Idea
+    ↓
+Optional Clarification
+    ↓
+Employee Confirms
+    ↓
+Evaluation
+    ↓
+Ranking / Prioritization
+    ↓
+Human Review
+    ↓
+Further Investigation
+    ↓
+Prototype / Implementation
+    ↓
+Measure Outcome
 
-## NFR-07: Maintainability
+The user should experience this as a simple process even if the backend is more sophisticated.
 
-The system should use modular components so evaluation criteria, ranking
-weights, AI providers, and business rules can be changed without
-redesigning the entire platform.
+25. High-Level Technical Principle
 
-## NFR-08: Observability
+Keep the first implementation straightforward.
 
-The platform should provide:
+Separate:
 
--   Application logging
--   Error monitoring
--   AI request monitoring
--   Performance monitoring
--   Audit logs
+Frontend
 
-------------------------------------------------------------------------
+Backend/API
 
-# 34. AI Requirements
+Database
 
-The AI layer should assist with:
+File processing
 
--   Idea summarization
--   Problem identification
--   Use-case generation
--   Application identification
--   Feasibility analysis
--   Risk identification
--   Implementation requirement generation
--   Timeline estimation
--   Improvement recommendations
--   Similar idea detection
--   Existing solution analysis
--   Ranking explanations
+AI processing
 
-The AI should not independently make final organizational decisions.
+Scoring
 
-AI-generated content should be clearly distinguishable from
-human-approved information.
+Search
 
-------------------------------------------------------------------------
+Do not introduce complex infrastructure unless the product actually requires it.
 
-# 35. Recommended AI + Scoring Architecture
+For the initial version:
 
-The platform should separate AI analysis from ranking calculation.
+Use a straightforward web application
 
-Recommended flow:
+Use background processing only where necessary
 
-**Employee Idea**
+Store structured idea information in the database
 
-↓
+Store uploaded files securely
 
-**AI Analysis**
+Use AI only where it provides meaningful value
 
-↓
+Use deterministic logic for scoring and ranking
 
-Extract structured information:
+Add advanced infrastructure only when justified
 
--   Use cases
--   Users
--   Impact
--   Risks
--   Dependencies
--   Requirements
--   Feasibility factors
+26. AI Token Efficiency
 
-↓
+Never send the entire database to an AI model.
 
-**Evaluation Engine**
+For an individual idea, use only:
 
-↓
+Submitted idea
 
-Apply organizational scoring rules and weights
+Relevant structured information
 
-↓
+Relevant similar ideas
 
-**Ranking Engine**
+Relevant approved organizational information
 
-↓
+The database/application should handle:
 
-Generate ranking
+Search
 
-↓
+Filtering
 
-**Explanation Engine**
+Sorting
 
-↓
+Pagination
 
-Provide reasons and improvement recommendations
+Aggregation
 
-This separation makes the ranking more transparent, testable, and
-controllable.
+Ranking
 
-------------------------------------------------------------------------
+AI should handle:
 
-# 36. Suggested Core Data Entities
+Understanding
 
-The initial data model should consider:
+Summarization
 
--   Users
--   Roles
--   Departments
--   Ideas
--   Idea Versions
--   Idea Categories
--   Use Cases
--   Evaluations
--   Evaluation Criteria
--   Evaluation Profiles
--   Ranking Results
--   Implementation Plans
--   Risks
--   Dependencies
--   Improvement Recommendations
--   Feedback
--   Similar Ideas
--   Reviews
--   Status History
--   KPIs
--   Notifications
--   Audit Logs
+Extraction
 
-------------------------------------------------------------------------
+Reasoning
 
-# 37. Recommended MVP Scope
+Recommendations
 
-The first release should not attempt to implement every possible
-feature.
+27. Large Dataset Support
 
-### MVP Features
+The system should be capable of growing from 10 to 100,000+ ideas, but the MVP should not be over-engineered for the largest scale.
 
-1.  Authentication and roles
-2.  Idea submission
-3.  Idea management
-4.  AI-assisted idea structuring
-5.  Use-case analysis
-6.  Business value analysis
-7.  Feasibility analysis
-8.  Risk analysis
-9.  Implementation requirements
-10. Preliminary timeline estimation
-11. Configurable ranking
-12. Explainable ranking
-13. Improvement recommendations
-14. Idea re-evaluation
-15. Human review
-16. Basic management dashboard
-17. Idea status/lifecycle
-18. Basic audit logging
+For the MVP:
 
-------------------------------------------------------------------------
+Paginate idea lists
 
-# 38. Future Enhancements
+Search using database indexes
 
-After the MVP, the platform can be expanded with:
+Filter on the backend
 
--   Employee feedback
--   Demand signals
--   Duplicate idea detection
--   Existing solution detection
--   Build vs Buy vs Integrate recommendations
--   Idea version history
--   Advanced analytics
--   Notifications
--   Prototype tracking
--   Pilot management
--   KPI tracking
--   ROI measurement
--   Internal system integrations
--   Collaboration features
--   Advanced organizational reporting
+Calculate charts from aggregated data
 
-------------------------------------------------------------------------
+Process AI tasks asynchronously when needed
 
-# 39. Recommended High-Level Workflow
+Add advanced infrastructure only when actual scale requires it.
 
-The complete platform workflow should be:
+28. Data Model
 
-**1. Employee submits idea**
+Keep the initial data model focused.
 
-↓
+MVP:
 
-**2. Platform understands and structures idea**
+User
 
-↓
+Department
 
-**3. Identify problem and use cases**
+Idea
 
-↓
+Idea Version
 
-**4. Analyze business value and organizational impact**
+Attachment
 
-↓
+AI Analysis
 
-**5. Analyze feasibility**
+Evaluation
 
-↓
+Review
 
-**6. Identify risks and dependencies**
+Comment
 
-↓
+Notification
 
-**7. Identify required resources and technologies**
+Audit Event
 
-↓
+Later:
 
-**8. Estimate implementation effort and timeline**
+Experiment
 
-↓
+Prototype
 
-**9. Calculate ranking using configured criteria**
+Project
 
-↓
+Outcome
 
-**10. Explain ranking**
+Advanced dependencies
 
-↓
+Resource planning
 
-**11. Provide improvement recommendations**
+Do not build every future entity into the first release.
 
-↓
+29. MVP
 
-**12. Human reviewer validates evaluation**
+Employee
 
-↓
+Login
 
-**13. Employee improves idea if necessary**
+Submit an idea
 
-↓
+Write an idea
 
-**14. Idea is re-evaluated**
+Upload PDF/DOCX/TXT
 
-↓
+Paste text
 
-**15. High-potential ideas move to prototype/pilot**
+View submitted ideas
 
-↓
+View idea status
 
-**16. Implemented ideas are measured against KPIs**
+Confirm/edit AI understanding
 
-------------------------------------------------------------------------
+Answer optional clarification questions
 
-# 40. Key Product Principles
+View feedback
 
-The following principles should guide development:
+Platform
 
-### 1. Evaluation, not judgment
+File validation
 
-The platform should evaluate ideas rather than label them simply as good
-or bad.
+Text extraction
 
-### 2. Explainability
+AI idea understanding
 
-Every important score and ranking should have an understandable
-explanation.
+Simple structured summary
 
-### 3. Human-in-the-loop
+User-provided vs AI-inferred distinction
 
-AI should assist employees and reviewers, not replace organizational
-decision-making.
+Basic duplicate/related idea detection
 
-### 4. Improvement over rejection
+Evaluation
 
-A lower-ranked idea should receive actionable guidance whenever
-possible.
+Explainable score
 
-### 5. Separate value from feasibility
+Improvement suggestions
 
-High-value ideas may be difficult to implement, while low-effort ideas
-may have limited impact.
+Reviewer
 
-### 6. Configurable evaluation
+View ideas
 
-Different organizational priorities should be supported through
-configurable criteria and weights.
+Review AI assessment
 
-### 7. Evidence-driven evaluation
+Add feedback
 
-Employee feedback, user demand, existing capabilities, data
-availability, and measurable outcomes should strengthen the evaluation.
+Change status
 
-### 8. Continuous improvement
+Request information
 
-An idea should be able to evolve and be re-evaluated.
+Approve/decline further investigation
 
-### 9. Avoid unnecessary development
+Dashboard
 
-The platform should identify existing solutions before recommending that
-the organization build something new.
+Employee dashboard
 
-### 10. Measure real-world results
+Reviewer dashboard
 
-Once ideas are implemented, actual outcomes should eventually be
-compared with predicted value.
+Basic ranking
 
-------------------------------------------------------------------------
+Basic impact/effort visualization
 
-# 41. Success Criteria for the Platform
+30. V2
 
-The project can be considered successful when employees can:
+Consider:
 
--   Submit ideas easily
--   Understand how their ideas were evaluated
--   See potential applications and use cases
--   Understand feasibility and implementation requirements
--   Understand why an idea ranks where it does
--   Receive actionable improvement recommendations
--   Improve and re-submit ideas
+Advanced collaboration
 
-And management can:
+Idea merging
 
--   Compare ideas consistently
--   Identify high-potential opportunities
--   Understand implementation requirements
--   Identify quick wins and strategic opportunities
--   Make informed decisions using transparent evaluation
--   Track ideas through implementation
--   Measure whether implemented ideas delivered the expected value
+Expert matching
 
-------------------------------------------------------------------------
+Improved semantic search
 
-# 42. Final Product Definition
+RAG over approved internal documentation
 
-The proposed system should be positioned as an:
+Prototype tracking
 
-> **AI-assisted internal innovation and idea evaluation platform that
-> transforms employee ideas into structured, explainable evaluations,
-> ranks them according to configurable organizational priorities,
-> identifies feasibility and implementation requirements, provides
-> actionable improvement recommendations, and supports the progression
-> of ideas from initial concepts to validated business initiatives.**
+Pilot tracking
 
-The platform's fundamental workflow is:
+Advanced analytics
 
-**Submit → Understand → Evaluate → Rank → Explain → Improve →
-Re-evaluate → Validate → Implement → Measure**
+Notifications
 
-The system should support decision-making rather than replace it,
-ensuring that employees receive constructive feedback while management
-receives transparent, evidence-based information for prioritizing
-innovation opportunities.
+Integrations
+
+Historical outcome analysis
+
+31. V3
+
+Only after sufficient usage and historical data:
+
+Advanced forecasting
+
+Organization-specific evaluation models
+
+Portfolio optimization
+
+Resource recommendations
+
+Automated opportunity discovery
+
+Advanced strategic planning
+
+Enterprise innovation intelligence
+
+32. What NOT to Build Initially
+
+Avoid unless there is a real requirement:
+
+Complex multi-agent AI systems
+
+Multiple AI models for every operation
+
+Advanced vector infrastructure
+
+Complicated workflow engines
+
+Extensive gamification
+
+Complex voting systems
+
+Large numbers of dashboard charts
+
+Automated financial forecasting
+
+Fully automated decision-making
+
+Detailed resource planning
+
+Portfolio optimization
+
+First prove that employees will use the platform and that organizations receive useful ideas.
+
+33. Design Philosophy
+
+Simple on the outside, intelligent on the inside.
+
+Employees should see:
+
+Submit
+   ↓
+Understand
+   ↓
+Review
+   ↓
+Track
+
+The platform can internally perform extraction, classification, AI analysis, duplicate detection, evaluation, scoring, ranking, and human review.
+
+The complexity belongs behind the interface, not in front of the user.
+
+34. Success Metrics
+
+Focus on:
+
+Active contributors
+
+Ideas submitted
+
+Repeat contributors
+
+Submission completion rate
+
+Time from submission to initial review
+
+Review participation
+
+Clarification rate
+
+Duplicate detection usefulness
+
+Ideas selected for investigation
+
+Ideas reaching prototype
+
+Ideas reaching implementation
+
+Realized business value
+
+User satisfaction
+
+Submission time
+
+Drop-off during submission
+
+The most important MVP question is:
+
+Will employees actually use this because it is easier than the current way they share ideas?
+
+35. Final Product Definition
+
+The platform is an easy-to-use internal website where employees can submit an idea by:
+
+Writing it
+
+Uploading a PDF
+
+Uploading a DOCX
+
+Uploading a TXT
+
+Pasting text
+
+The employee should not have to create a formal business proposal.
+
+The platform then:
+
+Understands the idea.
+
+Creates a simple structured summary.
+
+Asks for clarification only when useful.
+
+Checks for similar ideas.
+
+Evaluates the idea.
+
+Explains its potential.
+
+Suggests improvements.
+
+Allows human reviewers to provide feedback.
+
+Tracks progress.
+
+Measures outcomes for implemented ideas.
+
+36. Most Important Product Rule
+
+Do not make the user interact with the complexity of the system.
+
+The employee-facing experience should ultimately feel like:
+
+"I have an idea. Let me tell the organization about it."
+
+That is the foundation of the website.

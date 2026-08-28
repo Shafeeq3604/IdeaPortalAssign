@@ -3,7 +3,9 @@ import { getPrisma } from "@iep/db";
 import { ApiEnv, loadEnv } from "@iep/contracts/env";
 import { buildServer } from "./server.js";
 import { registerDevLogin } from "./modules/auth.routes.js";
-import { DevAuthProvider, OidcAuthProvider, type AuthProvider } from "./auth/provider.js";
+import {
+  DevAuthProvider, OidcAuthProvider, PasswordAuthProvider, type AuthProvider,
+} from "./auth/provider.js";
 import { MemorySessionStore, RedisSessionStore, type SessionStore } from "./auth/session.js";
 import {
   makeAnalysisEnqueuer, makeRankingEnqueuer, noopEnqueuer, noopRankingEnqueuer,
@@ -18,9 +20,19 @@ import type { AppContext } from "./context.js";
 const env = loadEnv(ApiEnv, process.env);
 const isProd = env.NODE_ENV === "production";
 
-/** A1 is unanswered: default to the dev provider outside production, refuse in it. */
+/**
+ * Which mechanism establishes identity (ADR-023).
+ *
+ * PASSWORD is the default now, in development and production alike. It used to default to
+ * the dev user-picker outside production, which meant the thing everyone ran locally and
+ * demonstrated had no authentication at all — anyone could click "Ash Admin".
+ *
+ * `dev` is still available for tests and local work, but you have to ask for it, and it
+ * still refuses to construct in production.
+ */
 function makeAuthProvider(): AuthProvider {
-  const configured = process.env["AUTH_PROVIDER"] ?? (isProd ? "oidc" : "dev");
+  const configured = process.env["AUTH_PROVIDER"] ?? "password";
+  if (configured === "password") return new PasswordAuthProvider();
   if (configured === "dev") return new DevAuthProvider(env.NODE_ENV);
   return new OidcAuthProvider({
     issuer: env.OIDC_ISSUER,

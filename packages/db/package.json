@@ -23,7 +23,8 @@
   "dependencies": {
     "@iep/ai": "workspace:*",
     "@iep/contracts": "workspace:*",
-    "@prisma/client": "^6.1.0"
+    "@prisma/client": "^6.1.0",
+    "@node-rs/argon2": "^2.0.2"
   },
   "devDependencies": {
     "@types/node": "^26.3.0",
