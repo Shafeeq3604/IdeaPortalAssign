@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { IdeaStatus, ReviewDecision, Role } from "../enums.js";
-import { ActorRef, DepartmentRef, Id, PageQuery, Timestamp, paginated } from "./common.js";
+import { ActorRef, DepartmentRef, Id, PageQuery, Timestamp, paginated, queryArray } from "./common.js";
 
 /** Human review, audit and admin read surfaces (FR-22, FR-29). */
 
@@ -41,7 +41,7 @@ export const ReviewQueueItem = z.object({
 export type ReviewQueueItem = z.infer<typeof ReviewQueueItem>;
 
 export const ReviewQueueQuery = PageQuery.extend({
-  status: z.array(IdeaStatus).optional(),
+  status: queryArray(z.array(IdeaStatus)).optional(),
   departmentId: Id.optional(),
   sort: z.enum(["oldest", "recent", "rank"]).default("oldest"),
 });

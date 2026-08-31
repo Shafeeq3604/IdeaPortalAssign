@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { ExplanationItem } from "./schemas/evaluation.js";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { CompareQuery, ExplanationItem } from "./schemas/evaluation.js";
+import { ListIdeasQuery } from "./schemas/idea.js";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 import type { IdeaStatus, Role } from "./enums.js";
 import {
   ROLE_PERMISSIONS, can, hasAllPermissions, ideaListScope, permissionsFor,
@@ -284,5 +290,71 @@ describe("ExplanationItem tolerates a run written before its newest fields", () 
     // The tolerance is specific, not a blanket "accept anything".
     const { text: _text, ...withoutText } = LEGACY;
     expect(ExplanationItem.safeParse(withoutText).success).toBe(false);
+  });
+});
+
+/**
+ * Query arrays, which a querystring cannot actually express.
+ *
+ * A parser gives a STRING for one occurrence of a key and an ARRAY for two, so a plain
+ * `z.array(...)` accepts `?status=A&status=B` and rejects `?status=A`. Filtering by
+ * exactly one value — the commonest thing anyone does — was the only case that failed.
+ * It shipped that way.
+ */
+describe("a repeatable query parameter accepts one value as readily as several", () => {
+  it("ListIdeasQuery takes a single status, an array, or none", () => {
+    // The case that was broken.
+    const single = ListIdeasQuery.safeParse({ status: "RANKED" });
+    expect(single.success, JSON.stringify(single.error?.issues)).toBe(true);
+    expect(single.success && single.data.status).toEqual(["RANKED"]);
+
+    // The case that always worked, still working.
+    const many = ListIdeasQuery.safeParse({ status: ["RANKED", "DRAFT"] });
+    expect(many.success && many.data.status).toEqual(["RANKED", "DRAFT"]);
+
+    /**
+     * Absent stays absent, and is NOT coerced to an empty array. "No filter" and "match
+     * nothing" are different queries, and conflating them would silently empty the list.
+     */
+    const none = ListIdeasQuery.safeParse({});
+    expect(none.success && none.data.status).toBeUndefined();
+  });
+
+  it("still refuses a value that is not a status", () => {
+    // The tolerance is about arity, not about type.
+    expect(ListIdeasQuery.safeParse({ status: "NOT_A_STATUS" }).success).toBe(false);
+    expect(ListIdeasQuery.safeParse({ status: ["RANKED", "NOPE"] }).success).toBe(false);
+  });
+
+  it("CompareQuery keeps its two-to-four bound after the coercion", () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    const other = "22222222-2222-4222-8222-222222222222";
+
+    // One id is still too few to compare — wrapping it in an array must not smuggle it past.
+    expect(CompareQuery.safeParse({ ids: id }).success).toBe(false);
+    expect(CompareQuery.safeParse({ ids: [id, other] }).success).toBe(true);
+  });
+
+  it("every query schema with an array field goes through the helper", () => {
+    /**
+     * The three known ones are fixed. This asserts the RULE rather than the instances, so
+     * a fourth query schema with a bare `z.array()` fails here instead of in production.
+     */
+    const sources = [
+      readFileSync(join(HERE, "schemas", "idea.ts"), "utf8"),
+      readFileSync(join(HERE, "schemas", "review.ts"), "utf8"),
+      readFileSync(join(HERE, "schemas", "evaluation.ts"), "utf8"),
+    ].join("\n");
+
+    const offenders: string[] = [];
+    for (const [, name, body] of sources.matchAll(/export const (\w*Query) = ([\s\S]*?)\n\}\);/g)) {
+      if (/(?<!query)\bz\.array\(/.test(body!) && !body!.includes("queryArray(")) {
+        offenders.push(name!);
+      }
+    }
+    expect(
+      offenders,
+      `these query schemas use a bare z.array() and will reject a single value: ${offenders.join(", ")}`,
+    ).toEqual([]);
   });
 });

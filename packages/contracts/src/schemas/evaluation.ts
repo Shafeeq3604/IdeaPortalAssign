@@ -3,7 +3,7 @@ import {
   Band, Confidence, CriterionDirection, CriterionGroup, CriterionSourceKind,
   ExplanationSource, MaturityLevel, ScoreSource,
 } from "../enums.js";
-import { ActorRef, Id, PageQuery, Timestamp, paginated } from "./common.js";
+import { ActorRef, Id, PageQuery, Timestamp, paginated, queryArray } from "./common.js";
 
 /**
  * Evaluation, ranking, explanation and improvement (FR-12..FR-17).
@@ -173,7 +173,7 @@ export const ListRankingsResponse = paginated(RankingEntry).extend({ run: Rankin
 export type ListRankingsResponse = z.infer<typeof ListRankingsResponse>;
 
 export const CompareQuery = z.object({
-  ids: z.array(Id).min(2).max(4),
+  ids: queryArray(z.array(Id).min(2).max(4)),
   profile: z.string().min(1).optional(),
 });
 export type CompareQuery = z.infer<typeof CompareQuery>;

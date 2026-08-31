@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { IdeaStatus, MaturityLevel, Role } from "../enums.js";
-import { ActorRef, CategoryRef, DepartmentRef, Id, PageQuery, Timestamp, paginated } from "./common.js";
+import {
+  ActorRef, CategoryRef, DepartmentRef, Id, PageQuery, Timestamp, paginated, queryArray,
+} from "./common.js";
 
 /** Idea capture, versioning and lifecycle (FR-02, FR-16, FR-23, FR-24). */
 
@@ -109,7 +111,7 @@ export const IdeaDetail = IdeaSummary.extend({
 export type IdeaDetail = z.infer<typeof IdeaDetail>;
 
 export const ListIdeasQuery = PageQuery.extend({
-  status: z.array(IdeaStatus).optional(),
+  status: queryArray(z.array(IdeaStatus)).optional(),
   departmentId: Id.optional(),
   categoryId: Id.optional(),
   submitterId: Id.optional(),

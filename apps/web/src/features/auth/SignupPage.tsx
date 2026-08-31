@@ -26,8 +26,15 @@ import {
 
 const AFTER_YOU_JOIN = [
   {
-    title: "Your ideas are yours",
-    body: "A draft is private until you submit it. Nothing is analysed before you say so.",
+    title: "Nothing is analysed until you say so",
+    /*
+     * This used to read "a draft is private until you submit it". That is NOT TRUE:
+     * SPEC §4.2 grants reviewers and administrators read access to every idea at any
+     * status, drafts included. On a platform where people write criticism of their own
+     * department, promising a privacy that does not exist is the worst kind of copy to
+     * get wrong — so it says what is actually the case instead.
+     */
+    body: "A draft stays out of the rankings and out of the AI pipeline until you submit it. Reviewers and administrators can see it.",
   },
   {
     title: "You will see the working",

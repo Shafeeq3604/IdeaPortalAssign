@@ -168,10 +168,25 @@ test.describe("J-1 employee journey", () => {
   test("anyone can react to an idea, and it never touches the score (§14)", async ({ page }) => {
     await signInAs(page, /Rae Reviewer/i);
 
-    await page.goto("/ideas");
-    const firstIdea = page.locator('main a[href*="/overview"]').first();
-    await expect(firstIdea, "no ideas — run `pnpm db:seed && pnpm demo:data`").toBeVisible();
-    await firstIdea.click();
+    /**
+     * A RANKED idea, chosen deliberately.
+     *
+     * This used to open whatever was first in the list, which is correct only until
+     * another test leaves a draft behind — and one did. A draft has no reaction controls
+     * (there is nothing to react to yet), so 'the first idea' quietly became 'an idea
+     * with no buttons', and this test failed for a reason that had nothing to do with
+     * reactions.
+     *
+     * A test that depends on the order of a shared list reports other people's mess as
+     * its own failure.
+     */
+    await page.goto("/ideas?status=RANKED");
+    const ranked = page.locator('main tbody a[href*="/overview"]').first();
+    await expect(
+      ranked,
+      "no ranked ideas — run `pnpm db:seed && pnpm demo:data`",
+    ).toBeVisible();
+    await ranked.click();
     await expect(page).toHaveURL(new RegExp(String.raw`/ideas/[0-9a-f-]+/overview`));
 
     /*
@@ -211,6 +226,17 @@ test.describe("J-1 employee journey", () => {
     ).toHaveText(scoreBefore);
   });
 
+  /**
+   * NOTE: this test leaves a DRAFT behind, and there is no way for it not to.
+   *
+   * Attachments only attach to a draft, and the product has no delete-idea endpoint —
+   * deliberately, because an idea version is a record. So the draft stays in the
+   * development database until the next `pnpm demo:reset`.
+   *
+   * That leftover broke the reactions test in this same file, which used to open
+   * whatever idea was first. It now asks for a ranked one. Written down because the
+   * next test to reach for the first row will hit exactly this again.
+   */
   test("a file can be attached to a draft, and a disguised one cannot (FR-02, SPEC §9.2)", async ({
     page,
   }) => {

@@ -72,3 +72,31 @@ export type AcceptedResponse = z.infer<typeof AcceptedResponse>;
 
 export const OkResponse = z.object({ ok: z.literal(true) });
 export type OkResponse = z.infer<typeof OkResponse>;
+
+/**
+ * A repeatable query parameter, e.g. `?status=RANKED&status=DRAFT`.
+ *
+ * A querystring has no notion of an array. Fastify's parser — like every other one —
+ * gives a STRING when a key appears once and an ARRAY when it appears twice, so a plain
+ * `z.array(...)` accepts two values and rejects one.
+ *
+ * That is not a theoretical edge: it shipped. The idea list grew status filter chips,
+ * clicking one produced `?status=RANKED`, and the API answered VALIDATION_FAILED —
+ * so filtering by exactly one status, the most common thing anyone does, was the only
+ * case that did not work. Two chips were fine.
+ *
+ * Absent stays absent. A missing filter and an empty filter mean different things: one
+ * is "no constraint", the other is "match nothing".
+ */
+export function queryArray<T extends z.ZodTypeAny>(schema: T) {
+  /**
+   * Takes the finished ARRAY schema, not the item schema, so constraints like
+   * `.min(2)` live inside it. Wrapping a constrained array in a `.pipe()` instead made
+   * zod-to-json-schema emit an `allOf` containing an unresolvable internal `$ref`, and
+   * the generated OpenAPI document described a request nothing could validate against.
+   */
+  return z.preprocess(
+    (value) => (value === undefined ? undefined : Array.isArray(value) ? value : [value]),
+    schema,
+  );
+}
