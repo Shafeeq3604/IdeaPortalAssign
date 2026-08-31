@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown, Compass, LayoutDashboard, ListChecks, LogOut, PenSquare, Settings,
-  Trophy, User,
+  ShieldCheck, Trophy, User,
 } from "lucide-react";
 import { Button } from "@iep/ui";
 import type { Role } from "@iep/contracts";
@@ -69,6 +69,9 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
+/** How a ghost control has to look sitting on the dark gradient bar. */
+const ON_BAR = "text-grad-ink hover:bg-grad-ink/15 hover:text-grad-ink";
+
 function AccountMenu() {
   const { data } = useSession();
   const queryClient = useQueryClient();
@@ -114,51 +117,89 @@ function AccountMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted"
+        className={`flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors duration-[var(--dur-fast)] ${ON_BAR}`}
       >
-        <span className="flex size-7 items-center justify-center rounded-full bg-primary text-100 font-medium text-primary-foreground">
+        <span className="flex size-7 items-center justify-center rounded-full bg-grad-highlight/20 text-100 font-bold text-grad-highlight ring-1 ring-grad-rule">
           {initials}
         </span>
-        <span className="hidden text-200 sm:inline">{data.user.displayName}</span>
-        <ChevronDown aria-hidden className="size-4 text-muted-foreground" />
+        <span className="hidden text-200 font-medium sm:inline">{data.user.displayName}</span>
+        <ChevronDown
+          aria-hidden
+          className={`size-4 transition-transform duration-[var(--dur-fast)] ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
+      {/*
+        `text-popover-foreground` is set explicitly rather than inherited. The header above
+        is white-on-gradient, and a popover that inherits its parent's colour is one
+        stylesheet change away from being invisible — which is exactly what happened to the
+        sign-out item here.
+      */}
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-2 w-64 rounded-lg border border-border bg-popover p-1 shadow-e3"
+          className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-e4"
         >
-          <div className="border-b border-border px-3 py-2">
-            <p className="text-200 font-medium">{data.user.displayName}</p>
-            <p className="text-100 text-muted-foreground">{data.user.email}</p>
-            <p className="mt-1 text-100 text-muted-foreground">
-              {data.user.roles.join(" · ")}
-              {data.user.department ? ` · ${data.user.department.name}` : ""}
-            </p>
+          <div className="brand-bar px-4 py-4 text-grad-ink">
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-grad-highlight/20 text-200 font-bold text-grad-highlight ring-1 ring-grad-rule">
+                {initials}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-200 font-semibold">{data.user.displayName}</p>
+                <p className="truncate text-100 text-grad-ink-soft">{data.user.email}</p>
+              </div>
+            </div>
+
+            {/*
+              Roles as chips rather than a joined string. Somebody holding three of them
+              was reading "EMPLOYEE · REVIEWER · ADMIN" as one run-on line.
+            */}
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {data.user.roles.map((role) => (
+                <span
+                  key={role}
+                  className="rounded-full bg-grad-ink/15 px-2 py-0.5 text-100 font-medium tracking-wide ring-1 ring-grad-rule"
+                >
+                  {role.charAt(0) + role.slice(1).toLowerCase()}
+                </span>
+              ))}
+              {data.user.department ? (
+                <span className="rounded-full px-2 py-0.5 text-100 text-grad-ink-soft">
+                  {data.user.department.name}
+                </span>
+              ) : null}
+            </div>
           </div>
-          <Link
-            to="/help/data-and-ai"
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            className="block rounded-md px-3 py-2 text-200 hover:bg-muted"
-          >
-            How your data is handled
-          </Link>
-          {/*
-            Sign out lives here, where every application on earth puts it. It existed
-            before, buried in a grey card in the sidebar, and was reported as missing —
-            which is what "not discoverable" looks like from the outside.
-          */}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => signOut.mutate()}
-            disabled={signOut.isPending}
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-200 hover:bg-muted"
-          >
-            <LogOut aria-hidden className="size-4" />
-            {signOut.isPending ? "Signing out…" : "Sign out"}
-          </button>
+
+          <div className="p-1.5">
+            <Link
+              to="/help/data-and-ai"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-200 no-underline transition-colors duration-[var(--dur-fast)] hover:bg-accent hover:text-accent-foreground"
+            >
+              <ShieldCheck aria-hidden className="size-4 shrink-0" />
+              How your data is handled
+            </Link>
+
+            <div className="my-1.5 border-t border-border" />
+
+            {/*
+              Sign out is where every application on earth puts it, and it is tinted
+              destructive so it reads as the one item that ends something.
+            */}
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => signOut.mutate()}
+              disabled={signOut.isPending}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-200 font-medium text-destructive transition-colors duration-[var(--dur-fast)] hover:bg-destructive/10 disabled:opacity-60"
+            >
+              <LogOut aria-hidden className="size-4 shrink-0" />
+              {signOut.isPending ? "Signing out…" : "Sign out"}
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
@@ -234,12 +275,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         {/*
-          Both controls are ghost buttons that inherit `currentColor`, which is now white.
-          The hover tint has to come from the gradient's own scale rather than `--muted`,
-          which is a light grey and would flare on a dark bar.
+          Each control is told how to look on a dark bar. Explicitly, one at a time.
+
+          This was a `[&_button]` rule on the wrapper, which is shorter and was wrong: a
+          descendant selector cannot distinguish a toolbar button from a menu item three
+          levels down, so it painted the sign-out item inside the account dropdown white —
+          on a white popover. The control was rendered, focusable and clickable, and
+          completely invisible. Reported, reasonably, as "there is no sign out".
         */}
-        <div className="ml-auto flex items-center gap-1 [&_button]:text-grad-ink [&_button:hover]:bg-grad-ink/15 [&_button:hover]:text-grad-ink">
-          <ThemeToggle />
+        <div className="ml-auto flex items-center gap-1">
+          <ThemeToggle className={ON_BAR} />
           <AccountMenu />
         </div>
       </header>

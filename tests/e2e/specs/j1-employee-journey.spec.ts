@@ -287,6 +287,50 @@ test.describe("J-1 employee journey", () => {
     await expect(page.getByRole("link", { name: "report.pdf" })).toHaveCount(0);
   });
 
+  test("sign out is in the account menu, legible, and works", async ({ page }) => {
+    await signInAs(page, /Erin Employee/i);
+    await page.getByRole("button", { name: /Erin Employee/ }).click();
+
+    const out = page.getByRole("menuitem", { name: /Sign out/ });
+    await expect(out, "no sign-out item in the account menu").toBeVisible();
+
+    /**
+     * Visible is not the assertion. The control WAS visible, focusable and clickable —
+     * and painted white on a white popover, because a `[&_button]` rule on the dark
+     * header reached three levels down into the dropdown. It was reported as "there is
+     * no sign out", which is what an invisible control looks like from outside.
+     *
+     * The axe sweep did not catch it and could not: it scans what is rendered, and the
+     * menu is closed when the page loads. Anything behind an interaction needs a test
+     * that performs the interaction.
+     */
+    const contrast = await out.evaluate((el) => {
+      const lum = (c: string) => {
+        const [r, g, b] = (c.match(/\d+/g) ?? ["0", "0", "0"]).map(Number) as [number, number, number];
+        const ch = (v: number) => {
+          const s = v / 255;
+          return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        };
+        return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
+      };
+      let node: HTMLElement | null = el.parentElement;
+      let bg = "rgb(255, 255, 255)";
+      while (node) {
+        const c = getComputedStyle(node).backgroundColor;
+        if (c && c !== "rgba(0, 0, 0, 0)" && c !== "transparent") { bg = c; break; }
+        node = node.parentElement;
+      }
+      const a = lum(getComputedStyle(el).color);
+      const b = lum(bg);
+      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    });
+    expect(contrast, "sign out does not meet WCAG AA against its own background")
+      .toBeGreaterThanOrEqual(4.5);
+
+    await out.click();
+    await expect(page).toHaveURL(/\/login/);
+  });
+
   test("no dead ends: an unknown route offers a way out", async ({ page }) => {
     await signInAs(page, /Erin Employee/i);
     await page.goto("/ideas/no-such-route-at-all");

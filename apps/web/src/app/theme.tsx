@@ -66,7 +66,15 @@ const LABEL: Record<Theme, string> = {
   dark: "Theme: dark",
 };
 
-export function ThemeToggle() {
+/**
+ * @param className Styling from the surface this sits on.
+ *
+ * It exists because the header is a dark gradient and this button has to be white there
+ * and not elsewhere. The alternative — a `[&_button]` descendant rule on the header —
+ * is what made the sign-out item white-on-white inside the account dropdown, because a
+ * descendant selector cannot tell a toolbar button from one three levels down in a popover.
+ */
+export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = React.useContext(ThemeContext);
   const Icon = theme === "light" ? Sun : theme === "dark" ? Moon : Monitor;
 
@@ -74,6 +82,7 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="sm"
+      className={className}
       onClick={() => setTheme(NEXT[theme])}
       // The label says the CURRENT state, not the next one. "Switch to dark" on a button
       // showing a sun is ambiguous about which it is describing.
