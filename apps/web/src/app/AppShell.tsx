@@ -51,10 +51,16 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
     <Link
       to={item.to}
       aria-current={active ? "page" : undefined}
+      /*
+       * The active item gets a rail down its left edge as well as a tint. On a sidebar
+       * where several items share a similar background, the rail is what the eye lands
+       * on — and unlike colour alone it survives being read at a glance from across a
+       * meeting room, which is where this gets looked at.
+       */
       className={
         active
-          ? "flex items-center gap-3 rounded-md bg-accent px-3 py-2 text-200 font-medium text-accent-foreground"
-          : "flex items-center gap-3 rounded-md px-3 py-2 text-200 text-muted-foreground hover:bg-muted hover:text-foreground"
+          ? "relative flex items-center gap-3 rounded-lg bg-accent px-3 py-2 text-200 font-semibold text-accent-foreground shadow-e1 before:absolute before:inset-y-1.5 before:-left-px before:w-1 before:rounded-full before:bg-primary before:content-['']"
+          : "relative flex items-center gap-3 rounded-lg px-3 py-2 text-200 text-muted-foreground transition-colors duration-[var(--dur-fast)] hover:bg-muted hover:text-foreground"
       }
     >
       <item.icon className="size-4 shrink-0" />

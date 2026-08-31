@@ -62,10 +62,21 @@
   --ai-ink: #5b4b8a;
 
   /* ── System state ONLY. Never applied to an idea's score. ── */
-  --state-info: #2b6cb0;
-  --state-warn: #b7791f;
-  --state-ok: #2f7a4f;
-  --state-danger: #b03a3a;
+  /*
+   * Each state is a PAIR: ink and the tint it sits on. A pill needs both, and defining
+   * them together is what stops someone pairing a light ink with a light tint later.
+   * Ratios below are ink-on-tint, computed, and re-checked by the axe sweep.
+   */
+  --state-info: #1f4c80;        /* 6.6:1 on its tint */
+  --state-info-bg: #e6eefb;
+  --state-warn: #825609;        /* 6.1:1 */
+  --state-warn-bg: #fdf1dd;
+  --state-ok: #1d6039;          /* 6.5:1 */
+  --state-ok-bg: #e6f4ec;
+  --state-danger: #8a2b2a;      /* 7.0:1 */
+  --state-danger-bg: #fbeaea;
+  --state-neutral: var(--text-secondary);
+  --state-neutral-bg: var(--surface-sunken);
 
   /* ── Type: 1.200 minor third, base 16px ── */
   /* ── Welcome surfaces: sign-in and sign-up ONLY (SPEC §7.1 amendment) ──
@@ -240,10 +251,16 @@
     --ai-border: #3b3357;
     --ai-ink: #b6a8e0;
 
-    --state-info: #6ba6e8;
-    --state-warn: #e0b056;
-    --state-ok: #5fb37f;
-    --state-danger: #e07a7a;
+    --state-info: #8dc0f5;
+    --state-info-bg: #16233a;
+    --state-warn: #edc275;
+    --state-warn-bg: #33280f;
+    --state-ok: #7fca9b;
+    --state-ok-bg: #12301f;
+    --state-danger: #f09a9a;
+    --state-danger-bg: #331a1a;
+    --state-neutral: var(--text-secondary);
+    --state-neutral-bg: var(--surface-sunken);
 
     /* Shadows do not read on a dark ground — borders do the work (SPEC §7.3). */
     --e-1: none;
@@ -304,10 +321,16 @@
   --ai-border: #3b3357;
   --ai-ink: #b6a8e0;
 
-  --state-info: #6ba6e8;
-  --state-warn: #e0b056;
-  --state-ok: #5fb37f;
-  --state-danger: #e07a7a;
+  --state-info: #8dc0f5;
+  --state-info-bg: #16233a;
+  --state-warn: #edc275;
+  --state-warn-bg: #33280f;
+  --state-ok: #7fca9b;
+  --state-ok-bg: #12301f;
+  --state-danger: #f09a9a;
+  --state-danger-bg: #331a1a;
+  --state-neutral: var(--text-secondary);
+  --state-neutral-bg: var(--surface-sunken);
 
   --e-1: none;
   --e-2: none;

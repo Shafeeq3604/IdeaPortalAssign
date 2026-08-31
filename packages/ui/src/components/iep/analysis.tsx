@@ -1,7 +1,5 @@
 import * as React from "react";
-import {
-  AlertTriangle, Check, CircleDashed, CircleHelp, Loader2, MinusCircle, Search, ShieldCheck,
-} from "lucide-react";
+import { AlertTriangle, Check, Circle, CircleDashed, CircleHelp, Loader2, MinusCircle, Search, ShieldCheck, Trophy } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 import type {
   EvidenceListProps, ProvenanceProps, StatusPillProps, StepperProps,
@@ -178,6 +176,20 @@ export function Stepper({ steps, onStepClick }: StepperProps) {
  * StatusPill — never colour alone (SPEC §7.6).
  * ══════════════════════════════════════════════════════════════════ */
 
+/**
+ * The five tones a pill may take. Named for what they mean, not for the colour they
+ * happen to be — the day green stops meaning "good" is the day this table changes, and
+ * nothing that uses it has to.
+ */
+const TONE = {
+  neutral: "bg-state-neutral-bg text-state-neutral",
+  info: "bg-state-info-bg text-state-info",
+  warn: "bg-state-warn-bg text-state-warn",
+  ok: "bg-state-ok-bg text-state-ok",
+  danger: "bg-state-danger-bg text-state-danger",
+  accent: "bg-accent text-accent-foreground",
+} as const;
+
 const FEASIBILITY_TONE: Record<string, { className: string; icon: React.ReactNode }> = {
   HIGHLY_FEASIBLE: {
     className: "bg-factor-up-bg text-factor-up",
@@ -201,10 +213,41 @@ const FEASIBILITY_TONE: Record<string, { className: string; icon: React.ReactNod
  * A feasibility verdict is consequential enough that it must survive being printed in
  * greyscale: icon + label always, colour as reinforcement only.
  */
-export function StatusPill({ kind, feasibility, label }: StatusPillProps) {
+/**
+ * Lifecycle tones.
+ *
+ * Every idea list used to render its status as one grey badge, so "Draft", "Ranked" and
+ * "Rejected" were visually identical and a reader had to actually read each row to see
+ * where anything stood. Colour turns that into a glance.
+ *
+ * The statuses are grouped by what they MEAN to a reader rather than given a colour each:
+ * in progress is neutral, under human attention is amber, a settled good outcome is green,
+ * a settled bad one is red, and ranked is the accent because it is the state the whole
+ * product is pointed at. Fifteen distinct colours would be a legend, not a signal.
+ */
+const LIFECYCLE_TONE: Record<string, { className: string; icon: React.ReactNode }> = {
+  DRAFT: { className: TONE.neutral, icon: <CircleDashed aria-hidden className="size-3" /> },
+  SUBMITTED: { className: TONE.info, icon: <Circle aria-hidden className="size-3" /> },
+  AI_ANALYSIS: { className: TONE.info, icon: <Circle aria-hidden className="size-3" /> },
+  NEEDS_CLARIFICATION: { className: TONE.warn, icon: <Search aria-hidden className="size-3" /> },
+  EVALUATED: { className: TONE.info, icon: <Check aria-hidden className="size-3" /> },
+  RANKED: { className: TONE.accent, icon: <Trophy aria-hidden className="size-3" /> },
+  UNDER_REVIEW: { className: TONE.warn, icon: <Search aria-hidden className="size-3" /> },
+  PROTOTYPE_CANDIDATE: { className: TONE.ok, icon: <Check aria-hidden className="size-3" /> },
+  PILOT: { className: TONE.ok, icon: <Check aria-hidden className="size-3" /> },
+  PRODUCTION_CANDIDATE: { className: TONE.ok, icon: <Check aria-hidden className="size-3" /> },
+  IMPLEMENTED: { className: TONE.ok, icon: <ShieldCheck aria-hidden className="size-3" /> },
+  PARKED: { className: TONE.neutral, icon: <CircleDashed aria-hidden className="size-3" /> },
+  BLOCKED: { className: TONE.danger, icon: <AlertTriangle aria-hidden className="size-3" /> },
+  REJECTED: { className: TONE.danger, icon: <AlertTriangle aria-hidden className="size-3" /> },
+  ARCHIVED: { className: TONE.neutral, icon: <CircleDashed aria-hidden className="size-3" /> },
+};
+
+export function StatusPill({ kind, feasibility, label, status }: StatusPillProps) {
   const tone =
-    (kind === "FEASIBILITY" && feasibility ? FEASIBILITY_TONE[feasibility] : undefined) ?? {
-      className: "bg-muted text-muted-foreground",
+    (kind === "FEASIBILITY" && feasibility ? FEASIBILITY_TONE[feasibility] : undefined) ??
+    (kind === "LIFECYCLE" && status ? LIFECYCLE_TONE[status] : undefined) ?? {
+      className: TONE.neutral,
       icon: <CircleDashed aria-hidden className="size-3" />,
     };
 

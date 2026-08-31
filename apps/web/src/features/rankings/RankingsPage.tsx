@@ -235,7 +235,7 @@ function Board({
             {/* settle-rank's FLIP reorder is not implemented; the delta chip and the
                 afterglow it pairs with are. Called out rather than faked — SPEC §8.3
                 describes a motion this board does not yet perform. */}
-            <Card>
+            <Card className="transition-shadow duration-[var(--dur-base)] hover:shadow-e2">
               <CardContent className="space-y-3 pt-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -282,6 +282,21 @@ function Board({
                   <Badge variant="outline">
                     {MATURITY_LABEL[row.maturityLevel]?.split(" — ")[0] ?? `Level ${row.maturityLevel}`}
                   </Badge>
+                </div>
+
+                {/*
+                  The composite as a proportion of 100.
+                  Presentational only — `aria-hidden`, because the figure above it is
+                  already announced and a second reading of the same number is noise.
+                */}
+                <div
+                  aria-hidden
+                  className="h-1.5 overflow-hidden rounded-full bg-muted"
+                >
+                  <div
+                    className="h-full rounded-full bg-primary transition-[width] duration-[var(--dur-settle)] ease-[var(--ease-out-quint)]"
+                    style={{ width: `${Math.max(2, Math.min(100, row.compositeScore))}%` }}
+                  />
                 </div>
 
                 {/* P-2 on the board itself: why this row is here, without a click. */}

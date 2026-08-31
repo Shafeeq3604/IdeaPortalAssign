@@ -149,5 +149,7 @@ export interface ClickableRowProps {
 export interface StatusPillProps {
   readonly kind: "FEASIBILITY" | "LIFECYCLE" | "MATURITY";
   readonly feasibility?: FeasibilityStatus | undefined;
+  /** The lifecycle status, when `kind` is LIFECYCLE. Drives the tone. */
+  readonly status?: string | undefined;
   readonly label: string;
 }

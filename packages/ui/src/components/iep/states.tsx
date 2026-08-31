@@ -46,11 +46,20 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-12 text-center shadow-e1",
+        "flex flex-col items-center gap-3 rounded-xl border border-border bg-card px-6 py-14 text-center shadow-e1",
         className,
       )}
     >
-      {icon ? <div className="text-muted-foreground">{icon}</div> : null}
+      {/*
+        The icon sits in a tinted tile rather than floating as a lone glyph. An empty
+        state is the first thing a new person sees, and a bare outline icon on white
+        reads as something failing to load.
+      */}
+      {icon ? (
+        <div className="grid size-14 place-items-center rounded-2xl bg-accent text-primary shadow-e1">
+          {icon}
+        </div>
+      ) : null}
       <h2 className="text-400 font-semibold text-foreground">{title}</h2>
       <p className="max-w-prose text-200 text-muted-foreground">{description}</p>
       <Button asChild className="mt-2">

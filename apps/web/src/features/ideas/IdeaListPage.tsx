@@ -1,8 +1,8 @@
 import * as React from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Search, X } from "lucide-react";
+import { Lightbulb, Search, X } from "lucide-react";
 import {
-  Badge, Button, EmptyState, ErrorState, Input, ScoreDisplay, Skeleton,
+  Button, EmptyState, ErrorState, Input, ScoreDisplay, Skeleton, StatusPill,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@iep/ui";
 import { IdeaStatus } from "@iep/contracts";
@@ -191,6 +191,7 @@ export function IdeaListPage({ scope }: Props) {
         />
       ) : list.data.items.length === 0 ? (
         <EmptyState
+          icon={<Lightbulb aria-hidden className="size-7" />}
           title={scope === "mine" ? "You have not submitted anything yet" : "No ideas to show yet"}
           description={
             scope === "mine"
@@ -217,7 +218,10 @@ export function IdeaListPage({ scope }: Props) {
             </TableHeader>
             <TableBody>
               {list.data.items.map((idea) => (
-                <TableRow key={idea.id} className="cursor-pointer">
+                <TableRow
+                  key={idea.id}
+                  className="cursor-pointer transition-colors duration-[var(--dur-fast)] hover:bg-accent/40"
+                >
                   {/* The link fills the cell so the whole row is the target (§6.2 row 2). */}
                   <TableCell className="p-0">
                     <Link to={`/ideas/${idea.id}/overview`} className="block px-4 py-3 font-medium">
@@ -225,9 +229,16 @@ export function IdeaListPage({ scope }: Props) {
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={idea.status === "DRAFT" ? "outline" : "secondary"}>
-                      {STATUS_LABEL[idea.status]}
-                    </Badge>
+                    {/*
+                      A tone per lifecycle group, not one grey badge for all fifteen.
+                      The pill still carries its icon and its label, so the row survives
+                      greyscale and a colour-blind reader loses nothing (SPEC §7.6).
+                    */}
+                    <StatusPill
+                      kind="LIFECYCLE"
+                      status={idea.status}
+                      label={STATUS_LABEL[idea.status]}
+                    />
                   </TableCell>
                   <TableCell className="text-right">
                     {idea.compositeScore === null ? (

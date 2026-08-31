@@ -57,6 +57,18 @@
   --color-destructive: var(--state-danger);
   --color-destructive-foreground: var(--ink-000);
 
+  /* Status pills — ink and tint, always used as a pair. */
+  --color-state-info: var(--state-info);
+  --color-state-info-bg: var(--state-info-bg);
+  --color-state-warn: var(--state-warn);
+  --color-state-warn-bg: var(--state-warn-bg);
+  --color-state-ok: var(--state-ok);
+  --color-state-ok-bg: var(--state-ok-bg);
+  --color-state-danger: var(--state-danger);
+  --color-state-danger-bg: var(--state-danger-bg);
+  --color-state-neutral: var(--state-neutral);
+  --color-state-neutral-bg: var(--state-neutral-bg);
+
   /* ── IEP-specific colours shadcn has no concept of ── */
   --color-factor-up: var(--factor-up);
   --color-factor-up-bg: var(--factor-up-bg);
