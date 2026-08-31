@@ -19,7 +19,12 @@ import { recomputeRankings } from "@iep/evaluation";
 const db = new PrismaClient();
 
 /** Exactly the titles the journeys generate. Nothing a person would type. */
-const FIXTURE_TITLES = ["Attachment journey ", "Determinate stepper ", "Receipt OCR "];
+const FIXTURE_TITLES = [
+  "Attachment journey ",
+  "Determinate stepper ",
+  "Receipt OCR ",
+  "Draft submit check ",
+];
 
 const junk = await db.idea.findMany({
   where: { currentVersion: { OR: FIXTURE_TITLES.map((t) => ({ title: { startsWith: t } })) } },

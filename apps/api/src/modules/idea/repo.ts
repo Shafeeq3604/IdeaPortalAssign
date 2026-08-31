@@ -264,7 +264,26 @@ export function makeIdeaRepo(db: PrismaClient) {
       requestId?: string | null;
     }) {
       return db.$transaction(async (tx) => {
-        await tx.idea.update({ where: { id: input.ideaId }, data: { status: input.to } });
+        /**
+         * SUBMITTED stamps `submitted_at`, once.
+         *
+         * The field was only ever set by `createWithFirstVersion({ submit: true })` — the
+         * submit-straight-from-the-form path. An idea saved as a draft and submitted
+         * afterwards went to SUBMITTED with `submitted_at` still null, so it had no
+         * submission date anywhere in the product and sorted as though it had never been
+         * submitted.
+         *
+         * Guarded on the CURRENT value rather than on `from`, so a later return to
+         * SUBMITTED — after clarification, say — keeps the original date. When somebody
+         * first submitted an idea is not a thing that should move.
+         */
+        await tx.idea.update({
+          where: { id: input.ideaId },
+          data: {
+            status: input.to,
+            ...(input.to === "SUBMITTED" ? { submittedAt: { set: new Date() } } : {}),
+          },
+        });
         await tx.statusHistory.create({
           data: {
             ideaId: input.ideaId,

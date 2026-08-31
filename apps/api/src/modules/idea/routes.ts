@@ -415,6 +415,22 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
       requestId: request.id,
     });
 
+    /**
+     * Submitting a DRAFT starts the analysis. This was missing entirely.
+     *
+     * `createIdea` with `submit: true` called `startAnalysis`; this path — save a draft,
+     * then press "Submit for analysis" — only changed the status. The six-step stepper
+     * appeared, said "0 of 6", and polled every two seconds forever, because no job had
+     * been enqueued for it to report on. Nothing errored: the idea WAS submitted, it was
+     * just never going to be analysed.
+     *
+     * Same fire-and-forget contract as the other path: a queue outage degrades the run,
+     * it does not fail a submission that is already stored.
+     */
+    if (parsed.data.to === "SUBMITTED" && idea.currentVersionId) {
+      await startAnalysis(ctx, ideaId, idea.currentVersionId);
+    }
+
     return toIdeaDetail((await repo.findById(ideaId))!, actor);
   });
 }
