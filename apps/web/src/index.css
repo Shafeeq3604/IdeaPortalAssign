@@ -330,3 +330,47 @@
   border-radius: var(--r-full);
   background-image: linear-gradient(90deg, var(--accent-600), var(--grad-to));
 }
+
+/*
+ * Dashboard hero (Idea Platform Redesign — "hero").
+ *
+ * Here rather than in the component for the same reason as `.welcome-panel`:
+ * `pnpm lint:tokens` bans raw durations in `features/**`, and keyframes belong in a
+ * stylesheet. Every colour is still a token.
+ */
+.dash-hero {
+  background-image:
+    radial-gradient(600px 300px at 88% 10%, color-mix(in oklab, var(--grad-highlight) 30%, transparent), transparent 58%),
+    radial-gradient(520px 380px at 6% 108%, color-mix(in oklab, var(--grad-to) 85%, transparent), transparent 60%),
+    linear-gradient(120deg, var(--grad-from) 0%, var(--grad-via) 52%, var(--grad-to) 100%);
+  box-shadow: var(--e-4);
+}
+
+/* The dot grid the canvas lays over the gradient, faded out towards the corner. */
+.dash-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--grad-rule) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: linear-gradient(200deg, #000, transparent 80%);
+}
+
+.dash-pulse { animation: dash-pulse var(--dur-pulse) var(--ease-in-out) infinite; }
+@keyframes dash-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+.dash-flow {
+  background-image: linear-gradient(90deg, transparent, var(--grad-highlight), transparent);
+  animation: dash-flow var(--dur-flow) linear infinite;
+}
+@keyframes dash-flow { from { transform: translateX(-100%); } to { transform: translateX(320%); } }
+
+/*
+ * Both animations are decoration on a screen people read. Anyone who asked their system
+ * to stop moving things asked for a reason.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .dash-pulse,
+  .dash-flow { animation: none; }
+  .dash-flow { opacity: 0.5; }
+}

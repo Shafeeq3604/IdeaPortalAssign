@@ -1,7 +1,8 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { Button, Card, CardContent, ErrorState, Input, Label, Skeleton } from "@iep/ui";
-import { useDashboard, useProfiles, useRecompute } from "./api";
+import { useDashboard, useProfiles, useRankings, useRecompute } from "./api";
+import { DashboardHero, Spotlight } from "./DashboardHero";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -31,6 +32,18 @@ export function DashboardPage() {
 function Tiles() {
   const query = useDashboard();
 
+  /**
+   * The board, for the hero and the spotlight.
+   *
+   * Read here rather than inside the hero so there is ONE query for the page: the hero,
+   * the spotlight and the tiles all describe the same run, and two independent fetches
+   * could describe two different ones a second apart.
+   *
+   * Declared with the other hook, ABOVE the early returns. Hooks run in the same order
+   * on every render or React loses track of which state belongs to which call.
+   */
+  const board = useRankings({ page: 1, rankBand: "all" });
+
   if (query.isPending) {
     return (
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-busy="true">
@@ -55,15 +68,24 @@ function Tiles() {
 
   return (
     <>
+      <DashboardHero data={query.data} board={board.data} />
+
       {GROUPS.map((group) => {
         const tiles = query.data.tiles.filter((t) => group.keys.includes(t.key));
         if (tiles.length === 0) return null;
 
         return (
           <section key={group.title} className="mt-8 first:mt-6">
-            <h2 className="text-100 font-medium uppercase tracking-widest text-muted-foreground">
-              {group.title}
-            </h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <h2 className="text-100 font-medium uppercase tracking-widest text-muted-foreground">
+                {group.title}
+              </h2>
+              {group.chip ? (
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-100 font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                  {group.chip}
+                </span>
+              ) : null}
+            </div>
             <p className="mt-1 text-200 text-muted-foreground">{group.note}</p>
 
             <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -73,9 +95,16 @@ function Tiles() {
                   className={
                     tile.count === 0
                       ? "border-dashed"
-                      : "border-transparent bg-accent shadow-e1 transition-shadow duration-[var(--dur-base)] hover:shadow-e2"
+                      : "relative overflow-hidden border-transparent bg-accent shadow-e1 transition-all duration-[var(--dur-base)] hover:-translate-y-0.5 hover:shadow-e3"
                   }
                 >
+                  {/* The gradient rule the canvas puts across the top of a live tile. */}
+                  {tile.count === 0 ? null : (
+                    <span
+                      aria-hidden
+                      className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-ramp-3 to-ramp-5"
+                    />
+                  )}
                   <CardContent className="pt-6">
                     {/* The whole tile is the link — a count you cannot click is a dead
                         end wearing a number (SPEC §6.3). */}
@@ -87,7 +116,7 @@ function Tiles() {
                           // the three counts that matter hidden inside it.
                           tile.count === 0
                             ? "block text-700 font-semibold tabular-nums text-muted-foreground"
-                            : "block text-800 font-bold tabular-nums text-accent-foreground"
+                            : "block text-800 font-bold leading-none tabular-nums text-accent-foreground"
                         }
                       >
                         {tile.count}
@@ -102,7 +131,9 @@ function Tiles() {
         );
       })}
 
-      <p className="mt-4 text-100 text-muted-foreground">
+      <Spotlight board={board.data} />
+
+      <p className="mt-6 text-100 text-muted-foreground">
         As of {new Date(query.data.generatedAt).toLocaleString()}. Every tile leads to the
         list it counted.
       </p>
@@ -125,15 +156,21 @@ function Tiles() {
  * Grouped by KEY, not by index. A tile added to the API without a group here simply does
  * not render, which is a visible omission rather than a silently mis-grouped count.
  */
-const GROUPS: readonly { title: string; note: string; keys: readonly string[] }[] = [
+const GROUPS: readonly {
+  title: string;
+  note: string;
+  keys: readonly string[];
+  chip?: string;
+}[] = [
   {
     title: "The pipeline",
     note: "Where ideas are right now.",
     keys: ["total", "new", "under_evaluation", "requiring_review", "top_ranked"],
   },
   {
-    title: "Outcomes",
-    note: "What happened after a decision. Tracking for these lands in a later phase, so they read zero.",
+    title: "What happens after a decision",
+    note: "Outcome tracking lands in a later phase, so this track is still empty — by design, not by accident.",
+    chip: "Coming in P15",
     keys: ["prototype", "pilot", "implemented", "parked"],
   },
 ];

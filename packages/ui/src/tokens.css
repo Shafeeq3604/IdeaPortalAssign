@@ -182,7 +182,8 @@
   --dur-slow: 320ms;
   --dur-settle: 420ms;
   --dur-pulse: 1800ms;
-  --dur-panel-drift: 24000ms;  /* ambient gradient drift on the welcome panel */   /* pending-pulse, one shared clock (SPEC 8.3) */
+  --dur-panel-drift: 24000ms;  /* ambient gradient drift on the welcome panel */
+  --dur-flow: 2200ms;          /* the pipeline-flow shimmer on the dashboard hero */   /* pending-pulse, one shared clock (SPEC 8.3) */
   --dur-tally: 600ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
