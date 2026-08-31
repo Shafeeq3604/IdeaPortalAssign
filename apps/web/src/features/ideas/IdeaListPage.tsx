@@ -203,6 +203,13 @@ export function IdeaListPage({ scope }: Props) {
         />
       ) : (
         <>
+          {/*
+            Six columns do not fit a phone. Without this the table was CLIPPED at the
+            viewport edge: titles cut mid-word and Status, Score and Reactions simply gone,
+            with no way to reach them. A data table on a narrow screen should scroll, not
+            silently lose three of its columns.
+          */}
+          <div className="-mx-1 overflow-x-auto px-1">
           <Table>
             <TableHeader>
               <TableRow>
@@ -210,10 +217,10 @@ export function IdeaListPage({ scope }: Props) {
                 <TableHead>Status</TableHead>
                 {/* The number people came for, and it was not on the list at all. */}
                 <TableHead className="text-right">Score</TableHead>
-                <TableHead>Submitted by</TableHead>
+                <TableHead className="hidden sm:table-cell">Submitted by</TableHead>
                 {/* §14: voting activity visible at a glance, not only on the idea. */}
-                <TableHead className="text-right">Reactions</TableHead>
-                <TableHead className="text-right">Version</TableHead>
+                <TableHead className="hidden text-right sm:table-cell">Reactions</TableHead>
+                <TableHead className="hidden text-right md:table-cell">Version</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -223,8 +230,18 @@ export function IdeaListPage({ scope }: Props) {
                   className="cursor-pointer transition-colors duration-[var(--dur-fast)] hover:bg-accent/40"
                 >
                   {/* The link fills the cell so the whole row is the target (§6.2 row 2). */}
-                  <TableCell className="p-0">
-                    <Link to={`/ideas/${idea.id}/overview`} className="block px-4 py-3 font-medium">
+                  {/*
+                    The title WRAPS. shadcn puts `whitespace-nowrap` on every cell, which
+                    is right for a status or a figure and wrong for a sentence: one long
+                    title forced the table to nearly twice the width of a phone, so the
+                    score sat two swipes off-screen. Wrapping the one column that holds
+                    prose lets everything else fit.
+                  */}
+                  <TableCell className="p-0 whitespace-normal">
+                    <Link
+                      to={`/ideas/${idea.id}/overview`}
+                      className="block min-w-[8.5rem] px-3 py-3 font-medium sm:min-w-[11rem] sm:px-4"
+                    >
                       {idea.title}
                     </Link>
                   </TableCell>
@@ -256,10 +273,10 @@ export function IdeaListPage({ scope }: Props) {
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="hidden text-muted-foreground sm:table-cell">
                     {idea.submitter.displayName}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="hidden text-right sm:table-cell">
                     {/*
                       Counts only, no controls. A row is for scanning; voting from a list
                       you are skimming means voting on a title, which is not an opinion
@@ -267,11 +284,14 @@ export function IdeaListPage({ scope }: Props) {
                     */}
                     {idea.status === "DRAFT" ? null : <VoteCount ideaId={idea.id} />}
                   </TableCell>
-                  <TableCell className="text-right tabular">v{idea.currentVersionNo}</TableCell>
+                  <TableCell className="hidden text-right tabular md:table-cell">
+                    v{idea.currentVersionNo}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          </div>
 
           {list.data.meta.totalPages > 1 ? (
             <div className="mt-6 flex items-center justify-between">
