@@ -68,7 +68,14 @@ function Tiles() {
 
             <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {tiles.map((tile) => (
-                <Card key={tile.key} className={tile.count === 0 ? "border-dashed" : undefined}>
+                <Card
+                  key={tile.key}
+                  className={
+                    tile.count === 0
+                      ? "border-dashed"
+                      : "border-transparent bg-accent shadow-e1 transition-shadow duration-[var(--dur-base)] hover:shadow-e2"
+                  }
+                >
                   <CardContent className="pt-6">
                     {/* The whole tile is the link — a count you cannot click is a dead
                         end wearing a number (SPEC §6.3). */}
@@ -80,7 +87,7 @@ function Tiles() {
                           // the three counts that matter hidden inside it.
                           tile.count === 0
                             ? "block text-700 font-semibold tabular-nums text-muted-foreground"
-                            : "block text-700 font-semibold tabular-nums text-primary"
+                            : "block text-800 font-bold tabular-nums text-accent-foreground"
                         }
                       >
                         {tile.count}

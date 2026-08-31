@@ -27,6 +27,7 @@
     "openapi:generate": "tsx scripts/generate-openapi.mts",
     "openapi:check": "tsx scripts/generate-openapi.mts && git diff --exit-code --stat -- openapi.json",
     "demo:data": "tsx --env-file-if-exists=.env scripts/demo-data.mts",
+    "demo:clean": "tsx --env-file-if-exists=.env scripts/demo-clean.mts",
     "demo:reset": "tsx --env-file-if-exists=.env scripts/demo-data.mts --fresh && pnpm db:seed && tsx --env-file-if-exists=.env scripts/demo-data.mts"
   },
   "devDependencies": {

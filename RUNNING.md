@@ -108,6 +108,9 @@ that is genuinely hard, and it is the part worth the time.
 
 ### Do not run the test suites before a demo
 
+If you already have, `pnpm demo:clean` removes what E2E leaves behind and rebuilds the
+board. It touches no accounts.
+
 `pnpm test:bdd` and `pnpm test:e2e` run against the REAL development database, on
 purpose — that is what makes them worth having. They also leave their fixtures behind:
 ideas named `Determinate stepper mtcrr6re`, accounts named `bdd-lockout-12@example.test`.

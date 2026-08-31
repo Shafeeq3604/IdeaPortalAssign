@@ -59,7 +59,7 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
        */
       className={
         active
-          ? "relative flex items-center gap-3 rounded-lg bg-accent px-3 py-2 text-200 font-semibold text-accent-foreground shadow-e1 before:absolute before:inset-y-1.5 before:-left-px before:w-1 before:rounded-full before:bg-primary before:content-['']"
+          ? "relative flex items-center gap-3 rounded-lg bg-primary px-3 py-2 text-200 font-semibold text-primary-foreground shadow-e2"
           : "relative flex items-center gap-3 rounded-lg px-3 py-2 text-200 text-muted-foreground transition-colors duration-[var(--dur-fast)] hover:bg-muted hover:text-foreground"
       }
     >
@@ -203,7 +203,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-background px-4">
+      {/*
+        The header carries the brand gradient, so the product does not change identity the
+        moment somebody signs in. Text on it is white in BOTH themes — the bar is dark in
+        both, so a token that flips would be wrong here.
+      */}
+      <header className="brand-bar sticky top-0 z-40 flex h-14 items-center gap-3 px-4 text-grad-ink shadow-e2">
         <Button
           variant="ghost"
           size="sm"
@@ -216,22 +221,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Button>
 
         <Link to="/" className="flex min-w-0 items-center gap-2 no-underline">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-100 font-semibold text-primary-foreground">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-grad-highlight/20 text-100 font-bold text-grad-highlight ring-1 ring-grad-rule">
             IP
           </span>
           {/* Full name where there is room; the short form only when there is not. */}
-          <span className="hidden truncate text-200 font-semibold xl:inline">{PRODUCT_NAME}</span>
-          <span className="truncate text-200 font-semibold xl:hidden">{PRODUCT_SHORT}</span>
+          <span className="hidden truncate text-200 font-semibold text-grad-ink xl:inline">
+            {PRODUCT_NAME}
+          </span>
+          <span className="truncate text-200 font-semibold text-grad-ink xl:hidden">
+            {PRODUCT_SHORT}
+          </span>
         </Link>
 
-        <div className="ml-auto flex items-center gap-1">
+        {/*
+          Both controls are ghost buttons that inherit `currentColor`, which is now white.
+          The hover tint has to come from the gradient's own scale rather than `--muted`,
+          which is a light grey and would flare on a dark bar.
+        */}
+        <div className="ml-auto flex items-center gap-1 [&_button]:text-grad-ink [&_button:hover]:bg-grad-ink/15 [&_button:hover]:text-grad-ink">
           <ThemeToggle />
           <AccountMenu />
         </div>
       </header>
 
       <div className="lg:grid lg:grid-cols-[15rem_1fr]">
-        <aside className="hidden border-r border-border lg:block">{nav}</aside>
+        <aside className="brand-rail hidden border-r border-border bg-card lg:block">{nav}</aside>
         {navOpen ? (
           <div className="border-b border-border lg:hidden" onClick={() => setNavOpen(false)}>
             {nav}

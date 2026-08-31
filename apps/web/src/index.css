@@ -290,3 +290,43 @@
     radial-gradient(ellipse at 70% 0%, color-mix(in oklab, var(--welcome-accent) 9%, transparent), transparent 60%),
     radial-gradient(ellipse at 20% 100%, color-mix(in oklab, var(--grad-to) 7%, transparent), transparent 55%);
 }
+
+/*
+ * The brand gradient, as a bar.
+ *
+ * The sign-in page had a saturated identity and the application behind it was white and
+ * grey, so signing in felt like leaving the product for a spreadsheet. This is the same
+ * three stops as `.welcome-panel`, flattened for a 56px header — the strip of colour that
+ * makes the two halves one product.
+ */
+.brand-bar {
+  background-image: linear-gradient(
+    100deg,
+    var(--grad-from) 0%,
+    var(--grad-via) 45%,
+    var(--grad-to) 100%
+  );
+}
+
+/* The rail beside the sidebar, so the colour does not stop dead under the header. */
+.brand-rail {
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--grad-to) 18%, transparent) 0%,
+    transparent 40%
+  );
+}
+
+/*
+ * A page heading gets a short gradient underline. Cheap, and it is what stops every
+ * screen opening with the same undifferentiated slab of text.
+ */
+.page > h1::after {
+  content: "";
+  display: block;
+  width: var(--sp-12);
+  height: 3px;
+  margin-top: var(--sp-3);
+  border-radius: var(--r-full);
+  background-image: linear-gradient(90deg, var(--accent-600), var(--grad-to));
+}
