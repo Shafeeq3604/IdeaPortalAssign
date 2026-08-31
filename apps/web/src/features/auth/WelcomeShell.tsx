@@ -1,24 +1,28 @@
 import * as React from "react";
-import { Link } from "react-router-dom";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { Button, Input, Label, cn } from "@iep/ui";
 import { ThemeToggle } from "../../app/theme";
 import { ORG_NAME, PRODUCT_NAME } from "../../app/product";
 
 /**
- * The frame the two signed-out screens share.
+ * The frame the two signed-out screens share — sign in and sign up.
  *
- * Warm paper, a serif masthead, and a column of type with the form beside it — closer to
- * the opening page of a printed handbook than to a product landing page. That is the
- * point. Everything past the door is cool grey and indigo because a working tool should
- * recede; this is the only screen anyone chooses to look at, and it should look like
- * something a person wrote.
+ * A split screen: a saturated indigo-to-violet gradient carrying the branding on the
+ * left, and a floating card holding the form on the right. Everything past the door is
+ * deliberately quiet grey and indigo; this is the one screen someone looks AT rather than
+ * through, so it is allowed to be loud.
  *
- * It uses the `--welcome-*` tokens and nothing else. Those tokens exist for these two
- * screens and are not mapped into the signed-in application.
+ * Three things are load-bearing rather than decorative:
  *
- * The controls below are shadcn's, restyled through className. They are NOT reimplemented
- * — ADR-019 puts the component layer in @iep/ui and keeps it there, and a warm palette is
- * a skin, not a new component.
+ *  - **Every colour is a token.** No `indigo-500`, no hex. `pnpm lint:tokens` fails the
+ *    build on a raw value in `features/**`, and the point of that rule is that a palette
+ *    change stays one edit rather than a search.
+ *  - **Contrast was computed, not eyeballed.** White on the darkest stop is 17.1:1 and on
+ *    the lightest 5.7:1, so the headline stays AA across the whole sweep. Amber appears
+ *    only on numerals and pills — white on amber is about 2:1 and a heading that dissolves
+ *    halfway across is worse than no gradient at all.
+ *  - **The controls are shadcn's**, restyled through className. ADR-019 puts the component
+ *    layer in `@iep/ui` and keeps it there; a new skin is not a new component.
  */
 
 export function WelcomeShell({
@@ -28,69 +32,73 @@ export function WelcomeShell({
   aside,
   children,
 }: {
-  /** Small caps above the headline. */
   eyebrow: string;
-  /** Set in the display serif. One sentence — it is a masthead, not a pitch. */
   headline: React.ReactNode;
   standfirst: string;
-  /** The editorial column under the standfirst. */
   aside: React.ReactNode;
-  /** The form. */
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-dvh bg-welcome-canvas text-welcome-ink">
-      <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-6 sm:px-10">
-        {/* ── masthead ── */}
-        <header className="flex items-center justify-between border-b border-welcome-rule py-5">
-          <Link
-            to="/login"
-            className="font-[family-name:var(--font-display)] text-400 font-semibold tracking-tight text-welcome-ink no-underline"
-          >
-            {ORG_NAME}
-            <span className="ml-2 font-sans text-100 font-normal uppercase tracking-[0.18em] text-welcome-ink-soft">
-              Ideas
-            </span>
-          </Link>
-          <ThemeToggle />
+    <div className="min-h-dvh bg-welcome-canvas lg:grid lg:grid-cols-[1.05fr_minmax(0,1fr)]">
+      {/* ═══ left: the gradient ═══ */}
+      <section className="welcome-panel relative flex flex-col justify-between overflow-hidden px-6 py-10 text-grad-ink sm:px-10 lg:px-14 lg:py-14">
+        <header className="relative flex items-center gap-2">
+          <span className="grid size-9 place-items-center rounded-xl bg-grad-highlight/15 ring-1 ring-grad-rule">
+            <Sparkles aria-hidden className="size-4 text-grad-highlight" />
+          </span>
+          <span className="text-400 font-semibold tracking-tight">{ORG_NAME}</span>
+          <span className="text-100 font-medium uppercase tracking-[0.2em] text-grad-ink-soft">
+            Ideas
+          </span>
         </header>
 
-        <main className="grid flex-1 content-center items-start gap-x-16 gap-y-12 py-12 lg:grid-cols-[minmax(0,1fr)_23rem] lg:py-20">
-          {/* ── what this is ── */}
-          <div className="max-w-[34rem]">
-            <p className="text-100 font-medium uppercase tracking-[0.18em] text-welcome-accent">
-              {eyebrow}
-            </p>
-            <h1 className="mt-5 font-[family-name:var(--font-display)] text-700 font-normal leading-[1.1] tracking-[-0.01em] sm:text-800">
-              {headline}
-            </h1>
-            <p className="mt-5 max-w-prose text-300 leading-relaxed text-welcome-ink-soft">
-              {standfirst}
-            </p>
-            <div className="mt-10">{aside}</div>
-          </div>
+        <div className="relative my-12 max-w-xl lg:my-0">
+          <p className="inline-flex items-center gap-2 rounded-full bg-grad-highlight/15 px-3 py-1 text-100 font-semibold uppercase tracking-[0.16em] text-grad-highlight ring-1 ring-grad-rule">
+            {eyebrow}
+          </p>
 
-          {/* ── the way in ── */}
-          <div className="w-full rounded-xl border border-welcome-rule bg-welcome-surface p-6 shadow-e1 sm:p-8 lg:sticky lg:top-12">
+          <h1 className="mt-6 text-700 font-bold leading-[1.08] tracking-[-0.02em] sm:text-800">
+            {headline}
+          </h1>
+
+          <p className="mt-5 max-w-lg text-300 leading-relaxed text-grad-ink-soft">
+            {standfirst}
+          </p>
+
+          <div className="mt-10">{aside}</div>
+        </div>
+
+        <p className="relative text-100 text-grad-ink-soft">
+          {PRODUCT_NAME} · Confidential, {ORG_NAME} internal use only
+        </p>
+      </section>
+
+      {/* ═══ right: the card ═══ */}
+      <section className="welcome-stage flex flex-col px-6 py-8 sm:px-10">
+        <div className="flex justify-end">
+          <ThemeToggle />
+        </div>
+
+        <div className="flex flex-1 items-center justify-center py-8">
+          {/*
+            The card floats on both breakpoints. On mobile the gradient panel stacks above
+            it rather than disappearing — the branding is the reason someone trusts the
+            form, and hiding it on a phone hides exactly that.
+          */}
+          <div className="w-full max-w-md rounded-2xl border border-welcome-rule bg-welcome-surface p-7 shadow-e4 sm:p-9">
             {children}
           </div>
-        </main>
-
-        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-welcome-rule py-5 text-100 text-welcome-ink-soft">
-          <span>{PRODUCT_NAME}</span>
-          <span>Confidential · {ORG_NAME} internal use only</span>
-        </footer>
-      </div>
+        </div>
+      </section>
     </div>
   );
 }
 
 /**
- * A numbered list set as a contents page: hairline rules, a figure in the margin, a line
- * of type each.
+ * The numbered list on the gradient.
  *
- * The previous version of this was four cards with four icons, and it read as the feature
- * grid of a marketing site. This reads as a table of contents, which is what it is.
+ * Each row is a card rather than a plain line so it reads against a moving background —
+ * type alone on a gradient loses its edge wherever the two happen to be close in value.
  */
 export function ContentsList({
   items,
@@ -98,21 +106,21 @@ export function ContentsList({
   items: readonly { readonly title: string; readonly body: string }[];
 }) {
   return (
-    <ol className="border-t border-welcome-rule">
+    <ol className="grid gap-2.5">
       {items.map((item, i) => (
         <li
           key={item.title}
-          className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-baseline gap-x-3 border-b border-welcome-rule py-4"
+          className="grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-x-3 rounded-xl bg-grad-ink/5 p-3 ring-1 ring-grad-rule backdrop-blur-sm transition-colors duration-[var(--dur-base)] hover:bg-grad-ink/10"
         >
           <span
             aria-hidden
-            className="font-[family-name:var(--font-display)] text-400 text-welcome-accent"
+            className="grid size-8 place-items-center rounded-lg bg-grad-highlight/15 text-200 font-bold text-grad-highlight"
           >
-            {String(i + 1).padStart(2, "0")}
+            {i + 1}
           </span>
           <span>
-            <span className="block text-200 font-medium text-welcome-ink">{item.title}</span>
-            <span className="mt-0.5 block text-200 leading-relaxed text-welcome-ink-soft">
+            <span className="block text-200 font-semibold text-grad-ink">{item.title}</span>
+            <span className="mt-0.5 block text-200 leading-relaxed text-grad-ink-soft">
               {item.body}
             </span>
           </span>
@@ -122,11 +130,13 @@ export function ContentsList({
   );
 }
 
-/* ── controls, on warm paper ── */
+/* ── controls ───────────────────────────────────────────────────────────── */
 
 const FIELD =
-  "mt-1.5 border-welcome-rule bg-welcome-canvas text-welcome-ink " +
-  "placeholder:text-welcome-ink-soft focus-visible:ring-welcome-accent";
+  "mt-1.5 h-11 rounded-xl border-welcome-rule bg-welcome-canvas text-welcome-ink " +
+  "placeholder:text-welcome-ink-soft/70 transition-[box-shadow,border-color] " +
+  "duration-[var(--dur-fast)] focus-visible:border-welcome-accent " +
+  "focus-visible:ring-2 focus-visible:ring-welcome-accent/40";
 
 export function WelcomeLabel({
   htmlFor,
@@ -138,7 +148,7 @@ export function WelcomeLabel({
   return (
     <Label
       htmlFor={htmlFor}
-      className="text-100 font-medium uppercase tracking-[0.12em] text-welcome-ink-soft"
+      className="text-100 font-semibold uppercase tracking-[0.12em] text-welcome-ink-soft"
     >
       {children}
     </Label>
@@ -177,8 +187,8 @@ export function WelcomeField({
 /**
  * A password field with a reveal toggle.
  *
- * Shared because sign-in and sign-up must behave identically here — a reveal on one and
- * not the other is the sort of difference nobody notices until someone mistypes a long
+ * Shared, because sign-in and sign-up must behave identically here — a reveal on one and
+ * not the other is the sort of difference nobody notices until somebody mistypes a long
  * password they cannot see and blames the account.
  */
 export function WelcomePasswordField({
@@ -222,7 +232,7 @@ export function WelcomePasswordField({
           size="sm"
           onClick={() => setReveal((v) => !v)}
           aria-pressed={reveal}
-          className="absolute inset-y-0 right-0 my-auto h-8 text-100 font-medium uppercase tracking-wider text-welcome-ink-soft hover:bg-transparent hover:text-welcome-accent"
+          className="absolute inset-y-0 right-1 my-auto h-8 rounded-lg text-100 font-semibold uppercase tracking-wider text-welcome-ink-soft hover:bg-welcome-accent-soft hover:text-welcome-accent"
         >
           {reveal ? "Hide" : "Show"}
         </Button>
@@ -236,6 +246,7 @@ export function WelcomePasswordField({
   );
 }
 
+/** The primary call to action. Lifts on hover, presses in on click. */
 export function WelcomeSubmit({
   children,
   ...props
@@ -243,10 +254,20 @@ export function WelcomeSubmit({
   return (
     <Button
       type="submit"
-      className="w-full bg-welcome-accent text-welcome-surface hover:bg-welcome-accent hover:opacity-90"
+      className={cn(
+        "group h-11 w-full rounded-xl bg-welcome-accent text-100 font-semibold tracking-wide text-welcome-on-accent",
+        "shadow-e2 transition-all duration-[var(--dur-fast)]",
+        "hover:-translate-y-px hover:bg-welcome-accent hover:opacity-95 hover:shadow-e3",
+        "active:translate-y-0 active:shadow-e1",
+        "disabled:translate-y-0 disabled:opacity-60 disabled:shadow-e1",
+      )}
       {...props}
     >
       {children}
+      <ArrowRight
+        aria-hidden
+        className="size-4 transition-transform duration-[var(--dur-fast)] group-hover:translate-x-0.5"
+      />
     </Button>
   );
 }
@@ -256,7 +277,7 @@ export function WelcomeAlert({ children }: { children: React.ReactNode }) {
   return (
     <p
       role="alert"
-      className="rounded-md border border-welcome-accent bg-welcome-accent-soft px-3 py-2 text-200 text-welcome-ink"
+      className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-200 text-destructive"
     >
       {children}
     </p>

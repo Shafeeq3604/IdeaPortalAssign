@@ -79,6 +79,11 @@
   --color-welcome-rule: var(--welcome-rule);
   --color-welcome-accent: var(--welcome-accent);
   --color-welcome-accent-soft: var(--welcome-accent-soft);
+  --color-welcome-on-accent: var(--welcome-on-accent);
+  --color-grad-ink: var(--grad-ink);
+  --color-grad-ink-soft: var(--grad-ink-soft);
+  --color-grad-highlight: var(--grad-highlight);
+  --color-grad-rule: var(--grad-rule);
 
   /* ── Type scale (SPEC §7.2, 1.200 minor third) ──
      NOTE: --font-sans is NOT mapped here. Tailwind's theme key and our token share the

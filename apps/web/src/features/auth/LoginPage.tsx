@@ -11,12 +11,14 @@ import {
 /**
  * Sign-in (ADR-023).
  *
- * Third version of this screen. The first was the P0 development stand-in — seeded users
- * as buttons, no credential — which was the first thing anyone saw and read as an
- * unfinished tool. The second was a two-panel layout with a feature grid, which worked but
- * looked like every other internal product's sign-in page. This one is set as a page of
- * type: a warm ground, a serif masthead, a numbered contents list, and the form as a small
- * card beside it rather than the centre of attention.
+ * Fourth version. The P0 stand-in listed seeded users as buttons with no credential and
+ * read as an unfinished tool. A two-panel feature grid replaced it, which worked but looked
+ * like every other internal sign-in page. A warm editorial treatment replaced that, which
+ * was distinctive but quiet.
+ *
+ * This one is deliberately loud: a saturated gradient carrying the branding, and the form
+ * on a floating card beside it. The layout and every colour live in WelcomeShell, so this
+ * file is only the words and the mutation.
  */
 
 /** What actually happens, in the order it happens (requirements.md §33). */
@@ -80,7 +82,7 @@ export function LoginPage() {
       }
       aside={<ContentsList items={WHAT_HAPPENS} />}
     >
-      <h2 className="font-[family-name:var(--font-display)] text-500 font-normal">Sign in</h2>
+      <h2 className="text-500 font-bold tracking-tight text-welcome-ink">Sign in</h2>
       <p className="mt-1 text-200 text-welcome-ink-soft">
         With the email address your organisation knows you by.
       </p>

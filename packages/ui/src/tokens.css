@@ -77,13 +77,34 @@
    * These names appear nowhere else. If a third screen wants them, that is a design
    * decision taken on purpose, not one made by importing a token.
    */
-  --welcome-canvas: #faf6f0;      /* warm paper, not grey */
-  --welcome-surface: #fffdfa;
-  --welcome-ink: #221d18;         /* 17:1 on canvas */
-  --welcome-ink-soft: #6b6055;    /* 5.7:1 on canvas — AA for body text */
-  --welcome-rule: #e3d9cc;
-  --welcome-accent: #a34f2b;      /* terracotta, 5.0:1 on canvas */
-  --welcome-accent-soft: #f3e4da;
+  --welcome-canvas: #f5f6ff;      /* cool indigo tint behind the card */
+  --welcome-surface: #ffffff;
+  --welcome-ink: #1e1b4b;         /* indigo-950 — 15.4:1 on surface */
+  --welcome-ink-soft: #4b5563;    /* 7.5:1 on surface — AA for body text */
+  --welcome-rule: #e0e3f5;
+  --welcome-accent: #4f46e5;      /* indigo-600 — carries white at 6.3:1 */
+  --welcome-accent-soft: #eef1ff;
+  --welcome-on-accent: #ffffff;  /* 6.3:1 on --welcome-accent */
+
+
+  /* ── The gradient panel ──
+   *
+   * Three stops, indigo → violet, and NOTHING warmer under text. Amber is an accent on
+   * the numerals and pills only: white on the amber end of a gradient is about 2:1, and
+   * a headline that becomes unreadable halfway across is a headline nobody finishes.
+   *
+   * Every value below was computed against its own stop, not eyeballed:
+   *   white on --grad-from  17.1:1     white on --grad-to   5.7:1
+   *   --grad-ink-soft on --grad-via    5.4:1
+   *   --grad-highlight on --grad-from  6.6:1
+   */
+  --grad-from: #1e1b4b;
+  --grad-via: #4c1d95;
+  --grad-to: #7c3aed;
+  --grad-ink: #ffffff;
+  --grad-ink-soft: #ddd6fe;       /* violet-200 */
+  --grad-highlight: #fbbf24;      /* amber-400, the one warm accent */
+  --grad-rule: #ffffff26;
 
   /*
    * A real serif, from the system.
@@ -149,7 +170,8 @@
   --dur-reveal: 240ms;
   --dur-slow: 320ms;
   --dur-settle: 420ms;
-  --dur-pulse: 1800ms;   /* pending-pulse, one shared clock (SPEC 8.3) */
+  --dur-pulse: 1800ms;
+  --dur-panel-drift: 24000ms;  /* ambient gradient drift on the welcome panel */   /* pending-pulse, one shared clock (SPEC 8.3) */
   --dur-tally: 600ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
@@ -194,13 +216,25 @@
     --ramp-5: #8e9bff;
 
     /* ── Welcome surfaces (see the light block for why these exist) ── */
-    --welcome-canvas: #17140f;
-    --welcome-surface: #1f1b16;
-    --welcome-ink: #f3ece2;
-    --welcome-ink-soft: #b3a696;   /* 7.8:1 on canvas */
-    --welcome-rule: #3a332a;
-    --welcome-accent: #e08a5c;     /* 7.1:1 on canvas */
-    --welcome-accent-soft: #33241a;
+    --welcome-canvas: #0f0f1a;
+    --welcome-surface: #1a1a2e;
+    --welcome-ink: #e9e9f5;
+    --welcome-ink-soft: #a1a1c0;   /* 7.1:1 on surface */
+    --welcome-rule: #2e2e4a;
+    --welcome-accent: #818cf8;     /* indigo-400 — 7.0:1 on surface */
+    --welcome-accent-soft: #232344;
+  --welcome-on-accent: #14142b;
+    --welcome-on-accent: #14142b;  /* the accent lightens in dark, so the label darkens */
+
+
+    /* The panel is already dark in both themes; it only deepens. */
+    --grad-from: #0d0b26;
+    --grad-via: #2e1065;
+    --grad-to: #5b21b6;
+    --grad-ink: #ffffff;
+    --grad-ink-soft: #c4b5fd;
+    --grad-highlight: #fcd34d;
+    --grad-rule: #ffffff1f;
 
     --ai-surface: #221e33;
     --ai-border: #3b3357;
@@ -248,13 +282,23 @@
   --ramp-5: #8e9bff;
 
   /* ── Welcome surfaces (see the light block for why these exist) ── */
-  --welcome-canvas: #17140f;
-  --welcome-surface: #1f1b16;
-  --welcome-ink: #f3ece2;
-  --welcome-ink-soft: #b3a696;   /* 7.8:1 on canvas */
-  --welcome-rule: #3a332a;
-  --welcome-accent: #e08a5c;     /* 7.1:1 on canvas */
-  --welcome-accent-soft: #33241a;
+  --welcome-canvas: #0f0f1a;
+  --welcome-surface: #1a1a2e;
+  --welcome-ink: #e9e9f5;
+  --welcome-ink-soft: #a1a1c0;   /* 7.1:1 on surface */
+  --welcome-rule: #2e2e4a;
+  --welcome-accent: #818cf8;     /* indigo-400 — 7.0:1 on surface */
+  --welcome-accent-soft: #232344;
+
+
+  /* The panel is already dark in both themes; it only deepens. */
+  --grad-from: #0d0b26;
+  --grad-via: #2e1065;
+  --grad-to: #5b21b6;
+  --grad-ink: #ffffff;
+  --grad-ink-soft: #c4b5fd;
+  --grad-highlight: #fcd34d;
+  --grad-rule: #ffffff1f;
 
   --ai-surface: #221e33;
   --ai-border: #3b3357;

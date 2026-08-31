@@ -95,7 +95,7 @@ export function SignupPage() {
       }
       aside={<ContentsList items={AFTER_YOU_JOIN} />}
     >
-      <h2 className="font-[family-name:var(--font-display)] text-500 font-normal">
+      <h2 className="text-500 font-bold tracking-tight text-welcome-ink">
         Your details
       </h2>
       <p className="mt-1 text-200 text-welcome-ink-soft">

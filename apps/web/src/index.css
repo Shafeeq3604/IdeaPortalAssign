@@ -249,3 +249,44 @@
   font-size: var(--fs-100);
   color: var(--text-secondary);
 }
+
+/*
+ * The sign-in / sign-up gradient panel.
+ *
+ * Lives here rather than in a feature file for two reasons: `pnpm lint:tokens` bans raw
+ * durations in `features/**`, and a keyframe belongs with the stylesheet rather than
+ * inlined in a component. The colours are still tokens — nothing is hardcoded.
+ */
+.welcome-panel {
+  background-image:
+    /* Deep indigo held at the top-left so the panel has real tonal range. Without it the
+       violet stop floods the whole surface and the gradient reads as one flat colour. */
+    radial-gradient(circle at 8% 6%, color-mix(in oklab, var(--grad-from) 92%, transparent), transparent 62%),
+    radial-gradient(circle at 88% 18%, color-mix(in oklab, var(--grad-to) 60%, transparent), transparent 55%),
+    radial-gradient(circle at 78% 88%, color-mix(in oklab, var(--grad-highlight) 20%, transparent), transparent 52%),
+    linear-gradient(135deg, var(--grad-from) 0%, var(--grad-via) 48%, var(--grad-to) 100%);
+  background-size: 150% 150%, 160% 160%, 160% 160%, 200% 200%;
+  animation: welcome-drift var(--dur-panel-drift) var(--ease-in-out) infinite alternate;
+}
+
+@keyframes welcome-drift {
+  from { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 50%; }
+  to   { background-position: 10% 14%, 88% 16%, 80% 86%, 100% 50%; }
+}
+
+/*
+ * A slow ambient drift is decoration. Anyone who has asked their system to stop moving
+ * things has asked for a reason, and a login page is not the place to argue.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .welcome-panel { animation: none; }
+}
+
+/* A whisper of the panel colour behind the card, so the right side is a surface rather
+ * than an absence. Two stops at very low strength — anything more competes with the
+ * gradient it is meant to answer. */
+.welcome-stage {
+  background-image:
+    radial-gradient(ellipse at 70% 0%, color-mix(in oklab, var(--welcome-accent) 9%, transparent), transparent 60%),
+    radial-gradient(ellipse at 20% 100%, color-mix(in oklab, var(--grad-to) 7%, transparent), transparent 55%);
+}
