@@ -53,6 +53,19 @@
   --color-accent: var(--accent-100);
   --color-accent-foreground: var(--accent-700);
 
+  /*
+   * The accent ramp by NAME as well as by shadcn role.
+   *
+   * `--color-accent` is the tint and `--color-accent-foreground` the ink, which is the
+   * right pairing for a badge and useless for anything that needs the palest step of the
+   * scale behind a large numeral. Nothing new is defined here — these point at tokens
+   * that have existed since P0 and were simply not reachable as utilities.
+   */
+  --color-accent-050: var(--accent-050);
+  --color-accent-100: var(--accent-100);
+  --color-accent-600: var(--accent-600);
+  --color-accent-700: var(--accent-700);
+
   /* ── System state ONLY. Never applied to an idea's score (P-1). ── */
   --color-destructive: var(--state-danger);
   --color-destructive-foreground: var(--ink-000);
@@ -96,6 +109,25 @@
   --color-grad-ink-soft: var(--grad-ink-soft);
   --color-grad-highlight: var(--grad-highlight);
   --color-grad-rule: var(--grad-rule);
+
+  /*
+   * The three gradient STOPS, not just the inks that sit on them.
+   *
+   * `text-grad-from` was already being used on the dashboard hero's amber button and
+   * silently generated nothing — an unmapped utility is not an error, it is an absent
+   * rule, so the label inherited white and sat on amber at about 2:1. The token's own
+   * comment records 6.6:1 for this exact pair; it just had no way to be applied.
+   */
+  --color-grad-from: var(--grad-from);
+  --color-grad-via: var(--grad-via);
+  --color-grad-to: var(--grad-to);
+
+  /* ── Display face (SPEC §7.2), as `font-serif` ──
+     Mapped under Tailwind's OWN key rather than as `--font-display`, for the same reason
+     --font-sans is not mapped at all: `--font-display: var(--font-display)` is the
+     self-reference that voids the block. Tailwind's `--font-serif` is a different name
+     from our token, so it resolves. `font-serif` is the utility. */
+  --font-serif: var(--font-display);
 
   /* ── Type scale (SPEC §7.2, 1.200 minor third) ──
      NOTE: --font-sans is NOT mapped here. Tailwind's theme key and our token share the

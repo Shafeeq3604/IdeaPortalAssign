@@ -309,11 +309,14 @@
 }
 
 /* The rail beside the sidebar, so the colour does not stop dead under the header. */
+/* Two stops, not one: the violet hands off to the accent tint before it fades out, which
+   is what stops the top of the sidebar reading as a bruise on a white column. */
 .brand-rail {
   background-image: linear-gradient(
     to bottom,
-    color-mix(in oklab, var(--grad-to) 18%, transparent) 0%,
-    transparent 40%
+    color-mix(in oklab, var(--grad-to) 14%, transparent) 0%,
+    color-mix(in oklab, var(--accent-100) 50%, transparent) 26%,
+    transparent 62%
   );
 }
 
@@ -373,4 +376,91 @@
   .dash-pulse,
   .dash-flow { animation: none; }
   .dash-flow { opacity: 0.5; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * Idea Platform Redesign — the shared surfaces
+ *
+ * Same reason as `.welcome-panel` and `.dash-hero` above: `pnpm lint:tokens` bans raw
+ * durations and raw px inside `features/**`, keyframes belong in a stylesheet, and a
+ * conic gradient with an interpolated stop is unreadable inline. Every colour is a
+ * token; the only thing a component passes in is a number.
+ * ══════════════════════════════════════════════════════════════════ */
+
+/*
+ * The brand pill — active nav item, active filter, active profile.
+ *
+ * grad-via → grad-to, NOT accent-700 → grad-to as the canvas has it. The canvas was
+ * drawn in light mode, where accent-700 is a deep indigo that carries white at 8:1. In
+ * dark it becomes #8e9bff, and white on that is 2.5:1 — the label on every active
+ * control in the product would have quietly failed AA in one theme. The grad-* stops are
+ * dark in BOTH themes by design, which is exactly what a white-on-colour pill needs.
+ */
+.brand-pill {
+  background-image: linear-gradient(100deg, var(--grad-via) 0%, var(--grad-to) 100%);
+}
+
+/* The amber rail down the active item's left edge — the canvas's second cue, so the
+   active row is not carried by colour alone (WCAG 1.4.1, same rule as the nav rail). */
+.brand-pill--railed::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--sp-2);
+  bottom: var(--sp-2);
+  width: 3px;
+  border-radius: var(--r-full);
+  background: var(--grad-highlight);
+}
+
+/*
+ * The score ring — a conic gradient filled to `--ring-turn`.
+ *
+ * The ramp, not a verdict palette: a 40 and a 90 differ in how much of the ring is
+ * filled, not in hue (P-1). Set `--ring-turn` inline as a `turn` value.
+ */
+.score-ring {
+  background: conic-gradient(
+    from -90deg,
+    var(--ramp-5) 0turn var(--ring-turn, 0turn),
+    var(--ramp-1) var(--ring-turn, 0turn) 1turn
+  );
+}
+
+/* Same ring on the gradient panel, where the ramp would disappear into the violet. */
+.score-ring--on-brand {
+  background: conic-gradient(
+    from -90deg,
+    var(--grad-highlight) 0turn var(--ring-turn, 0turn),
+    var(--grad-rule) var(--ring-turn, 0turn) 1turn
+  );
+}
+
+/*
+ * The podium crown — rank 1 on the board.
+ *
+ * The same three stops as `.dash-hero` at a different angle, so the two most important
+ * panels in the product read as the same object rather than two accidents.
+ */
+.board-crown {
+  background-image:
+    radial-gradient(300px 180px at 88% 0%, color-mix(in oklab, var(--grad-highlight) 40%, transparent), transparent 62%),
+    linear-gradient(150deg, var(--grad-from) 0%, var(--grad-via) 55%, var(--grad-to) 100%);
+}
+
+.board-crown::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--grad-rule) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* The dotted track the outcome stages sit on. Drawn once, behind all four. */
+.stage-track {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--border-strong) 0 6px,
+    transparent 6px 12px
+  );
 }

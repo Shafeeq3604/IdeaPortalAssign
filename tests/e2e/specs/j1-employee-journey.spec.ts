@@ -181,7 +181,9 @@ test.describe("J-1 employee journey", () => {
      * its own failure.
      */
     await page.goto("/ideas?status=RANKED");
-    const ranked = page.locator('main tbody a[href*="/overview"]').first();
+    // Not scoped to `tbody`. The list has been a table and is now cards; the URL filter
+    // above is what guarantees these are ranked, so the markup underneath is free to change.
+    const ranked = page.locator('main a[href*="/overview"]').first();
     await expect(
       ranked,
       "no ranked ideas — run `pnpm db:seed && pnpm demo:data`",

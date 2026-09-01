@@ -2,7 +2,7 @@ import * as React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronDown, Compass, LayoutDashboard, ListChecks, LogOut, PenSquare, Settings,
+  ChevronDown, Compass, LayoutDashboard, ListChecks, LogOut, PenSquare, Plus, Settings,
   ShieldCheck, Trophy, User,
 } from "lucide-react";
 import { Button } from "@iep/ui";
@@ -31,19 +31,38 @@ interface NavItem {
   readonly icon: React.ComponentType<{ className?: string }>;
   /** Empty means everyone signed in. Mirrors the nav map's own role lists. */
   readonly roles: readonly Role[];
+  /**
+   * The icon chip's ink-and-tint pair (Idea Platform Redesign — sidebar).
+   *
+   * A destination per colour, so the sidebar is scanned by shape rather than read
+   * top-to-bottom. `factor-up` on Rankings is a considered exception to "evidence
+   * colours mean one thing": P-1 forbids green/red encoding an idea's QUALITY, and the
+   * teal was chosen precisely so it does not read as a verdict. A nav icon is not a
+   * score. Nothing here is ever applied to a number.
+   */
+  readonly tone: string;
 }
 
 const PRIMARY: readonly NavItem[] = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["MANAGEMENT", "ADMIN"] },
-  { to: "/ideas/new", label: "Submit an idea", icon: PenSquare, roles: [] },
-  { to: "/ideas", label: "Explore ideas", icon: Compass, roles: [] },
-  { to: "/me/ideas", label: "My ideas", icon: User, roles: [] },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["MANAGEMENT", "ADMIN"],
+    tone: "bg-accent text-accent-foreground" },
+  { to: "/ideas/new", label: "Submit an idea", icon: PenSquare, roles: [],
+    tone: "bg-state-warn-bg text-state-warn" },
+  { to: "/ideas", label: "Explore ideas", icon: Compass, roles: [],
+    tone: "bg-accent text-accent-foreground" },
+  /* Not the `ai-*` palette the canvas uses here — provenance.test.ts reserves it for
+     <Provenance>, and "your own ideas" is the last thing that should look model-authored. */
+  { to: "/me/ideas", label: "My ideas", icon: User, roles: [],
+    tone: "bg-ramp-1 text-accent-700" },
 ];
 
 const PRIVILEGED: readonly NavItem[] = [
-  { to: "/review", label: "Reviews", icon: ListChecks, roles: ["REVIEWER", "ADMIN"] },
-  { to: "/rankings", label: "Rankings", icon: Trophy, roles: [] },
-  { to: "/admin/users", label: "Administration", icon: Settings, roles: ["ADMIN"] },
+  { to: "/review", label: "Reviews", icon: ListChecks, roles: ["REVIEWER", "ADMIN"],
+    tone: "bg-state-warn-bg text-state-warn" },
+  { to: "/rankings", label: "Rankings", icon: Trophy, roles: [],
+    tone: "bg-factor-up-bg text-factor-up" },
+  { to: "/admin/users", label: "Administration", icon: Settings, roles: ["ADMIN"],
+    tone: "bg-muted text-muted-foreground" },
 ];
 
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
@@ -59,11 +78,25 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
        */
       className={
         active
-          ? "relative flex items-center gap-3 rounded-lg bg-primary px-3 py-2 text-200 font-semibold text-primary-foreground shadow-e2"
-          : "relative flex items-center gap-3 rounded-lg px-3 py-2 text-200 text-muted-foreground transition-colors duration-[var(--dur-fast)] hover:bg-muted hover:text-foreground"
+          ? "brand-pill brand-pill--railed relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-200 font-semibold text-grad-ink no-underline shadow-e3"
+          : "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-200 font-medium no-underline transition-colors duration-[var(--dur-fast)] hover:bg-muted"
       }
     >
-      <item.icon className="size-4 shrink-0" />
+      {/*
+        The icon sits in its own tinted square when the item is at rest, and plain on the
+        gradient when it is active — a chip inside a chip is two competing shapes and the
+        label loses.
+      */}
+      {active ? (
+        <item.icon aria-hidden className="size-4 shrink-0" />
+      ) : (
+        <span
+          aria-hidden
+          className={`grid size-6.5 shrink-0 place-items-center rounded-md ${item.tone}`}
+        >
+          <item.icon className="size-3.5" />
+        </span>
+      )}
       {item.label}
     </Link>
   );
@@ -284,6 +317,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           completely invisible. Reported, reasonably, as "there is no sign out".
         */}
         <div className="ml-auto flex items-center gap-1">
+          {/*
+            "New idea" in the bar, in amber (Idea Platform Redesign — header).
+
+            The one thing this product exists for was previously reachable only from the
+            sidebar, which is hidden on a phone until you open the menu. Amber because it
+            is the single warm accent the gradient tokens allow, and because the one CTA
+            that should never be hunted for is the one that adds an idea.
+
+            `text-grad-from`, not white: --grad-highlight is amber in both themes and
+            white on it is about 2:1. The deep indigo is 6.6:1 on it, computed in
+            tokens.css against this exact pair.
+          */}
+          <Link
+            to="/ideas/new"
+            className="mr-1 inline-flex h-8 items-center gap-1.5 rounded-full bg-grad-highlight px-3 text-200 font-bold text-grad-from no-underline transition-transform duration-[var(--dur-fast)] hover:-translate-y-px"
+          >
+            <Plus aria-hidden className="size-4" />
+            <span className="hidden sm:inline">New idea</span>
+            <span className="sr-only sm:hidden">New idea</span>
+          </Link>
           <ThemeToggle className={ON_BAR} />
           <AccountMenu />
         </div>

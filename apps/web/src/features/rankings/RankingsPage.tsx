@@ -1,13 +1,11 @@
 import * as React from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import {
-  Badge, Button, Card, CardContent, Checkbox, EmptyState, ErrorState, RankBadge,
-  ScoreDisplay, Skeleton, StatusPill,
-} from "@iep/ui";
-import type { ExplanationItem, ListRankingsResponse } from "@iep/contracts";
+import { Trophy } from "lucide-react";
+import { Button, Checkbox, EmptyState, ErrorState, Skeleton, StatusPill } from "@iep/ui";
+import type { ExplanationItem, ListRankingsResponse, RankingEntry } from "@iep/contracts";
 import { FEASIBILITY_LABEL } from "../analysis/api";
-import { MATURITY_LABEL } from "../evaluation/api";
 import { useProfiles, useRankingRun, useRankings } from "./api";
+import { RankDelta } from "./DashboardHero";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -147,6 +145,172 @@ function Factor({ kind, item }: { kind: "up" | "down"; item: ExplanationItem | n
   );
 }
 
+/**
+ * The top three (Idea Platform Redesign — "podium").
+ *
+ * Rank 1 gets the brand gradient and grows; 2 and 3 stay on the surface. That is a real
+ * hierarchy rather than three identical cards with different numerals on them, and it is
+ * the single change that makes this screen read as a BOARD.
+ *
+ * P-2 survives the promotion: the leader still shows its strongest and weakest criteria
+ * as chips, so the biggest, most persuasive card on the page is still the one that most
+ * clearly says why. A podium without that is exactly the "bare ordered list" the product
+ * principle forbids, dressed up.
+ */
+function PodiumCard({
+  row,
+  total,
+  selected,
+  onToggleCompare,
+}: {
+  row: RankingEntry;
+  total: number;
+  selected: boolean;
+  onToggleCompare: (ideaId: string, on: boolean) => void;
+}) {
+  const first = row.rank === 1;
+
+  /** The bar is the composite as a proportion of 100 — presentational, hence aria-hidden. */
+  const width = `${Math.max(2, Math.min(100, row.compositeScore))}%`;
+
+  return (
+    <div
+      className={
+        first
+          ? "board-crown motion-defer relative overflow-hidden rounded-2xl p-6 text-grad-ink shadow-e4"
+          : "relative overflow-hidden rounded-2xl bg-card p-5 shadow-e2 ring-1 ring-inset ring-border"
+      }
+    >
+      {first ? null : (
+        <span
+          aria-hidden
+          className={`absolute inset-x-0 top-0 h-1.5 ${row.rank === 2 ? "bg-ramp-3" : "bg-ramp-2"}`}
+        />
+      )}
+
+      <div className="relative flex items-center justify-between gap-3">
+        {first ? (
+          <span className="inline-flex items-center gap-2">
+            <span className="grid size-9 place-items-center rounded-xl bg-grad-highlight/20 text-grad-highlight">
+              <Trophy aria-hidden className="size-4.5" />
+            </span>
+            <span className="font-serif text-600 font-bold leading-none">1</span>
+          </span>
+        ) : (
+          <span className="font-serif text-600 font-bold leading-none text-ramp-4">{row.rank}</span>
+        )}
+        <RankDelta rank={row.rank} previousRank={row.previousRank} onBrand={first} />
+      </div>
+
+      <h2
+        className={`relative mt-3.5 font-semibold leading-snug ${first ? "text-400" : "text-300"}`}
+      >
+        <Link
+          to={`/ideas/${row.ideaId}/evaluation`}
+          className={first ? "text-grad-ink no-underline hover:underline" : ""}
+        >
+          {row.title}
+        </Link>
+      </h2>
+
+      <p className={`relative mt-1.5 text-100 ${first ? "text-grad-ink-soft" : "text-muted-foreground"}`}>
+        <Link
+          to={`/people/${row.submitter.id}`}
+          className={first ? "text-grad-ink-soft no-underline hover:underline" : ""}
+        >
+          {row.submitter.displayName}
+        </Link>
+        {row.department ? ` · ${row.department}` : ""}
+      </p>
+
+      <p
+        className={`relative mt-3.5 font-serif font-bold leading-none tabular-nums ${
+          first ? "text-800 text-grad-highlight" : "text-600 text-accent-700"
+        }`}
+      >
+        {row.compositeScore.toFixed(1)}
+        <span className="sr-only">
+          {" "}
+          out of 100, ranked {row.rank} of {total}
+        </span>
+      </p>
+
+      <div
+        aria-hidden
+        className={`relative mt-2.5 h-1.5 overflow-hidden rounded-full ${first ? "bg-grad-ink/20" : "bg-ramp-1"}`}
+      >
+        <div
+          className={`h-full rounded-full transition-[width] duration-[var(--dur-settle)] ease-[var(--ease-out-quint)] ${
+            first ? "bg-grad-highlight" : row.rank === 2 ? "bg-ramp-4" : "bg-ramp-3"
+          }`}
+          style={{ width }}
+        />
+      </div>
+
+      {/*
+        P-2 on the podium. The leader wears its two figures as chips because it has the
+        room; 2 and 3 keep the same `Factor` treatment as every row below them, so the
+        explanation is never the thing that got dropped to make a card look tidy.
+      */}
+      {first ? (
+        <div className="relative mt-3.5 flex flex-wrap gap-2">
+          {row.topStrength ? (
+            <span className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-bold ring-1 ring-grad-rule">
+              {row.topStrength.criterionLabel} +{row.topStrength.contribution.toFixed(1)}
+            </span>
+          ) : null}
+          {row.topConstraint?.headroom === undefined ? null : (
+            <span className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-bold ring-1 ring-grad-rule">
+              {row.topConstraint.criterionLabel} −{row.topConstraint.headroom.toFixed(1)}
+            </span>
+          )}
+        </div>
+      ) : (
+        <dl className="mt-3 grid gap-1">
+          <Factor kind="up" item={row.topStrength} />
+          <Factor kind="down" item={row.topConstraint} />
+        </dl>
+      )}
+
+      {row.feasibilityStatus ? (
+        <div className="relative mt-3">
+          {first ? (
+            <span className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-semibold ring-1 ring-grad-rule">
+              {FEASIBILITY_LABEL[row.feasibilityStatus as keyof typeof FEASIBILITY_LABEL] ??
+                row.feasibilityStatus}
+            </span>
+          ) : (
+            <StatusPill
+              kind="FEASIBILITY"
+              feasibility={row.feasibilityStatus as never}
+              label={
+                FEASIBILITY_LABEL[row.feasibilityStatus as keyof typeof FEASIBILITY_LABEL] ??
+                row.feasibilityStatus
+              }
+            />
+          )}
+        </div>
+      ) : null}
+
+      {/* Compare has to reach the top three too — a comparison that cannot include the
+          leader is not a comparison anybody wanted (J-3 selects the top of the board). */}
+      <label
+        className={`relative mt-3.5 flex items-center gap-2 text-100 ${
+          first ? "text-grad-ink-soft" : "text-muted-foreground"
+        }`}
+      >
+        <Checkbox
+          checked={selected}
+          onCheckedChange={(on) => onToggleCompare(row.ideaId, on === true)}
+          aria-label={`Select ${row.title} for comparison`}
+          className={first ? "border-grad-rule data-[state=checked]:bg-grad-highlight" : ""}
+        />
+        Compare
+      </label>
+    </div>
+  );
+}
+
 function Board({
   data, mode, profiles, activeProfile, rankBand, selected,
   onProfile, onRankBand, onToggleCompare, onPage,
@@ -172,8 +336,17 @@ function Board({
    */
   const empty = data.items.length === 0;
 
+  const podium = data.items.filter((row) => row.rank <= 3);
+  const rest = data.items.filter((row) => row.rank > 3);
+
   return (
     <>
+      {/*
+        Pills, and the active one carries the brand gradient (Idea Platform Redesign —
+        "The board"). `brand-pill` rather than the accent for the reason recorded in
+        index.css: white on --accent-700 fails AA once the tokens flip to dark, and these
+        are the most-clicked controls on the page.
+      */}
       <div className="mb-4 space-y-3">
         {mode === "current" && profiles.length > 1 ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -182,7 +355,13 @@ function Board({
               <Button
                 key={p.key}
                 size="sm"
-                variant={p.key === activeProfile ? "default" : "outline"}
+                variant="ghost"
+                aria-pressed={p.key === activeProfile}
+                className={
+                  p.key === activeProfile
+                    ? "brand-pill rounded-full font-semibold text-grad-ink hover:text-grad-ink"
+                    : "rounded-full bg-card font-medium ring-1 ring-inset ring-border"
+                }
                 onClick={() => onProfile(p.key)}
               >
                 {p.name}
@@ -197,7 +376,13 @@ function Board({
             <Button
               key={band}
               size="sm"
-              variant={band === rankBand ? "default" : "outline"}
+              variant="ghost"
+              aria-pressed={band === rankBand}
+              className={
+                band === rankBand
+                  ? "brand-pill rounded-full font-semibold text-grad-ink hover:text-grad-ink"
+                  : "rounded-full bg-card font-medium ring-1 ring-inset ring-border"
+              }
               onClick={() => onRankBand(band)}
             >
               {band === "all" ? "Everything" : `Top ${band.replace("top", "")}`}
@@ -229,83 +414,104 @@ function Board({
         />
       ) : null}
 
-      <ol className="space-y-3">
-        {data.items.map((row) => (
+      {/*
+        The top three get a podium; everything else gets a row (Idea Platform Redesign —
+        "The board").
+
+        Split by the RANK, not by position in the array. A filtered or second-page view
+        contains no rank 1, so it correctly gets no podium rather than crowning whatever
+        happens to be first on screen — which is the bug this shape invites.
+      */}
+      {podium.length > 0 ? (
+        <ol className="grid list-none grid-cols-1 items-end gap-3.5 p-0 md:grid-cols-3">
+          {podium.map((row) => (
+            <li
+              key={row.ideaId}
+              /* Order 2 · 1 · 3 on a real podium; source order stays 1 · 2 · 3 so a screen
+                 reader and the keyboard get the board in rank order. */
+              className={row.rank === 1 ? "md:order-2" : row.rank === 2 ? "md:order-1" : "md:order-3"}
+            >
+              <PodiumCard
+                row={row}
+                total={data.run.cohortSize}
+                selected={selected.includes(row.ideaId)}
+                onToggleCompare={onToggleCompare}
+              />
+            </li>
+          ))}
+        </ol>
+      ) : null}
+
+      <ol className={`list-none space-y-2.5 p-0 ${podium.length > 0 ? "mt-4" : ""}`}>
+        {rest.map((row) => (
           <li key={row.ideaId}>
             {/* settle-rank's FLIP reorder is not implemented; the delta chip and the
                 afterglow it pairs with are. Called out rather than faked — SPEC §8.3
                 describes a motion this board does not yet perform. */}
-            <Card className="transition-shadow duration-[var(--dur-base)] hover:shadow-e2">
-              <CardContent className="space-y-3 pt-6">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <RankBadge
-                        rank={row.rank}
-                        previousRank={row.previousRank}
-                        total={data.run.cohortSize}
-                      />
-                    </div>
-                    <h2 className="mt-1 text-400 font-medium">
-                      <Link to={`/ideas/${row.ideaId}/evaluation`}>{row.title}</Link>
-                    </h2>
-                    <p className="text-100 text-muted-foreground">
-                      <Link to={`/people/${row.submitter.id}`}>{row.submitter.displayName}</Link>
-                      {row.department ? ` · ${row.department}` : ""}
-                    </p>
-                  </div>
+            <div className="grid grid-cols-[3.25rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-2xl bg-card p-4 shadow-e1 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e2 lg:grid-cols-[3.25rem_minmax(0,1fr)_auto]">
+              <span className="grid size-11 place-items-center rounded-xl bg-accent-050 font-serif text-400 font-bold tabular-nums text-accent-700 ring-1 ring-inset ring-ramp-2">
+                {row.rank}
+              </span>
 
-                  <div className="flex flex-col items-end gap-2">
-                    <ScoreDisplay value={row.compositeScore} size="sm" />
-                    <label className="flex items-center gap-2 text-100 text-muted-foreground">
-                      <Checkbox
-                        checked={selected.includes(row.ideaId)}
-                        onCheckedChange={(on) => onToggleCompare(row.ideaId, on === true)}
-                        aria-label={`Select ${row.title} for comparison`}
-                      />
-                      Compare
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="min-w-0">
+                <h2 className="text-300 font-semibold leading-snug">
+                  <Link to={`/ideas/${row.ideaId}/evaluation`}>{row.title}</Link>
+                </h2>
+                <p className="mt-0.5 text-100 text-muted-foreground">
+                  <Link to={`/people/${row.submitter.id}`}>{row.submitter.displayName}</Link>
+                  {row.department ? ` · ${row.department}` : ""}
                   {row.feasibilityStatus ? (
-                    <StatusPill
-                      kind="FEASIBILITY"
-                      feasibility={row.feasibilityStatus as never}
-                      label={
-                        FEASIBILITY_LABEL[row.feasibilityStatus as keyof typeof FEASIBILITY_LABEL] ??
-                        row.feasibilityStatus
-                      }
-                    />
+                    <>
+                      {" · "}
+                      <span className="font-semibold text-factor-up">
+                        {FEASIBILITY_LABEL[
+                          row.feasibilityStatus as keyof typeof FEASIBILITY_LABEL
+                        ] ?? row.feasibilityStatus}
+                      </span>
+                    </>
                   ) : null}
-                  <Badge variant="outline">
-                    {MATURITY_LABEL[row.maturityLevel]?.split(" — ")[0] ?? `Level ${row.maturityLevel}`}
-                  </Badge>
-                </div>
+                </p>
 
                 {/*
-                  The composite as a proportion of 100.
-                  Presentational only — `aria-hidden`, because the figure above it is
-                  already announced and a second reading of the same number is noise.
-                */}
-                <div
-                  aria-hidden
-                  className="h-1.5 overflow-hidden rounded-full bg-muted"
-                >
-                  <div
-                    className="h-full rounded-full bg-primary transition-[width] duration-[var(--dur-settle)] ease-[var(--ease-out-quint)]"
-                    style={{ width: `${Math.max(2, Math.min(100, row.compositeScore))}%` }}
-                  />
-                </div>
+                  P-2 on the row itself: why this idea is here, without a click.
 
-                {/* P-2 on the board itself: why this row is here, without a click. */}
-                <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                  The canvas draws a five-segment bar labelled "impact · effort · adoption ·
+                  cost · headroom". `RankingEntry` carries two explanation items, not five —
+                  the top strength and the top constraint — so three of those segments would
+                  be lengths nothing computed. The two real figures are shown as figures.
+                  Widening the contract to carry every criterion's contribution is additive
+                  and would let the full bar be drawn honestly; that is an API decision, not
+                  one to make silently here.
+                */}
+                <dl className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
                   <Factor kind="up" item={row.topStrength} />
                   <Factor kind="down" item={row.topConstraint} />
                 </dl>
-              </CardContent>
-            </Card>
+              </div>
+
+              <div className="col-start-2 flex items-center justify-between gap-4 lg:col-start-3 lg:flex-col lg:items-end lg:gap-2">
+                <div className="text-right">
+                  <p className="font-serif text-500 font-bold leading-none tabular-nums text-accent-700">
+                    {row.compositeScore.toFixed(1)}
+                  </p>
+                  <span className="sr-only">
+                    out of 100, ranked {row.rank} of {data.run.cohortSize}
+                  </span>
+                  <div className="mt-1.5 flex justify-end">
+                    <RankDelta rank={row.rank} previousRank={row.previousRank} />
+                  </div>
+                </div>
+
+                <label className="flex shrink-0 items-center gap-2 text-100 text-muted-foreground">
+                  <Checkbox
+                    checked={selected.includes(row.ideaId)}
+                    onCheckedChange={(on) => onToggleCompare(row.ideaId, on === true)}
+                    aria-label={`Select ${row.title} for comparison`}
+                  />
+                  Compare
+                </label>
+              </div>
+            </div>
           </li>
         ))}
       </ol>
