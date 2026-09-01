@@ -13,7 +13,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
-    "lint": "echo \"lint: configured in P1\""
+    "lint": "eslint ."
   },
   "dependencies": {
     "@iep/contracts": "workspace:*"

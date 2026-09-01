@@ -13,7 +13,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "lint": "echo \"lint: configured in P1\"",
+    "lint": "eslint .",
     "migrate": "prisma migrate dev",
     "seed": "tsx --env-file-if-exists=../../.env prisma/seed.ts",
     "generate": "prisma generate",

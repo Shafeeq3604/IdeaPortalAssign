@@ -31,11 +31,16 @@
     "demo:reset": "tsx --env-file-if-exists=.env scripts/demo-data.mts --fresh && pnpm db:seed && tsx --env-file-if-exists=.env scripts/demo-data.mts"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.20.1",
+    "eslint": "^10.9.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.11.0",
     "playwright": "^1.62.1",
     "tsx": "^4.19.2",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.67.0",
     "vitest": "^2.1.8",
     "zod": "^3.24.1",
     "zod-to-json-schema": "^3.25.2",

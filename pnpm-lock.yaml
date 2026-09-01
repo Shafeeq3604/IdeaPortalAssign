@@ -11,6 +11,9 @@ importers:
 
   .:
     devDependencies:
+      '@eslint/js':
+        specifier: ^10.0.1
+        version: 10.0.1(eslint@10.9.1(jiti@2.7.0))
       '@iep/ai':
         specifier: workspace:*
         version: link:packages/ai
@@ -26,6 +29,15 @@ importers:
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1
+      eslint:
+        specifier: ^10.9.0
+        version: 10.9.1(jiti@2.7.0)
+      eslint-plugin-react-hooks:
+        specifier: ^7.1.1
+        version: 7.1.1(eslint@10.9.1(jiti@2.7.0))
+      globals:
+        specifier: ^17.11.0
+        version: 17.11.0
       playwright:
         specifier: ^1.62.1
         version: 1.62.1
@@ -38,6 +50,9 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.67.0
+        version: 8.68.0(eslint@10.9.1(jiti@2.7.0))(typescript@5.9.3)
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.1)(lightningcss@1.33.0)
@@ -5404,14 +5419,6 @@ snapshots:
     optionalDependencies:
       vite: 5.4.21(@types/node@22.20.1)(lightningcss@1.33.0)
 
-  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@26.3.0)(lightningcss@1.33.0))':
-    dependencies:
-      '@vitest/spy': 2.1.9
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 5.4.21(@types/node@26.3.0)(lightningcss@1.33.0)
-
   '@vitest/pretty-format@2.1.9':
     dependencies:
       tinyrainbow: 1.2.0
@@ -6818,7 +6825,7 @@ snapshots:
   vitest@2.1.9(@types/node@26.3.0)(lightningcss@1.33.0):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@26.3.0)(lightningcss@1.33.0))
+      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@22.20.1)(lightningcss@1.33.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9

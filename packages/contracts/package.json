@@ -14,7 +14,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "lint": "echo \"lint: configured in P1\""
+    "lint": "eslint ."
   },
   "dependencies": {
     "zod": "^3.24.1"

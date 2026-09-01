@@ -14,7 +14,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "lint": "echo \"lint: configured in P1\""
+    "lint": "eslint ."
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
