@@ -1,7 +1,7 @@
 import { can } from "@iep/contracts";
 import type { IdeaStatus } from "@iep/contracts";
 import type { Handler } from "../../server.js";
-import { sendError } from "../../server.js";
+import { requireActor, sendError } from "../../server.js";
 import { presentCriterionScore, presentExplanation, tieBreakNoteFor } from "./present.js";
 
 /**
@@ -24,7 +24,7 @@ async function readableIdea(
     include: { currentVersion: { select: { id: true, versionNo: true } } },
   });
   if (!idea?.currentVersion) return null;
-  const allowed = can(request.actor!, "idea:read", {
+  const allowed = can(requireActor(request), "idea:read", {
     ideaId: idea.id, submitterId: idea.submitterId, status: idea.status as IdeaStatus,
   }).allowed;
   return allowed ? idea : null;

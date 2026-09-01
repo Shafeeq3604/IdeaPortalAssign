@@ -131,7 +131,9 @@ function Factor({ kind, item }: { kind: "up" | "down"; item: ExplanationItem | n
           <span className={`tabular-nums font-medium ${tone}`}>
             {up
               ? `+${item.contribution.toFixed(1)} pts`
-              : `${item.headroom!.toFixed(1)} pts available`}
+              // `hasFigures` above already guarantees this is defined; `?? 0` says so
+              // without a non-null assertion the type checker cannot itself verify.
+              : `${(item.headroom ?? 0).toFixed(1)} pts available`}
           </span>
           {/* Nothing is lost to a screen reader — it reads the engine's own sentence. */}
           <span className="sr-only">{item.text}</span>

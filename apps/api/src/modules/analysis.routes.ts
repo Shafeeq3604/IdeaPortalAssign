@@ -2,7 +2,7 @@ import { PIPELINE_STEPS, type AnalysisStep } from "@iep/contracts";
 import { can } from "@iep/contracts";
 import type { IdeaStatus } from "@iep/contracts";
 import type { Handler } from "../server.js";
-import { sendError } from "../server.js";
+import { requireActor, sendError } from "../server.js";
 
 /** Analysis read surfaces (P3 — FR-03..FR-11). Writing is the worker's job. */
 
@@ -27,7 +27,7 @@ export function registerAnalysisRoutes(handlers: Map<string, Handler>): void {
       select: { id: true, submitterId: true, status: true, currentVersionId: true },
     });
     if (!idea?.currentVersionId) return sendError(reply, "NOT_FOUND", NOT_FOUND);
-    if (!can(request.actor!, "idea:read", {
+    if (!can(requireActor(request), "idea:read", {
       ideaId: idea.id, submitterId: idea.submitterId, status: idea.status as IdeaStatus,
     }).allowed) return sendError(reply, "NOT_FOUND", NOT_FOUND);
 
@@ -77,7 +77,7 @@ export function registerAnalysisRoutes(handlers: Map<string, Handler>): void {
       include: { currentVersion: true },
     });
     if (!idea?.currentVersion) return sendError(reply, "NOT_FOUND", NOT_FOUND);
-    if (!can(request.actor!, "idea:read", {
+    if (!can(requireActor(request), "idea:read", {
       ideaId: idea.id, submitterId: idea.submitterId, status: idea.status as IdeaStatus,
     }).allowed) return sendError(reply, "NOT_FOUND", NOT_FOUND);
 
@@ -102,7 +102,9 @@ export function registerAnalysisRoutes(handlers: Map<string, Handler>): void {
     const useCaseRun = byStep.get("USE_CASES");
     const valueRun = byStep.get("VALUE");
 
-    const statusResponse = await handlers.get("getAnalysisStatus")!(request, reply, ctx);
+    const getAnalysisStatus = handlers.get("getAnalysisStatus");
+    if (!getAnalysisStatus) throw new Error("getAnalysisStatus was not registered before getIdeaAnalysis");
+    const statusResponse = await getAnalysisStatus(request, reply, ctx);
 
     return {
       ideaId: idea.id,

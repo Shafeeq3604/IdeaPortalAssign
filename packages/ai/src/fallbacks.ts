@@ -16,7 +16,7 @@ export interface FallbackInput {
   readonly fields: Readonly<Record<string, string | null>>;
 }
 
-const has = (v: string | null | undefined): boolean => Boolean(v && v.trim().length > 0);
+const has = (v: string | null | undefined): v is string => Boolean(v && v.trim().length > 0);
 
 const VALUE_DIMENSIONS = [
   "BUSINESS_IMPACT", "PRODUCTIVITY", "COST_REDUCTION", "REVENUE", "EMPLOYEE_EXPERIENCE",
@@ -71,7 +71,7 @@ export function fallbackUseCases(input: FallbackInput) {
         // Unknown reach must not flatter the idea; the lowest band is the honest default.
         estimatedUserCountBand: "LT10" as const,
         isSpeculative: false,
-        evidence: [has(users) ? users! : NOT_ANALYSED],
+        evidence: [has(users) ? users : NOT_ANALYSED],
       },
     ],
   };

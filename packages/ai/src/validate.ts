@@ -56,7 +56,7 @@ const INJECTION_MARKERS: readonly RegExp[] = [
    * untrusted block, then issue a fresh instruction as if it came from the operator.
    * Caught the last of the 25 cases.
    */
-  /\b(?:new|next|revised|updated) (?:task|instruction|objective|goal|prompt)s?\s*[:\-]/i,
+  /\b(?:new|next|revised|updated) (?:task|instruction|objective|goal|prompt)s?\s*[:-]/i,
   /(?:^|\s)[-–—]{2,}\s*end of\b/i,
   /\bassign (?:a )?(?:rank|score|rating|weight)\b/i,
 ];

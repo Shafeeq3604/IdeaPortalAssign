@@ -18,6 +18,22 @@ import { DEMO_IDEAS } from "./demo-ideas.js";
 
 const prisma = new PrismaClient();
 
+/** A cyclic pick from a fixed, non-empty const array — throws by name rather than
+ *  handing back `undefined` typed as `T` if that ever stops being true. */
+function cycle<T>(items: readonly T[], i: number): T {
+  const item = items[i % items.length];
+  if (item === undefined) throw new Error("cycle() called with an empty array");
+  return item;
+}
+
+/** A lookup that must already be populated — the seed's own earlier upsert is what
+ *  guarantees the key exists; this says so instead of asserting it. */
+function mustGet<K, V>(map: Map<K, V>, key: K): V {
+  const value = map.get(key);
+  if (value === undefined) throw new Error(`Seed data is missing an expected key: ${String(key)}`);
+  return value;
+}
+
 const DEPARTMENTS = ["Operations", "Engineering", "Finance", "People", "Customer Support"];
 
 const CATEGORIES = [
@@ -118,7 +134,7 @@ async function main(): Promise<void> {
       prisma.profileWeight.createMany({
         data: Object.entries(p.weights).map(([criterionKey, weight]) => ({
           profileId: profile.id,
-          criterionId: criterionIds.get(criterionKey)!,
+          criterionId: mustGet(criterionIds, criterionKey),
           weight,
         })),
       }),
@@ -163,7 +179,7 @@ async function main(): Promise<void> {
         email: u.email,
         displayName: u.displayName,
         externalSubject: `password|${u.email}`,
-        departmentId: departments.get(deptNames[i % deptNames.length]!)!,
+        departmentId: mustGet(departments, cycle(deptNames, i)),
         passwordHash: demoHash,
         passwordSetAt: new Date(),
       },
@@ -194,11 +210,11 @@ async function main(): Promise<void> {
     const existing = await prisma.ideaVersion.findFirst({ where: { title: idea.title } });
     if (existing) continue;
 
-    const author = seedUsers[i % seedUsers.length]!;
+    const author = cycle(seedUsers, i);
     const row = await prisma.idea.create({
       data: {
         submitterId: author.id,
-        departmentId: deptIds[i % deptIds.length]!,
+        departmentId: cycle(deptIds, i),
         status: "SUBMITTED",
         submittedAt: new Date(),
       },

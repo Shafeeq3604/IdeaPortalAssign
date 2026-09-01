@@ -1,7 +1,7 @@
 import { CreateReviewRequest, OverrideScoreRequest, can } from "@iep/contracts";
 import type { IdeaStatus } from "@iep/contracts";
 import type { Handler } from "../../server.js";
-import { sendError } from "../../server.js";
+import { requireActor, sendError } from "../../server.js";
 import { writeAudit } from "../../lib/audit.js";
 
 /**
@@ -186,7 +186,7 @@ export function registerReviewRoutes(handlers: Map<string, Handler>): void {
     const { ideaId } = request.params as { ideaId: string };
     const idea = await ctx.db.idea.findUnique({ where: { id: ideaId } });
     if (!idea) return sendError(reply, "NOT_FOUND", NOT_FOUND);
-    if (!can(request.actor!, "idea:read", {
+    if (!can(requireActor(request), "idea:read", {
       ideaId: idea.id, submitterId: idea.submitterId, status: idea.status as IdeaStatus,
     }).allowed) return sendError(reply, "NOT_FOUND", NOT_FOUND);
 
@@ -222,7 +222,7 @@ export function registerReviewRoutes(handlers: Map<string, Handler>): void {
     }
 
     const { ideaId } = request.params as { ideaId: string };
-    const actor = request.actor!;
+    const actor = requireActor(request);
     const idea = await ctx.db.idea.findUnique({ where: { id: ideaId } });
     if (!idea) return sendError(reply, "NOT_FOUND", NOT_FOUND);
 
@@ -297,7 +297,7 @@ export function registerReviewRoutes(handlers: Map<string, Handler>): void {
     }
 
     const { ideaId } = request.params as { ideaId: string };
-    const actor = request.actor!;
+    const actor = requireActor(request);
     const idea = await ctx.db.idea.findUnique({
       where: { id: ideaId },
       include: { currentVersion: { select: { id: true } } },
@@ -387,6 +387,8 @@ export function registerReviewRoutes(handlers: Map<string, Handler>): void {
     });
 
     // Re-read through the same handler so the response is byte-identical to a GET.
-    return handlers.get("getIdeaEvaluation")!(request, reply, ctx);
+    const getIdeaEvaluation = handlers.get("getIdeaEvaluation");
+    if (!getIdeaEvaluation) throw new Error("getIdeaEvaluation was not registered before the override route");
+    return getIdeaEvaluation(request, reply, ctx);
   });
 }

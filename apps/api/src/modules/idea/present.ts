@@ -22,6 +22,10 @@ const actorRef = (u: ActorLike) => ({
 
 const iso = (d: Date | null | undefined): string | null => d?.toISOString() ?? null;
 
+/** For the columns that are never null in the schema (updatedAt, createdAt, at) — a
+ *  real timestamp, not `iso()`'s nullable one asserted away at the call site. */
+const isoRequired = (d: Date): string => d.toISOString();
+
 /* eslint-disable @typescript-eslint/no-explicit-any -- Prisma include types are structural;
    the response shape is guaranteed by the contract schemas, which the tests validate. */
 type Row = any;
@@ -51,7 +55,7 @@ export function toIdeaSummary(
       : null,
     currentVersionNo: idea.currentVersion?.versionNo ?? 1,
     submittedAt: iso(idea.submittedAt),
-    updatedAt: iso(idea.updatedAt)!,
+    updatedAt: isoRequired(idea.updatedAt),
     /**
      * The current version's score, and the rank it holds in the latest run that included
      * it. Null when the idea has not been evaluated — never 0, which would read as a bad
@@ -73,7 +77,7 @@ export function toVersionSummary(v: Row) {
     title: v.title,
     changeSummary: v.changeSummary ?? null,
     author: actorRef(v.author),
-    createdAt: iso(v.createdAt)!,
+    createdAt: isoRequired(v.createdAt),
   };
 }
 
@@ -103,7 +107,7 @@ export function toStatusEntry(h: Row) {
     toStatus: h.toStatus as IdeaStatus,
     actor: actorRef(h.actor),
     reason: h.reason ?? null,
-    at: iso(h.at)!,
+    at: isoRequired(h.at),
   };
 }
 

@@ -3,7 +3,7 @@ import {
 } from "@iep/contracts";
 import type { IdeaStatus, Role, SessionResponse, SignupOptions } from "@iep/contracts";
 import type { Handler } from "../../server.js";
-import { sendError } from "../../server.js";
+import { requireActor, sendError } from "../../server.js";
 import { sessionCookieName, sessionCookieOptions } from "../../auth/session.js";
 import { hashPassword, passwordProblem, safeEqual, verifyPassword } from "../../auth/password.js";
 import { writeAudit } from "../../lib/audit.js";
@@ -60,10 +60,12 @@ export function registerAccountRoutes(handlers: Map<string, Handler>): void {
      */
     const ok =
       (await verifyPassword(user?.passwordHash ?? null, parsed.data.password)) &&
-      Boolean(user) &&
-      user!.isActive;
+      (user?.isActive ?? false);
 
-    if (!ok) {
+    // `!user` is redundant with `!ok` in practice — `ok` cannot be true without a user —
+    // but stating it here is what lets TypeScript narrow `user` for the rest of the
+    // function, instead of five separate `user!` assertions doing it by hand.
+    if (!ok || !user) {
       if (user) {
         const failed = user.failedLogins + 1;
         await ctx.db.user.update({
@@ -79,19 +81,19 @@ export function registerAccountRoutes(handlers: Map<string, Handler>): void {
       return sendError(reply, "UNAUTHENTICATED", SIGNIN_FAILED);
     }
 
-    const roles = user!.roles.map((r) => r.role as Role);
+    const roles = user.roles.map((r) => r.role as Role);
     // The session id rotates on every sign-in — a pre-set one is worthless (SPEC §4.1).
-    const sid = await ctx.sessions.create({ userId: user!.id, roles, createdAt: Date.now() });
+    const sid = await ctx.sessions.create({ userId: user.id, roles, createdAt: Date.now() });
     const isProd = ctx.env.NODE_ENV === "production";
     void reply.setCookie(sessionCookieName(isProd), sid, sessionCookieOptions(isProd));
 
     await ctx.db.user.update({
-      where: { id: user!.id },
+      where: { id: user.id },
       data: { failedLogins: 0, lockedUntil: null, lastLoginAt: new Date() },
     });
 
     const full = await ctx.db.user.findUniqueOrThrow({
-      where: { id: user!.id },
+      where: { id: user.id },
       include: { department: true, roles: true },
     });
 
@@ -281,7 +283,7 @@ export function registerAccountRoutes(handlers: Map<string, Handler>): void {
       return sendError(reply, "CONCURRENT_MODIFICATION", "An account with that email already exists");
     }
 
-    const actor = request.actor!;
+    const actor = requireActor(request);
     const created = await ctx.db.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -329,7 +331,7 @@ export function registerAccountRoutes(handlers: Map<string, Handler>): void {
     }
 
     const { userId } = request.params as { userId: string };
-    const actor = request.actor!;
+    const actor = requireActor(request);
     const existing = await ctx.db.user.findUnique({ where: { id: userId }, include: { roles: true } });
     if (!existing) return sendError(reply, "NOT_FOUND", "No user with that id");
 
@@ -413,7 +415,7 @@ export function registerAccountRoutes(handlers: Map<string, Handler>): void {
     const { ideaId } = request.params as { ideaId: string };
     const idea = await readableIdea(request, ctx, ideaId);
     if (!idea) return sendError(reply, "NOT_FOUND", "No idea with that id");
-    return summariseFeedback(ctx, ideaId, request.actor!.userId);
+    return summariseFeedback(ctx, ideaId, requireActor(request).userId);
   });
 
   handlers.set("setIdeaFeedback", async (request, reply, ctx) => {
@@ -424,7 +426,7 @@ export function registerAccountRoutes(handlers: Map<string, Handler>): void {
     const idea = await readableIdea(request, ctx, ideaId);
     if (!idea) return sendError(reply, "NOT_FOUND", "No idea with that id");
 
-    const userId = request.actor!.userId;
+    const userId = requireActor(request).userId;
 
     /**
      * One row per person per idea, replaced on change and deleted on clear.
@@ -479,7 +481,7 @@ async function readableIdea(
 ) {
   const idea = await ctx.db.idea.findUnique({ where: { id: ideaId } });
   if (!idea) return null;
-  return can(request.actor!, "idea:read", {
+  return can(requireActor(request), "idea:read", {
     ideaId: idea.id,
     submitterId: idea.submitterId,
     status: idea.status as IdeaStatus,

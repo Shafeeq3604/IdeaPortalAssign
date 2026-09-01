@@ -2,7 +2,7 @@ import { recomputeRankings } from "@iep/evaluation";
 import { ExplanationItem } from "@iep/contracts";
 import type { IdeaStatus } from "@iep/contracts";
 import type { Handler } from "../../server.js";
-import { sendError } from "../../server.js";
+import { requireActor, sendError } from "../../server.js";
 import { writeAudit } from "../../lib/audit.js";
 import { presentCriterionScore } from "../evaluation/present.js";
 
@@ -309,7 +309,7 @@ export function registerRankingRoutes(handlers: Map<string, Handler>): void {
       return sendError(reply, "VALIDATION_FAILED", "A profile and a reason are required");
     }
 
-    const actor = request.actor!;
+    const actor = requireActor(request);
 
     /**
      * Run synchronously and answer with the run that was actually produced.

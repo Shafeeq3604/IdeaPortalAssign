@@ -24,6 +24,21 @@ export function contentHash(input: Readonly<Record<string, unknown>>): string {
   return createHash("sha256").update(canonical).digest("hex");
 }
 
+/**
+ * `fields["title"]!` five times over was asserting a guarantee `IdeaFormSchema` already
+ * enforces before either repo function below is ever called: these five are required,
+ * the rest are genuinely optional. Saying so in the type — required keys explicit,
+ * everything else still an open record — removes the assertions instead of trusting
+ * them by hand at each access.
+ */
+type IdeaFields = Record<string, string | null> & {
+  title: string;
+  description: string;
+  problemStatement: string;
+  expectedUsers: string;
+  expectedOutcome: string;
+};
+
 export function scopeToWhere(scope: IdeaScope): Prisma.IdeaWhereInput {
   if (scope.all) return {};
   // "mine, plus anything visible at my role's threshold" — one OR, evaluated in SQL.
@@ -142,7 +157,7 @@ export function makeIdeaRepo(db: PrismaClient) {
       submitterId: string;
       departmentId: string | null;
       categoryId: string | null;
-      fields: Record<string, string | null>;
+      fields: IdeaFields;
       submit: boolean;
     }) {
       return db.$transaction(async (tx) => {
@@ -163,11 +178,11 @@ export function makeIdeaRepo(db: PrismaClient) {
             authorId: input.submitterId,
             contentHash: contentHash(input.fields),
             changeSummary: null, // v1 has none — DB CHECK enforces it
-            title: input.fields["title"]!,
-            description: input.fields["description"]!,
-            problemStatement: input.fields["problemStatement"]!,
-            expectedUsers: input.fields["expectedUsers"]!,
-            expectedOutcome: input.fields["expectedOutcome"]!,
+            title: input.fields.title,
+            description: input.fields.description,
+            problemStatement: input.fields.problemStatement,
+            expectedUsers: input.fields.expectedUsers,
+            expectedOutcome: input.fields.expectedOutcome,
             existingProcess: input.fields["existingProcess"] ?? null,
             existingSolutions: input.fields["existingSolutions"] ?? null,
             suggestedTechnology: input.fields["suggestedTechnology"] ?? null,
@@ -205,7 +220,7 @@ export function makeIdeaRepo(db: PrismaClient) {
       ideaId: string;
       authorId: string;
       changeSummary: string;
-      fields: Record<string, string | null>;
+      fields: IdeaFields;
       addressesRecommendationIds: readonly string[];
     }) {
       return db.$transaction(async (tx) => {
@@ -223,11 +238,11 @@ export function makeIdeaRepo(db: PrismaClient) {
             authorId: input.authorId,
             changeSummary: input.changeSummary,
             contentHash: contentHash(input.fields),
-            title: input.fields["title"]!,
-            description: input.fields["description"]!,
-            problemStatement: input.fields["problemStatement"]!,
-            expectedUsers: input.fields["expectedUsers"]!,
-            expectedOutcome: input.fields["expectedOutcome"]!,
+            title: input.fields.title,
+            description: input.fields.description,
+            problemStatement: input.fields.problemStatement,
+            expectedUsers: input.fields.expectedUsers,
+            expectedOutcome: input.fields.expectedOutcome,
             existingProcess: input.fields["existingProcess"] ?? null,
             existingSolutions: input.fields["existingSolutions"] ?? null,
             suggestedTechnology: input.fields["suggestedTechnology"] ?? null,

@@ -5,7 +5,7 @@ import {
 } from "@iep/contracts";
 import type { Handler } from "../../server.js";
 import type { AppContext } from "../../context.js";
-import { sendError } from "../../server.js";
+import { requireActor, sendError } from "../../server.js";
 import { makeIdeaRepo } from "./repo.js";
 import { toIdeaDetail, toIdeaSummary, toVersionDetail, toVersionSummary, toStatusEntry } from "./present.js";
 
@@ -109,7 +109,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     const parsed = ListIdeasQuery.safeParse(request.query);
     if (!parsed.success) return sendError(reply, "VALIDATION_FAILED", "Invalid filters");
 
-    const actor = request.actor!;
+    const actor = requireActor(request);
     const repo = makeIdeaRepo(ctx.db);
     const { rows, total } = await repo.list({
       scope: ideaListScope(actor),
@@ -144,7 +144,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
       return sendError(reply, "VALIDATION_FAILED", "Some fields need attention");
     }
 
-    const actor = request.actor!;
+    const actor = requireActor(request);
     const repo = makeIdeaRepo(ctx.db);
     const { title, description, problemStatement, expectedUsers, expectedOutcome,
       existingProcess, existingSolutions, suggestedTechnology, expectedBenefits,
@@ -183,7 +183,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     const idea = await repo.findById(ideaId);
     if (!idea) return sendError(reply, "NOT_FOUND", NOT_FOUND);
 
-    const actor = request.actor!;
+    const actor = requireActor(request);
     const resource = { ideaId: idea.id, submitterId: idea.submitterId, status: idea.status as IdeaStatus };
     if (!can(actor, "idea:read", resource).allowed) {
       return sendError(reply, "NOT_FOUND", NOT_FOUND);
@@ -200,7 +200,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     const idea = await repo.findById(ideaId);
     if (!idea) return sendError(reply, "NOT_FOUND", NOT_FOUND);
 
-    const actor = request.actor!;
+    const actor = requireActor(request);
     const decision = can(actor, "idea:edit", {
       ideaId: idea.id, submitterId: idea.submitterId, status: idea.status as IdeaStatus,
     });
@@ -217,9 +217,17 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
       return sendError(reply, "NOT_FOUND", NOT_FOUND);
     }
 
-    await repo.updateDraftVersion(idea.currentVersionId!, parsed.data as Record<string, string | null>);
+    // `currentVersionId` is nullable in the schema for the deferred-FK reason repo.ts's
+    // createWithFirstVersion documents, but the invariant it also documents — no idea
+    // exists without one once created — means it is always set by the time a DRAFT can
+    // reach this handler. Stated as a real check rather than asserted past.
+    if (!idea.currentVersionId) {
+      throw new Error(`Idea ${idea.id} has no current version — the create-transaction invariant was violated`);
+    }
+    await repo.updateDraftVersion(idea.currentVersionId, parsed.data as Record<string, string | null>);
     const fresh = await repo.findById(ideaId);
-    return toIdeaDetail(fresh!, actor);
+    if (!fresh) throw new Error(`Idea ${ideaId} disappeared between its own update and re-fetch`);
+    return toIdeaDetail(fresh, actor);
   });
 
   handlers.set("createVersion", async (request, reply, ctx) => {
@@ -234,7 +242,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     const idea = await repo.findById(ideaId);
     if (!idea) return sendError(reply, "NOT_FOUND", NOT_FOUND);
 
-    const actor = request.actor!;
+    const actor = requireActor(request);
     const decision = can(actor, "idea:revise", {
       ideaId: idea.id, submitterId: idea.submitterId, status: idea.status as IdeaStatus,
     });
@@ -282,7 +290,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     const repo = makeIdeaRepo(ctx.db);
     const idea = await repo.findById(ideaId);
     if (!idea) return sendError(reply, "NOT_FOUND", NOT_FOUND);
-    if (!can(request.actor!, "idea:read", {
+    if (!can(requireActor(request), "idea:read", {
       ideaId: idea.id, submitterId: idea.submitterId, status: idea.status as IdeaStatus,
     }).allowed) return sendError(reply, "NOT_FOUND", NOT_FOUND);
 
@@ -294,7 +302,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     const repo = makeIdeaRepo(ctx.db);
     const idea = await repo.findById(ideaId);
     if (!idea) return sendError(reply, "NOT_FOUND", NOT_FOUND);
-    if (!can(request.actor!, "idea:read", {
+    if (!can(requireActor(request), "idea:read", {
       ideaId: idea.id, submitterId: idea.submitterId, status: idea.status as IdeaStatus,
     }).allowed) return sendError(reply, "NOT_FOUND", NOT_FOUND);
 
@@ -308,7 +316,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     const repo = makeIdeaRepo(ctx.db);
     const idea = await repo.findById(ideaId);
     if (!idea) return sendError(reply, "NOT_FOUND", NOT_FOUND);
-    if (!can(request.actor!, "idea:read", {
+    if (!can(requireActor(request), "idea:read", {
       ideaId: idea.id, submitterId: idea.submitterId, status: idea.status as IdeaStatus,
     }).allowed) return sendError(reply, "NOT_FOUND", NOT_FOUND);
 
@@ -374,7 +382,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     const idea = await repo.findById(ideaId);
     if (!idea) return sendError(reply, "NOT_FOUND", NOT_FOUND);
 
-    const actor = request.actor!;
+    const actor = requireActor(request);
     const from = idea.status as IdeaStatus;
     const resource = { ideaId: idea.id, submitterId: idea.submitterId, status: from };
 
@@ -431,6 +439,8 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
       await startAnalysis(ctx, ideaId, idea.currentVersionId);
     }
 
-    return toIdeaDetail((await repo.findById(ideaId))!, actor);
+    const transitioned = await repo.findById(ideaId);
+    if (!transitioned) throw new Error(`Idea ${ideaId} disappeared between its own transition and re-fetch`);
+    return toIdeaDetail(transitioned, actor);
   });
 }

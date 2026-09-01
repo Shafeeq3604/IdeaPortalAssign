@@ -3,7 +3,7 @@ import {
 } from "@iep/contracts";
 import type { Attachment, IdeaStatus } from "@iep/contracts";
 import type { Handler } from "../../server.js";
-import { sendError } from "../../server.js";
+import { requireActor, sendError } from "../../server.js";
 import {
   openStored, removeStored, resolveStored, storeUpload, storedExists,
 } from "./attachments.js";
@@ -80,7 +80,7 @@ export function registerAttachmentRoutes(handlers: Map<string, Handler>): void {
       );
     }
 
-    const allowed = can(request.actor!, "idea:edit", {
+    const allowed = can(requireActor(request), "idea:edit", {
       ideaId: idea.id,
       submitterId: idea.submitterId,
       status: idea.status as IdeaStatus,
@@ -129,7 +129,7 @@ export function registerAttachmentRoutes(handlers: Map<string, Handler>): void {
         mime: stored.file.mime,
         bytes: stored.file.bytes,
         storageKey: stored.file.storageKey,
-        uploadedById: request.actor!.userId,
+        uploadedById: requireActor(request).userId,
       },
       select: {
         id: true, filename: true, mime: true, bytes: true, createdAt: true,
@@ -154,7 +154,7 @@ export function registerAttachmentRoutes(handlers: Map<string, Handler>): void {
     if (!row) return sendError(reply, "NOT_FOUND", "No attachment with that id");
 
     const idea = row.ideaVersion.idea;
-    const allowed = can(request.actor!, "idea:read", {
+    const allowed = can(requireActor(request), "idea:read", {
       ideaId: idea.id,
       submitterId: idea.submitterId,
       status: idea.status as IdeaStatus,
@@ -201,7 +201,7 @@ export function registerAttachmentRoutes(handlers: Map<string, Handler>): void {
     const idea = row.ideaVersion.idea;
 
     // Same order as upload: see it, then is it open, then is it yours.
-    const visible = can(request.actor!, "idea:read", {
+    const visible = can(requireActor(request), "idea:read", {
       ideaId: idea.id,
       submitterId: idea.submitterId,
       status: idea.status as IdeaStatus,
@@ -216,7 +216,7 @@ export function registerAttachmentRoutes(handlers: Map<string, Handler>): void {
       );
     }
 
-    const allowed = can(request.actor!, "idea:edit", {
+    const allowed = can(requireActor(request), "idea:edit", {
       ideaId: idea.id,
       submitterId: idea.submitterId,
       status: idea.status as IdeaStatus,
@@ -272,6 +272,9 @@ function present(row: {
  */
 function safeLabel(name: string): string {
   const cleaned = name
+    // The control characters are the point of this regex, not a typo -- stripping
+    // them is the whole job of safeLabel.
+    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f]/g, "")
     .replace(/[\\/]/g, "-")
     .trim();
@@ -290,7 +293,7 @@ async function readableIdea(
 ) {
   const idea = await ctx.db.idea.findUnique({ where: { id: ideaId } });
   if (!idea) return null;
-  return can(request.actor!, "idea:read", {
+  return can(requireActor(request), "idea:read", {
     ideaId: idea.id,
     submitterId: idea.submitterId,
     status: idea.status as IdeaStatus,

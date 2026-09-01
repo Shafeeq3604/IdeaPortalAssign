@@ -48,6 +48,27 @@ export type Handler = (
   ctx: AppContext,
 ) => Promise<unknown> | unknown;
 
+/**
+ * A typed, defensive stand-in for the `request.actor!` scattered across every route
+ * module (28 occurrences, flagged against CLAUDE.md's "no non-null `!` outside tests").
+ *
+ * The assertion was never actually unsafe: `registerEndpoint` below already requires and
+ * verifies `request.actor` before a permissioned handler is called at all. What was
+ * missing is a way to say so IN THE TYPE SYSTEM, once, rather than fifty call sites each
+ * asserting a guarantee they cannot see. This still throws rather than assuming — if a
+ * handler somehow runs without an actor, that means a route was registered without the
+ * gate `registerEndpoint` provides, which is a real bug worth a loud failure, not a
+ * silent one.
+ */
+export function requireActor(request: FastifyRequest): { userId: string; roles: readonly Role[] } {
+  if (!request.actor) {
+    throw new Error(
+      "requireActor() called on a request with no authenticated actor — this route is not actually gated",
+    );
+  }
+  return request.actor;
+}
+
 export function sendError(reply: FastifyReply, code: ErrorCode, message: string): FastifyReply {
   return reply.status(HTTP_STATUS_BY_CODE[code]).send({
     code,
@@ -156,13 +177,18 @@ export function buildServer(ctx: AppContext): FastifyInstance {
    */
   void app.register((instance, _opts, done) => {
     for (const ep of ENDPOINTS) {
-      if (!handlers.has(ep.operationId)) {
+      // A single lookup, held in a variable, rather than `has()` then a second `get()`
+      // asserted past — TypeScript narrows a local the way it cannot narrow two
+      // separate Map calls against each other.
+      let handler = handlers.get(ep.operationId);
+      if (!handler) {
         // Endpoints whose phase has not landed answer 501 rather than 404, so a missing
         // feature is never a broken link.
-        handlers.set(ep.operationId, notImplementedYet(ep));
+        handler = notImplementedYet(ep);
+        handlers.set(ep.operationId, handler);
         stubbed.push(ep.operationId);
       }
-      registerEndpoint(instance, ep, handlers.get(ep.operationId)!, ctx);
+      registerEndpoint(instance, ep, handler, ctx);
     }
     done();
   });

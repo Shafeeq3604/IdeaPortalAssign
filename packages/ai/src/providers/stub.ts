@@ -22,8 +22,15 @@ function seedFrom(text: string): number {
   return Math.abs(h);
 }
 
-const pick = <T>(items: readonly T[], seed: number, salt: number): T =>
-  items[(seed + salt) % items.length]!;
+function pick<T>(items: readonly T[], seed: number, salt: number): T {
+  const item = items[(seed + salt) % items.length];
+  // The index is always in range for a non-empty array; every call site here passes one
+  // of the fixed BANDS/VALUE_DIMENSIONS-style consts. A thrown error names the actual
+  // mistake (an empty list reached `pick`) rather than a `!` that would silently hand
+  // back `undefined` typed as `T` and fail somewhere else, confusingly, downstream.
+  if (item === undefined) throw new Error("pick() called with an empty items array");
+  return item;
+}
 
 /**
  * The FULL band range, not a comfortable middle three.
