@@ -1,5 +1,5 @@
 import { recomputeRankings } from "@iep/evaluation";
-import { ExplanationItem } from "@iep/contracts";
+import { ExplanationItem, matchRouteId } from "@iep/contracts";
 import type { IdeaStatus } from "@iep/contracts";
 import type { Handler } from "../../server.js";
 import { requireActor, sendError } from "../../server.js";
@@ -373,6 +373,12 @@ export function registerRankingRoutes(handlers: Map<string, Handler>): void {
     const scope = q.departmentId ? { departmentId: q.departmentId } : {};
     const dept = q.departmentId ? `&departmentId=${q.departmentId}` : "";
 
+    // Read from the nav map rather than a second hardcoded role list, so this cannot
+    // drift from the review queue route's own declared access.
+    const reviewRoles = matchRouteId("/review")?.roles ?? [];
+    const actorRoles = requireActor(request).roles;
+    const canReview = reviewRoles.length === 0 || reviewRoles.some((r) => actorRoles.includes(r));
+
     const latest = await ctx.db.rankingRun.findFirst({
       orderBy: { computedAt: "desc" }, select: { id: true },
     });
@@ -427,7 +433,21 @@ export function registerRankingRoutes(handlers: Map<string, Handler>): void {
       { key: "pilot", label: "Pilot projects", count: pilots, href: `/ideas?status=PILOT${dept}` },
       { key: "implemented", label: "Implemented ideas", count: implemented, href: `/ideas?status=IMPLEMENTED${dept}` },
       { key: "parked", label: "Parked ideas", count: parked, href: `/ideas?status=PARKED${dept}` },
-      { key: "requiring_review", label: "Ideas requiring review", count: requiringReview, href: "/review" },
+      {
+        key: "requiring_review", label: "Ideas requiring review", count: requiringReview,
+        /*
+         * The dashboard is MANAGEMENT/ADMIN's; the review queue is REVIEWER/ADMIN's. A
+         * Manager with no REVIEWER role was being handed a tile whose href they could
+         * not open, landing on "Not available for your role" as their first click.
+         * "The href is part of the contract, not a client convention" cuts both ways —
+         * fixed here, not by hiding the link client-side, so it stays true everywhere
+         * this tile is rendered. Same underlying set of ideas either way, so the count
+         * still agrees with the destination for every role that sees this tile.
+         */
+        href: canReview
+          ? "/review"
+          : `/ideas?status=EVALUATED&status=RANKED&status=UNDER_REVIEW&status=NEEDS_CLARIFICATION${dept}`,
+      },
     ];
 
     return { tiles, generatedAt: new Date().toISOString() };

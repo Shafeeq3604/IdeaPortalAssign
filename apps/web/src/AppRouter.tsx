@@ -42,6 +42,10 @@ import { canSee, useSession } from "./app/use-session";
  * permission boundary, and answering "not found" there is a small lie that sends someone
  * hunting for a page which does exist. Both carry a way out (SPEC §6.3 assertion 3).
  */
+/** "REVIEWER" → "Reviewer" — the same humanising the role checklist and badges use
+ *  (AppShell.tsx, UserForms.tsx). This screen was printing the raw enum instead. */
+const roleLabel = (role: Role): string => role.charAt(0) + role.slice(1).toLowerCase();
+
 function Unreachable({ roles }: { roles: readonly Role[] }) {
   const { pathname } = useLocation();
   const known = matchRouteId(pathname);
@@ -51,8 +55,8 @@ function Unreachable({ roles }: { roles: readonly Role[] }) {
       <main className="page">
         <h1>Not available for your role</h1>
         <p className="muted">
-          {known.title} is restricted to {known.roles.join(", ")}. You have{" "}
-          {roles.join(", ") || "no roles"}.
+          {known.title} is restricted to {known.roles.map(roleLabel).join(", ")}. You
+          have {roles.length > 0 ? roles.map(roleLabel).join(", ") : "no roles"}.
         </p>
         <Link to="/ideas">Back to ideas</Link>
       </main>

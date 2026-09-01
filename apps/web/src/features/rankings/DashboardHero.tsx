@@ -1,8 +1,9 @@
 import type * as React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, ListChecks, TrendingDown, TrendingUp, Trophy } from "lucide-react";
+import { matchRouteId } from "@iep/contracts";
 import type { DashboardResponse, ExplanationItem, ListRankingsResponse } from "@iep/contracts";
-import { useSession } from "../../app/use-session";
+import { canSee, useSession } from "../../app/use-session";
 
 /**
  * The dashboard hero (Idea Platform Redesign — "hero").
@@ -47,6 +48,15 @@ export function DashboardHero({
 }) {
   const session = useSession();
   const firstName = (session.data?.user.displayName ?? "").split(/\s+/)[0] ?? "";
+
+  /*
+   * The dashboard is MANAGEMENT/ADMIN's; the review queue is REVIEWER/ADMIN's — the two
+   * overlap only at ADMIN. A Manager was shown "Review N ideas" pointing at a page they
+   * cannot open, landing on "Not available for your role" as their first click on their
+   * own home screen. Read from the nav map rather than a second hardcoded role list, so
+   * this cannot drift from the route's own declared access the way two copies would.
+   */
+  const canReview = canSee(session.data?.user.roles ?? [], matchRouteId("/review")?.roles ?? []);
 
   const toReview = count(data, "requiring_review");
   const evaluating = count(data, "under_evaluation");
@@ -100,7 +110,7 @@ export function DashboardHero({
           ) : null}
 
           <div className="mt-5 flex flex-wrap gap-2.5">
-            {toReview > 0 ? (
+            {toReview > 0 && canReview ? (
               <Link
                 to="/review"
                 className="inline-flex h-9 items-center gap-2 rounded-full bg-grad-highlight px-4 text-100 font-bold text-grad-from no-underline shadow-e2 transition-transform duration-[var(--dur-fast)] hover:-translate-y-px"
