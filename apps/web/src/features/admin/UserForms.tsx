@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { LayoutDashboard, ListChecks, Settings, User } from "lucide-react";
 import {
   Badge, Button, Card, CardContent, Checkbox, Dialog, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle, Input, Label, Select, SelectContent, SelectItem,
@@ -34,6 +35,31 @@ const ROLE_HELP: Record<Role, string> = {
 };
 
 const ROLES = Role.options;
+
+/**
+ * A role's own colour, borrowed from the ONE place it already has one.
+ *
+ * AppShell tints each nav destination — Reviews, Dashboard, My ideas — and this page is
+ * where the same four words decide who can see them. Reusing those exact pairs means a
+ * reviewer's badge here and the "Reviews" icon in the sidebar are the same colour for the
+ * same reason, rather than two people having independently picked "orange" and "amber".
+ * ADMIN keeps the solid `default` badge rather than Administration's muted nav tone — the
+ * sidebar deliberately underplays that link, but a role list is exactly where the highest
+ * privilege SHOULD stand out.
+ */
+const ROLE_ICON: Record<Role, React.ComponentType<{ className?: string }>> = {
+  EMPLOYEE: User,
+  REVIEWER: ListChecks,
+  MANAGEMENT: LayoutDashboard,
+  ADMIN: Settings,
+};
+
+const ROLE_TONE: Record<Role, string> = {
+  EMPLOYEE: "bg-ramp-1 text-accent-700",
+  REVIEWER: "bg-state-warn-bg text-state-warn",
+  MANAGEMENT: "bg-accent text-accent-foreground",
+  ADMIN: "",
+};
 
 /** Both forms post to the same two endpoints; both invalidate the same list. */
 function useUsersInvalidation() {
@@ -437,11 +463,19 @@ function EditUserForm({ user, onClose }: { user: AdminUser; onClose: () => void 
 export function RoleBadges({ roles }: { roles: readonly Role[] }) {
   return (
     <span className="flex flex-wrap gap-1">
-      {roles.map((role) => (
-        <Badge key={role} variant={role === "ADMIN" ? "default" : "secondary"}>
-          {role.charAt(0) + role.slice(1).toLowerCase()}
-        </Badge>
-      ))}
+      {roles.map((role) => {
+        const Icon = ROLE_ICON[role];
+        return (
+          <Badge
+            key={role}
+            variant={role === "ADMIN" ? "default" : "secondary"}
+            className={ROLE_TONE[role]}
+          >
+            <Icon aria-hidden className="size-3" />
+            {role.charAt(0) + role.slice(1).toLowerCase()}
+          </Badge>
+        );
+      })}
     </span>
   );
 }
@@ -449,16 +483,31 @@ export function RoleBadges({ roles }: { roles: readonly Role[] }) {
 /** A short, honest explanation of what the roles mean, for the page itself. */
 export function RoleLegend() {
   return (
-    <Card className="mt-6">
-      <CardContent className="grid gap-3 p-5 sm:grid-cols-2">
-        {ROLES.map((role) => (
-          <p key={role} className="text-200">
-            <span className="font-medium">
-              {role.charAt(0) + role.slice(1).toLowerCase()}
-            </span>{" "}
-            <span className="text-muted-foreground">{ROLE_HELP[role]}</span>
-          </p>
-        ))}
+    // A softer, sunken panel rather than another white card — this is reference
+    // material sitting below the table, not another row of data to scan.
+    <Card className="mt-6 border-border/80 bg-muted py-0 shadow-none">
+      <CardContent className="grid gap-4 p-5 sm:grid-cols-2">
+        {ROLES.map((role) => {
+          const Icon = ROLE_ICON[role];
+          return (
+            <div key={role} className="flex items-start gap-3">
+              <span
+                aria-hidden
+                className={`grid size-8 shrink-0 place-items-center rounded-lg ${
+                  role === "ADMIN" ? "bg-accent text-accent-foreground" : ROLE_TONE[role]
+                }`}
+              >
+                <Icon className="size-4" />
+              </span>
+              <p className="text-200">
+                <span className="font-medium">
+                  {role.charAt(0) + role.slice(1).toLowerCase()}
+                </span>{" "}
+                <span className="text-muted-foreground">{ROLE_HELP[role]}</span>
+              </p>
+            </div>
+          );
+        })}
       </CardContent>
     </Card>
   );

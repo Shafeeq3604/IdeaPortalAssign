@@ -1,5 +1,8 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
+import {
+  CheckCircle2, Flag, FlaskConical, Hourglass, Layers, ParkingSquare, Rocket, Sparkles, Trophy,
+} from "lucide-react";
 import { Button, Card, CardContent, ErrorState, Input, Label, Skeleton } from "@iep/ui";
 import type { DashboardResponse, ListRankingsResponse } from "@iep/contracts";
 import { useDashboard, useProfiles, useRankings, useRecompute } from "./api";
@@ -124,13 +127,14 @@ function Tiles() {
 const PIPELINE: readonly {
   key: string;
   eyebrow: string;
+  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   surface: string;
   ink: string;
   rule: string;
 }[] = [
-  { key: "total", eyebrow: "Total", surface: "bg-accent-050 ring-1 ring-inset ring-ramp-2",
+  { key: "total", eyebrow: "Total", icon: Layers, surface: "bg-accent-050 ring-1 ring-inset ring-ramp-2",
     ink: "text-accent-foreground", rule: "bg-gradient-to-r from-ramp-3 to-ramp-5" },
-  { key: "new", eyebrow: "New", surface: "bg-state-info-bg ring-1 ring-inset ring-state-info/25",
+  { key: "new", eyebrow: "New", icon: Sparkles, surface: "bg-state-info-bg ring-1 ring-inset ring-state-info/25",
     ink: "text-state-info", rule: "bg-state-info" },
   /*
    * NOT the `ai-*` palette, though the canvas paints this tile violet.
@@ -139,13 +143,14 @@ const PIPELINE: readonly {
    * so the treatment means exactly one thing: this content came out of a model. A count of
    * the ideas the pipeline is working on is not model output — it is a number the database
    * computed. Borrowing the palette for "a model is busy" is the first step in it meaning
-   * nothing. The pulsing bar below is what carries "in progress".
+   * nothing. The pulsing bar below is what carries "in progress". Hourglass rather than a
+   * spinner glyph for the same reason a static shape does not.
    */
-  { key: "under_evaluation", eyebrow: "Evaluating", surface: "bg-accent-100 ring-1 ring-inset ring-ramp-3",
+  { key: "under_evaluation", eyebrow: "Evaluating", icon: Hourglass, surface: "bg-accent-100 ring-1 ring-inset ring-ramp-3",
     ink: "text-accent-700", rule: "bg-ramp-4" },
-  { key: "requiring_review", eyebrow: "Needs you", surface: "bg-state-warn-bg ring-1 ring-inset ring-state-warn/25",
+  { key: "requiring_review", eyebrow: "Needs you", icon: Flag, surface: "bg-state-warn-bg ring-1 ring-inset ring-state-warn/25",
     ink: "text-state-warn", rule: "bg-state-warn" },
-  { key: "top_ranked", eyebrow: "Top ranked", surface: "board-crown text-grad-ink shadow-e3",
+  { key: "top_ranked", eyebrow: "Top ranked", icon: Trophy, surface: "board-crown text-grad-ink shadow-e3",
     ink: "text-grad-highlight", rule: "bg-grad-highlight" },
 ];
 
@@ -189,10 +194,11 @@ function PipelineTiles({
 
               <span
                 aria-hidden
-                className={`mt-1.5 block text-100 font-bold uppercase tracking-[0.1em] ${
+                className={`mt-1.5 flex items-center gap-1.5 text-100 font-bold uppercase tracking-[0.1em] ${
                   live ? stage.ink : "text-muted-foreground"
                 }`}
               >
+                <stage.icon aria-hidden className="size-3.5 shrink-0" />
                 {stage.eyebrow}
               </span>
 
@@ -312,11 +318,15 @@ const initials = (name: string): string =>
  * What happens after a decision (Idea Platform Redesign — "outcomes journey")
  * ══════════════════════════════════════════════════════════════════ */
 
-const OUTCOMES: readonly { key: string; label: string }[] = [
-  { key: "prototype", label: "Prototype" },
-  { key: "pilot", label: "Pilot" },
-  { key: "implemented", label: "Implemented" },
-  { key: "parked", label: "Parked" },
+const OUTCOMES: readonly {
+  key: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+}[] = [
+  { key: "prototype", label: "Prototype", icon: FlaskConical },
+  { key: "pilot", label: "Pilot", icon: Rocket },
+  { key: "implemented", label: "Implemented", icon: CheckCircle2 },
+  { key: "parked", label: "Parked", icon: ParkingSquare },
 ];
 
 /**
@@ -369,8 +379,13 @@ function OutcomeTrack({ tiles }: { tiles: DashboardResponse["tiles"] }) {
                 {tile.count}
               </span>
               {/* The API's label carries the meaning; the short form is what fits under a
-                  circle. Both are in the accessible name. */}
-              <span className="text-100 font-semibold">{stage.label}</span>
+                  circle. Both are in the accessible name. The icon is pure decoration —
+                  the stage's own shape, not a status, which is why it stays muted like
+                  everything else on a track nothing has reached yet. */}
+              <span className="flex items-center gap-1.5 text-100 font-semibold">
+                <stage.icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+                {stage.label}
+              </span>
               <span className="sr-only">{tile.label}</span>
             </Link>
           );

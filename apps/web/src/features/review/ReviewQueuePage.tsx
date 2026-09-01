@@ -1,10 +1,34 @@
 import { Link, useSearchParams } from "react-router-dom";
+import { ArrowRight, Flag, ListChecks } from "lucide-react";
 import {
-  Badge, Button, Card, CardContent, EmptyState, ErrorState, Skeleton, Table, TableBody,
-  TableCell, TableHead, TableHeader, TableRow,
+  Badge, Button, Card, CardContent, EmptyState, ErrorState, Skeleton, StatusPill, Table,
+  TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@iep/ui";
 import { STATUS_LABEL } from "../ideas/api";
 import { useReviewQueue } from "./api";
+
+/*
+ * A clean, structured table rather than floating row-cards.
+ *
+ * The row-card treatment (matching /rankings) put six pieces of information per idea into
+ * a layout with no fixed columns, and on this screen — where a reviewer scans rank,
+ * submitter, AI status and score across many rows at once — that reads as clutter rather
+ * than rhythm. A table's aligned columns are the right tool for that comparison; the
+ * ranked board and the idea list stay cards because browsing one idea at a time is a
+ * different task from scanning a queue. Every colour below is still a design token
+ * (`bg-card`, `bg-muted`, `bg-accent-050`, `bg-state-warn-bg` …) — none of it is a raw
+ * Tailwind palette class, so the table stays correct in dark mode and inside
+ * `pnpm lint:tokens`.
+ */
+const HEAD = "text-100 font-semibold uppercase tracking-wider text-muted-foreground";
+
+const initials = (name: string): string =>
+  name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0] ?? "")
+    .join("")
+    .toUpperCase();
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -38,7 +62,15 @@ export function ReviewQueuePage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  Review queue
       </nav>
-      <h1>Review queue</h1>
+      <h1 className="flex items-center gap-3">
+        <span
+          aria-hidden
+          className="grid size-9 shrink-0 place-items-center rounded-lg bg-state-warn-bg text-state-warn"
+        >
+          <ListChecks className="size-4.5" />
+        </span>
+        Review queue
+      </h1>
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-96 w-full" aria-busy="true" />
@@ -60,9 +92,12 @@ export function ReviewQueuePage() {
       ) : (
         <>
           <div className="mb-4 flex flex-wrap items-center gap-3">
-            <p className="text-200 text-muted-foreground">
+            {/* Same tone as the dashboard's "Needs you" tile — this queue is what that
+                tile counts, so the two read as one fact rather than two coincidences. */}
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-state-warn-bg px-3 py-1 text-100 font-bold text-state-warn">
+              <Flag aria-hidden className="size-3.5" />
               {query.data.meta.total} waiting
-            </p>
+            </span>
             {/*
               Buttons, not links. These change how the list is ORDERED — they do not
               navigate anywhere new — and rendering them as inline links put two
@@ -73,53 +108,108 @@ export function ReviewQueuePage() {
               <Button
                 key={option}
                 size="sm"
-                variant={sort === option ? "default" : "outline"}
+                variant="ghost"
                 aria-pressed={sort === option}
                 onClick={() => setParam("sort", option)}
+                className={
+                  sort === option
+                    ? "brand-pill rounded-full font-semibold text-grad-ink hover:text-grad-ink"
+                    : "rounded-full font-medium text-muted-foreground"
+                }
               >
                 {option === "oldest" ? "Longest waiting" : option === "recent" ? "Newest" : "By rank"}
               </Button>
             ))}
           </div>
 
-          <Card>
+          {/* `overflow-hidden` on the card itself, not just the scroll wrapper inside it —
+              otherwise the header row's square corners poke past the card's rounded ones. */}
+          <Card className="overflow-hidden py-0">
             <CardContent className="p-0">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Idea</TableHead>
-                    <TableHead>Submitter</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Score</TableHead>
-                    <TableHead className="text-right">Rank</TableHead>
-                    <TableHead className="text-right">Waiting</TableHead>
+                <TableHeader className="bg-muted">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className={HEAD}>Rank</TableHead>
+                    <TableHead className={HEAD}>Idea title</TableHead>
+                    <TableHead className={HEAD}>Submitter</TableHead>
+                    <TableHead className={HEAD}>AI status</TableHead>
+                    <TableHead className={`${HEAD} text-right`}>Score</TableHead>
+                    {/* Not in the requested column list, but SPEC §9.8 / J-2 is explicit
+                        that the wait is a column a reviewer reads, not something they
+                        compute — dropping it would lose real information, not just style. */}
+                    <TableHead className={`${HEAD} text-right`}>Waiting</TableHead>
+                    <TableHead className={`${HEAD} text-right`}>
+                      <span className="sr-only">Action</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {query.data.items.map((item) => (
                     <TableRow key={item.ideaId}>
                       <TableCell>
+                        <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-100 font-bold text-foreground">
+                          {item.rank === null ? "—" : `#${item.rank}`}
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-normal">
                         {/* The title is the link: a row that is only clickable in one
                             invisible spot fails the clickability contract (§6.2). */}
-                        <Link to={`/ideas/${item.ideaId}/review`}>{item.title}</Link>
-                        {item.hasUnvalidatedAi ? (
-                          <Badge variant="outline" className="ml-2">
-                            AI not yet checked
-                          </Badge>
-                        ) : null}
+                        <Link to={`/ideas/${item.ideaId}/review`} className="font-medium">
+                          {item.title}
+                        </Link>
+                        <span className="mt-0.5 block text-100 text-muted-foreground">
+                          <StatusPill kind="LIFECYCLE" status={item.status} label={STATUS_LABEL[item.status]} />
+                        </span>
                       </TableCell>
                       <TableCell>
-                        <Link to={`/people/${item.submitter.id}`}>{item.submitter.displayName}</Link>
+                        <Link
+                          to={`/people/${item.submitter.id}`}
+                          className="inline-flex items-center gap-2 no-underline"
+                        >
+                          <span
+                            aria-hidden
+                            className="grid size-6 shrink-0 place-items-center rounded-full bg-accent text-100 font-extrabold text-accent-foreground"
+                          >
+                            {initials(item.submitter.displayName)}
+                          </span>
+                          {item.submitter.displayName}
+                        </Link>
                       </TableCell>
-                      <TableCell>{STATUS_LABEL[item.status]}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {item.compositeScore === null ? "—" : item.compositeScore.toFixed(1)}
+                      <TableCell>
+                        {/*
+                          Muted on purpose — the goal is a quiet secondary label, not a
+                          warning. `state-warn` already means "waiting on a person"
+                          elsewhere in the product (the dashboard's "Needs you" tile); an
+                          idea with unchecked AI content is not that, so it gets the
+                          neutral tint instead.
+                        */}
+                        {item.hasUnvalidatedAi ? (
+                          <Badge
+                            variant="outline"
+                            className="border-border/60 bg-muted font-medium text-muted-foreground"
+                          >
+                            AI not yet checked
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {item.rank === null ? "—" : `#${item.rank}`}
+                      <TableCell className="text-right">
+                        <span className="inline-flex items-center rounded-lg border border-accent-100 bg-accent-050 px-3 py-1 text-200 font-bold tabular-nums text-accent-700">
+                          {item.compositeScore === null ? "—" : item.compositeScore.toFixed(1)}
+                        </span>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="text-right text-muted-foreground tabular-nums">
                         {item.waitingDays === 0 ? "today" : `${item.waitingDays}d`}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Link
+                          to={`/ideas/${item.ideaId}/review`}
+                          aria-label={`Open review for ${item.title}`}
+                          className="inline-flex rounded-md p-1.5 text-muted-foreground no-underline transition-colors duration-[var(--dur-fast)] hover:bg-muted hover:text-foreground"
+                        >
+                          <ArrowRight aria-hidden className="size-4" />
+                        </Link>
                       </TableCell>
                     </TableRow>
                   ))}

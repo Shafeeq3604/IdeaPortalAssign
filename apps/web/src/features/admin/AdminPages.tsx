@@ -1,6 +1,7 @@
 import * as React from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { MoreHorizontal, ScrollText, Users } from "lucide-react";
 import {
   Badge, Button, Card, CardContent, EmptyState, ErrorState, Skeleton, Table, TableBody,
   TableCell, TableHead, TableHeader, TableRow,
@@ -14,6 +15,18 @@ const link = ({ to, children, className }: { to: string; children: React.ReactNo
   <Link to={to} className={className}>{children}</Link>
 );
 
+/** Header-row treatment shared by every table on this page — a token-safe stand-in for
+ *  the "slate-50 / uppercase / tracking-wider" header look. */
+const HEAD = "text-100 font-semibold uppercase tracking-wider text-muted-foreground";
+
+const initials = (name: string): string =>
+  name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0] ?? "")
+    .join("")
+    .toUpperCase();
+
 /**
  * Admin read surfaces (P9 — FR-29).
  *
@@ -21,6 +34,46 @@ const link = ({ to, children, className }: { to: string; children: React.ReactNo
  * is answered, and every row links to its subject — a log you cannot navigate out of is
  * a log nobody uses.
  */
+
+/**
+ * The two ADMIN_ONLY destinations, cross-linked to each other.
+ *
+ * REQUIREMENTS §20 is explicit — "keep the main navigation small… do not put every
+ * feature in the main navigation" — so Audit log does not get its own sidebar entry.
+ * What it needs instead is a way OUT of the one admin entry the sidebar does have:
+ * before this, reaching it required already knowing `/admin/audit`. This is the
+ * "Administration" hub the sidebar's single link was always meant to open onto.
+ */
+const ADMIN_PAGES = [
+  { to: "/admin/users", label: "People & access", icon: Users },
+  { to: "/admin/audit", label: "Audit log", icon: ScrollText },
+] as const;
+
+function AdminSubNav() {
+  const { pathname } = useLocation();
+  return (
+    <nav aria-label="Administration" className="mb-6 flex flex-wrap gap-2">
+      {ADMIN_PAGES.map((page) => {
+        const active = pathname === page.to;
+        return (
+          <Link
+            key={page.to}
+            to={page.to}
+            aria-current={active ? "page" : undefined}
+            className={
+              active
+                ? "brand-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-100 font-semibold text-grad-ink no-underline"
+                : "inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 text-100 font-medium text-muted-foreground no-underline ring-1 ring-inset ring-border transition-colors duration-[var(--dur-fast)] hover:text-foreground"
+            }
+          >
+            <page.icon aria-hidden className="size-3.5" />
+            {page.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
 
 const ACTION_LABEL: Record<string, string> = {
   "idea.transition": "Status changed",
@@ -49,6 +102,7 @@ export function AuditPage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  Audit log
       </nav>
+      <AdminSubNav />
       <h1>Audit log</h1>
       <p className="muted">
         Append-only. Every decision a person made, in the same transaction as the change
@@ -178,12 +232,22 @@ export function UsersPage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  People &amp; access
       </nav>
+      <AdminSubNav />
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1>People &amp; access</h1>
+          <h1 className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"
+            >
+              <Users className="size-4.5" />
+            </span>
+            People &amp; access
+          </h1>
           <p className="muted">
-            Who can sign in, and what each of them can do.
+            Every person who can reach this platform, and exactly what you have trusted
+            them to do inside it.
           </p>
         </div>
         <AddUserDialog />
@@ -200,16 +264,19 @@ export function UsersPage() {
           renderLink={link}
         />
       ) : (
-        <Card className="mt-6">
+        // `overflow-hidden` on the CARD, not just the scroll wrapper inside it: without
+        // it the header row's square `bg-muted` corners sit flush against the card's
+        // rounded ones and poke past the curve — the "gap" the corners had before.
+        <Card className="mt-6 overflow-hidden py-0">
           <CardContent className="overflow-x-auto p-0">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Roles</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead className="text-right">Ideas</TableHead>
-                  <TableHead className="text-right">
+              <TableHeader className="bg-muted">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className={HEAD}>Name &amp; email</TableHead>
+                  <TableHead className={HEAD}>Roles</TableHead>
+                  <TableHead className={HEAD}>Department</TableHead>
+                  <TableHead className={`${HEAD} text-right`}>Submitted ideas</TableHead>
+                  <TableHead className={`${HEAD} text-right`}>
                     <span className="sr-only">Actions</span>
                   </TableHead>
                 </TableRow>
@@ -218,11 +285,25 @@ export function UsersPage() {
                 {query.data.items.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
-                      <Link to={`/people/${user.id}`}>{user.displayName}</Link>
-                      {!user.isActive ? (
-                        <Badge variant="outline" className="ml-2">Inactive</Badge>
-                      ) : null}
-                      <span className="block text-100 text-muted-foreground">{user.email}</span>
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          aria-hidden
+                          className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-100 font-extrabold text-accent-foreground"
+                        >
+                          {initials(user.displayName)}
+                        </span>
+                        <div className="min-w-0">
+                          <span>
+                            <Link to={`/people/${user.id}`} className="font-semibold">
+                              {user.displayName}
+                            </Link>
+                            {!user.isActive ? (
+                              <Badge variant="outline" className="ml-2 align-middle">Inactive</Badge>
+                            ) : null}
+                          </span>
+                          <span className="block text-100 text-muted-foreground">{user.email}</span>
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell><RoleBadges roles={user.roles} /></TableCell>
                     <TableCell>
@@ -232,15 +313,25 @@ export function UsersPage() {
                         <span className="text-muted-foreground">Not set</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{user.ideaCount}</TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">
+                      {user.ideaCount}
+                    </TableCell>
                     <TableCell className="text-right">
+                      {/*
+                        An icon trigger rather than a repeated "Manage" button down the
+                        column — the label was the same word eight times, which is the
+                        exact repetition an icon-only control is for. It still opens the
+                        same dialog and still needs a real accessible name: an icon with
+                        no name is a button a screen reader announces as nothing.
+                      */}
                       <Button
-                        variant="outline"
-                        size="sm"
+                        variant="ghost"
+                        size="icon-sm"
                         onClick={() => setEditing(user)}
+                        aria-label={`Manage ${user.displayName}`}
+                        className="rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                       >
-                        Manage
-                        <span className="sr-only"> {user.displayName}</span>
+                        <MoreHorizontal aria-hidden className="size-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
