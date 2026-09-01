@@ -14,10 +14,10 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "migrate": "prisma migrate dev",
+    "migrate": "node --env-file-if-exists=../../.env ./node_modules/prisma/build/index.js migrate dev",
     "seed": "tsx --env-file-if-exists=../../.env prisma/seed.ts",
     "generate": "prisma generate",
-    "db:reset": "prisma db push --force-reset --skip-generate && pnpm seed",
+    "db:reset": "node --env-file-if-exists=../../.env ./node_modules/prisma/build/index.js db push --force-reset --skip-generate && pnpm seed",
     "postinstall": "prisma generate"
   },
   "dependencies": {
