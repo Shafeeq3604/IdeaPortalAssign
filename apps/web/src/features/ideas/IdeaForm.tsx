@@ -80,7 +80,11 @@ const OPTIONAL_FIELDS: readonly Field[] = [
   { name: "suggestedTechnology", label: "Suggested approach", help: "Only if you have one in mind.", long: true },
   { name: "expectedBenefits", label: "Expected benefits", help: "Time saved, cost avoided, fewer errors.", long: true },
   { name: "estimatedCostNote", label: "Cost thoughts", help: "Any sense of what it might take.", long: true },
-  { name: "references", label: "References", help: "Links or documents that support this.", long: true },
+  // No "references" input: a free-text field for "links or documents" sat right next to
+  // real file Attachments and just duplicated it in a more confusing form. The `references`
+  // column and its contract field are untouched — an idea submitted before this change
+  // still shows whatever it has (OverviewTab.tsx, VersionPage.tsx); nothing new can be
+  // written to it from here.
 ];
 
 interface Props {
