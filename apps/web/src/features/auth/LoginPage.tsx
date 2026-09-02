@@ -61,7 +61,11 @@ export function LoginPage() {
     onSuccess: (session) => {
       // Seed the cache so the shell renders without a second round trip.
       queryClient.setQueryData(queryKeys.session(), session);
-      navigate("/", { replace: true });
+      // Dashboard is MANAGEMENT/ADMIN-only (navigation.map.ts's LEADERSHIP roles) — anyone
+      // else lands there on a role-gated redirect, so this only sends people who can
+      // actually see it; everyone else keeps landing on the ideas list as before.
+      const isLeadership = session.user.roles.some((r) => r === "MANAGEMENT" || r === "ADMIN");
+      navigate(isLeadership ? "/dashboard" : "/", { replace: true });
     },
   });
 

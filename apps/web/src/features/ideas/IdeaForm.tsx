@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -89,10 +90,12 @@ interface Props {
   readonly onSubmit: (values: IdeaFormValues, asDraft: boolean) => Promise<void>;
   readonly serverError?: unknown;
   readonly busy?: boolean;
+  /** Rendered after the optional fields (References is last) and before the AI notice. */
+  readonly extra?: ReactNode;
 }
 
 export function IdeaForm({
-  defaultValues, requireChangeSummary = false, submitLabel, onSubmit, serverError, busy,
+  defaultValues, requireChangeSummary = false, submitLabel, onSubmit, serverError, busy, extra,
 }: Props) {
   const schema = requireChangeSummary
     ? IdeaFormSchema.extend({
@@ -207,6 +210,8 @@ export function IdeaForm({
         </div>
         {OPTIONAL_FIELDS.map(renderField)}
       </section>
+
+      {extra}
 
       {serverError instanceof ApiError && !isFieldLevelError(serverError.body) ? (
         <p role="alert" className="text-200 text-destructive">{serverError.body.message}</p>

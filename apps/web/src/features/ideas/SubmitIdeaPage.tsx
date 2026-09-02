@@ -139,84 +139,88 @@ export function SubmitIdeaPage() {
         platform structures it for you, and a person makes every decision.
       </p>
 
-      {/*
-        Attach up front, not after: files are staged here as plain File objects and only
-        uploaded once the idea exists (an attachment cannot be created without a version to
-        belong to — SPEC §4.3), immediately after creation and before either "save as
-        draft" or "submit for analysis" completes. From here it looks like one step.
-      */}
-      <div className="mb-8 rounded-xl border border-border p-4">
-        <p className="flex items-center gap-2 font-medium">
-          <Paperclip aria-hidden className="size-4.5 text-muted-foreground" />
-          Attachments (optional)
-        </p>
-        <p className="mt-1 text-200 text-muted-foreground">
-          Have a document that explains it better? Add it here — it goes in with the idea
-          the moment you save or submit below.
-        </p>
-
-        {files.length > 0 ? (
-          <ul className="mt-3 divide-y divide-border">
-            {files.map((file, i) => (
-              <li key={`${file.name}-${i}`} className="flex items-center gap-3 py-2 first:pt-0">
-                <FileText aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{file.name}</span>
-                  <span className="text-100 text-muted-foreground">{formatBytes(file.size)}</span>
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
-                >
-                  <Trash2 aria-hidden className="size-4" />
-                  <span className="sr-only">Remove {file.name}</span>
-                </Button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept={ACCEPT}
-          aria-label="Choose files to attach"
-          className="sr-only"
-          onChange={(event) => {
-            addFiles(event.target.files);
-            // Cleared so choosing the same file twice fires change again.
-            event.target.value = "";
-          }}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          className="mt-3"
-          disabled={files.length >= MAX_ATTACHMENTS_PER_VERSION}
-          onClick={() => inputRef.current?.click()}
-        >
-          <Upload aria-hidden className="size-4" />
-          Add a file
-        </Button>
-        <p className="mt-2 text-100 text-muted-foreground">
-          {TYPE_NAMES}, up to {MAX_ATTACHMENT_BYTES / (1024 * 1024)} MB each,{" "}
-          {MAX_ATTACHMENTS_PER_VERSION} at most.
-        </p>
-        {fileProblem ? (
-          <p role="alert" className="mt-2 text-200 text-destructive">
-            {fileProblem}
-          </p>
-        ) : null}
-      </div>
-
       <IdeaForm
         submitLabel="Submit for analysis"
         onSubmit={submit}
         serverError={create.error}
         busy={create.isPending || attaching}
+        extra={
+          /*
+            Attach up front, not after: files are staged here as plain File objects and
+            only uploaded once the idea exists (an attachment cannot be created without a
+            version to belong to — SPEC §4.3), immediately after creation and before either
+            "save as draft" or "submit for analysis" completes. From here it looks like one
+            step. Placed after the optional fields (References last) — attachments are
+            themselves optional supporting material, so they belong with the rest of it,
+            not ahead of the six required questions.
+          */
+          <div className="rounded-xl border border-border p-4">
+            <p className="flex items-center gap-2 font-medium">
+              <Paperclip aria-hidden className="size-4.5 text-muted-foreground" />
+              Attachments (optional)
+            </p>
+            <p className="mt-1 text-200 text-muted-foreground">
+              Have a document that explains it better? Add it here — it goes in with the
+              idea the moment you save or submit below.
+            </p>
+
+            {files.length > 0 ? (
+              <ul className="mt-3 divide-y divide-border">
+                {files.map((file, i) => (
+                  <li key={`${file.name}-${i}`} className="flex items-center gap-3 py-2 first:pt-0">
+                    <FileText aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{file.name}</span>
+                      <span className="text-100 text-muted-foreground">{formatBytes(file.size)}</span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                    >
+                      <Trash2 aria-hidden className="size-4" />
+                      <span className="sr-only">Remove {file.name}</span>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              accept={ACCEPT}
+              aria-label="Choose files to attach"
+              className="sr-only"
+              onChange={(event) => {
+                addFiles(event.target.files);
+                // Cleared so choosing the same file twice fires change again.
+                event.target.value = "";
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3"
+              disabled={files.length >= MAX_ATTACHMENTS_PER_VERSION}
+              onClick={() => inputRef.current?.click()}
+            >
+              <Upload aria-hidden className="size-4" />
+              Add a file
+            </Button>
+            <p className="mt-2 text-100 text-muted-foreground">
+              {TYPE_NAMES}, up to {MAX_ATTACHMENT_BYTES / (1024 * 1024)} MB each,{" "}
+              {MAX_ATTACHMENTS_PER_VERSION} at most.
+            </p>
+            {fileProblem ? (
+              <p role="alert" className="mt-2 text-200 text-destructive">
+                {fileProblem}
+              </p>
+            ) : null}
+          </div>
+        }
       />
     </main>
   );
