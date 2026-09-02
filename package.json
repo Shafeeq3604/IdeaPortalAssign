@@ -52,7 +52,8 @@
   },
   "pnpm": {
     "overrides": {
-      "typescript": "5.9.3"
+      "typescript": "5.9.3",
+      "deepmerge-ts": ">=8.0.0"
     }
   }
 }

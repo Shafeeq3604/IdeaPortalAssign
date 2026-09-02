@@ -50,10 +50,29 @@ jobs:
       ATTACHMENT_STORAGE_DIR: ./.storage
     steps:
       - uses: actions/checkout@v4
+        with:
+          # gitleaks scans full history, not just this commit — a secret leaked three
+          # commits ago is still leaked. Shallow (the default) would only see the tip.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
+
+      # Security (SPEC §11.6) — dependency vulnerabilities, static analysis, leaked
+      # secrets. All three are blocking, and all three run before anything expensive.
+      - name: Dependency vulnerabilities (production deps only)
+        run: pnpm audit --prod --audit-level=high
+
+      - name: Static analysis (Semgrep)
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: p/default
+
+      - name: Leaked secrets (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Architecture invariants first — they are cheap and they are the ones
       # that silently rot if they run last (ADR-005, ADR-021, SPEC §6.3).
