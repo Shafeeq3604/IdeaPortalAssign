@@ -156,8 +156,13 @@ test.describe("J-1 employee journey", () => {
     await expect(bar).not.toContainText("%");
 
     /* ── and the Analysis tab is reachable, not a placeholder ── */
-    // Scoped to the page: the dev nav carries an "Analysis" link for the demo idea too.
-    await page.getByRole("main").getByRole("link", { name: "Analysis" }).click();
+    // `exact: true`, not just scoped to `main`: once the stub pipeline reaches SUCCEEDED,
+    // OverviewTab renders its own "See the full analysis" link, which also matches
+    // { name: "Analysis" } by substring. Locally the pipeline was usually still RUNNING
+    // at this point, so only the tab existed and the ambiguity never surfaced; in CI the
+    // stub is fast enough that both links are on the page and Playwright's strict mode
+    // correctly refuses to guess between them.
+    await page.getByRole("main").getByRole("link", { name: "Analysis", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(String.raw`/analysis`));
     await expect(page.getByRole("group", { name: "Analysis progress" })).toBeVisible();
     // The nav map's placeholder shell must be gone for this route.
