@@ -31,7 +31,12 @@ jobs:
           --health-interval 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://iep:iep@localhost:5432/iep
+      # connection_limit is explicit here on purpose — this workflow is exactly what found
+      # the problem with leaving it at Prisma's num_cpus*2+1 default (.env.example has the
+      # full story): a 2-core runner defaults to 5 connections, 200 concurrent users queue
+      # for them, and p95 blows the 400ms budget despite the database being nowhere near
+      # its own max_connections.
+      DATABASE_URL: postgresql://iep:iep@localhost:5432/iep?connection_limit=20&pool_timeout=20
       REDIS_URL: redis://localhost:6379
       PORT: 3001
       PUBLIC_WEB_ORIGIN: http://localhost:5173

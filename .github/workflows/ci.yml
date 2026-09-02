@@ -31,7 +31,9 @@ jobs:
           --health-interval 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://iep:iep@localhost:5432/iep
+      # connection_limit explicit, not left to Prisma's num_cpus*2+1 default — see
+      # .env.example and .github/workflows/load-test.yml for why (SPEC §11.6).
+      DATABASE_URL: postgresql://iep:iep@localhost:5432/iep?connection_limit=20&pool_timeout=20
       REDIS_URL: redis://localhost:6379
       # The rest of this block is what apps/api needs to boot (packages/contracts/src/
       # env.ts's ApiEnv) for the E2E stack. None of it is a real secret — OIDC points at
