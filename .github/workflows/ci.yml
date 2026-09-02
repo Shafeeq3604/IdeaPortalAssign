@@ -4,6 +4,23 @@ on: [push, pull_request]
 jobs:
   gate:
     runs-on: ubuntu-latest
+    # `docker-compose.yml`'s own image and credentials, so a schema change that needs the
+    # pgvector extension (packages/db/prisma/schema.prisma's `embedding` columns) behaves
+    # identically here and locally — a plain `postgres` image cannot run these migrations.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: iep
+          POSTGRES_PASSWORD: iep
+          POSTGRES_DB: iep
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U iep"
+          --health-interval 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://iep:iep@localhost:5432/iep
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,14 +38,23 @@ jobs:
 
       - name: Prisma schema valid
         run: pnpm --filter @iep/db exec prisma validate
-        env:
-          DATABASE_URL: postgresql://u:p@localhost:5432/iep
 
       - name: Lint
         run: pnpm lint
 
       - name: Design tokens (no raw hex/px in feature code)
         run: pnpm lint:tokens
+
+      # `migrate deploy`, not the `db:migrate` root script — that runs `migrate dev`,
+      # which expects a TTY to confirm schema drift and has no place in CI. The idea
+      # integration suite also reads real seeded users (apps/api/src/modules/idea/
+      # idea.integration.test.ts), so the service container needs both steps, not just
+      # a live connection, before "Unit + integration" is meaningful.
+      - name: Migrate database
+        run: pnpm --filter @iep/db exec prisma migrate deploy
+
+      - name: Seed database
+        run: pnpm db:seed
 
       - name: Unit + integration
         run: pnpm test
