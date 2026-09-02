@@ -38,6 +38,11 @@ module.exports = {
         formFactor: "mobile",
         throttlingMethod: "simulate",
         screenEmulation: { mobile: true, width: 412, height: 823, deviceScaleFactor: 2.625 },
+        // GitHub's runners disable the unprivileged user namespaces Chromium's sandbox
+        // needs (Ubuntu's AppArmor policy) and Chrome refuses to launch at all without
+        // this — "No usable sandbox!". Harmless here: the runner's VM is the sandbox
+        // boundary, same reasoning Playwright's own CI docs give for E2E.
+        chromeFlags: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
       },
     },
     assert: {
