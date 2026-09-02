@@ -18,6 +18,10 @@
     "test:e2e": { "dependsOn": ["^build"], "cache": false, "env": ["CI", "E2E_BASE_URL"] },
     "lint": {},
     "eval": { "dependsOn": ["^build"], "cache": false },
+    /* Same strict-env trap as "test"/"test:bdd": get-ranked-idea-id.mjs talks to Postgres
+       directly via @iep/db, with no schema-validated fallback message if the env is
+       stripped — it would just hang or throw a raw connection error. */
+    "lighthouse": { "dependsOn": ["@iep/web#build"], "cache": false, "env": ["DATABASE_URL"] },
     "dev": { "cache": false, "persistent": true }
   }
 }

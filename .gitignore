@@ -13,6 +13,10 @@ test-results/
 tests/e2e/test-results/
 tests/e2e/playwright-report/
 
+# Lighthouse CI reports and the ranked-idea id looked up at run time (SPEC §11.6)
+tests/lighthouse/.lighthouseci/
+tests/lighthouse/.idea-id
+
 # Uploaded attachments. These are people's documents — never in the repository.
 # ATTACHMENT_STORAGE_DIR defaults to ./.storage, resolved relative to whichever process
 # started, so it lands under apps/api in dev and at the root elsewhere. Both are ignored.

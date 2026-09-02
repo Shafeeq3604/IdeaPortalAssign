@@ -1,0 +1,15 @@
+{
+  "name": "@iep/lighthouse",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lighthouse": "node --env-file-if-exists=../../.env get-ranked-idea-id.mjs && lhci autorun",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@iep/db": "workspace:*",
+    "@lhci/cli": "^0.15.1",
+    "@playwright/test": "^1.49.1"
+  }
+}

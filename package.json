@@ -21,6 +21,7 @@
     "db:migrate": "pnpm --filter @iep/db migrate",
     "db:seed": "pnpm --filter @iep/db seed",
     "eval": "turbo run eval",
+    "lighthouse": "turbo run lighthouse",
     "smoke": "node scripts/smoke.mjs",
     "deps:up": "docker compose up -d",
     "deps:down": "docker compose down",
