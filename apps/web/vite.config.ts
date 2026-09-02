@@ -1,11 +1,31 @@
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig } from "vite";
+import type { UserConfig } from "vite";
+import type { InlineConfig } from "vitest/node";
+
+/**
+ * `vitest/config`'s own `defineConfig` re-exports Vite's, merged with the `test` field —
+ * but its bundled type declarations pin an OLDER Vite than the one actually installed
+ * here (root `vitest` is 2.1.x; this app is on vite 8), so importing it drags in a
+ * second, incompatible `Plugin`/`UserConfig` and every plugin call fails to type-check
+ * against it. Plain `vite`'s `defineConfig` has no `test` overload at all. Typing the
+ * config object by hand with vite's OWN UserConfig plus vitest's `InlineConfig` — never
+ * calling vitest/config's defineConfig — sidesteps the version clash entirely rather
+ * than fighting it.
+ */
+type ConfigWithTest = UserConfig & { test?: InlineConfig };
 
 // https://vite.dev/config/
-export default defineConfig({
+const config: ConfigWithTest = {
   plugins: [react(), tailwindcss()],
+  test: {
+    // Only component tests need this — api-client.test.ts, query-keys.test.ts and
+    // use-session.test.ts are pure logic and run fine under jsdom too, so there is no
+    // need for a second, Node-only project just for them.
+    environment: "jsdom",
+    setupFiles: ["./vitest.setup.ts"],
+  },
   server: {
     proxy: {
       // Same-origin in dev, so the session cookie needs no CORS or SameSite exception —
@@ -45,4 +65,9 @@ export default defineConfig({
       "@": fileURLToPath(new URL("../../packages/ui/src", import.meta.url)),
     },
   },
-});
+};
+
+// Not passed through defineConfig(): that call is what triggers the version clash in the
+// first place (see the comment above) — it is only a type-identity helper, never
+// required for Vite to actually load a config object.
+export default config;
