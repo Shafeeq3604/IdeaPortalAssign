@@ -11,8 +11,11 @@
        actually set, which is invisible until the two happen to disagree. */
     "test": { "dependsOn": ["^build"], "env": ["DATABASE_URL"] },
     "test:watch": { "cache": false, "persistent": true },
-    "test:bdd": { "dependsOn": ["^build"] },
-    "test:e2e": { "dependsOn": ["^build"], "cache": false },
+    /* Same strict-env trap as "test" above: F-01's spec hardcodes the same local-port
+       fallback, so this looked fine locally by coincidence and would silently hit the
+       wrong port the moment CI's Postgres isn't on 5433. */
+    "test:bdd": { "dependsOn": ["^build"], "env": ["DATABASE_URL"] },
+    "test:e2e": { "dependsOn": ["^build"], "cache": false, "env": ["CI", "E2E_BASE_URL"] },
     "lint": {},
     "eval": { "cache": false },
     "dev": { "cache": false, "persistent": true }

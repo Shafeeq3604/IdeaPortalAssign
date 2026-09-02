@@ -19,8 +19,33 @@ jobs:
           --health-cmd "pg_isready -U iep"
           --health-interval 5s
           --health-retries 10
+      # Only needed from "Start API (background)" onward (BullMQ, for the E2E stack).
+      # docker-compose.yml maps this to 6380 locally to dodge a Redis a developer may
+      # already have on 6379 — a clean runner has no such conflict, so this uses the
+      # plain default port instead of carrying that workaround into CI.
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-retries 10
     env:
       DATABASE_URL: postgresql://iep:iep@localhost:5432/iep
+      REDIS_URL: redis://localhost:6379
+      # The rest of this block is what apps/api needs to boot (packages/contracts/src/
+      # env.ts's ApiEnv) for the E2E stack. None of it is a real secret — OIDC points at
+      # a domain that doesn't resolve, and E2E signs in with a seeded password instead.
+      # ANTHROPIC_API_KEY is deliberately absent here: the API refuses to boot if it can
+      # see one at all (SPEC §4.4), so it is set only on the worker's own step below.
+      PORT: 3001
+      PUBLIC_WEB_ORIGIN: http://localhost:5173
+      SESSION_SECRET: ci-only-session-secret-this-is-not-a-real-value-do-not-reuse
+      OIDC_ISSUER: https://example-idp.invalid
+      OIDC_CLIENT_ID: ci-client-id
+      OIDC_CLIENT_SECRET: ci-client-secret
+      OIDC_REDIRECT_URI: http://localhost:3001/auth/callback
+      ATTACHMENT_STORAGE_DIR: ./.storage
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,9 +81,68 @@ jobs:
       - name: Seed database
         run: pnpm db:seed
 
+      # Runs the real pipeline in-process with the free StubProvider (no network, no
+      # Anthropic key) so seeded ideas reach EVALUATED/RANKED before anything needs them.
+      # J-2 depends on this: its own failure message says so — "run `pnpm db:seed &&
+      # pnpm demo:data`" — an empty review queue is this step not having run, not a bug.
+      - name: Prepare demo data (stub AI, in-process)
+        run: pnpm demo:data
+
       - name: Unit + integration
         run: pnpm test
+
+      # Layer 4 (SPEC §11.4): real database, no browser, no stack to boot — these build
+      # their own Fastify instance via app.inject() per file.
+      - name: BDD flows
+        run: pnpm test:bdd
 
       # The freeze is only real if drift fails the build (SPEC §11.3, §14.1).
       - name: OpenAPI contract diff gate
         run: pnpm openapi:check
+
+      # E2E (SPEC §11.5) deliberately runs against a stack that is ALREADY UP, same as
+      # locally (`pnpm deps:up && pnpm dev`) — it does not boot its own servers, so CI
+      # has to. API and worker start as separate steps, not one `pnpm dev`, because they
+      # need DIFFERENT env: only the worker may see AI_PROVIDER/ANTHROPIC_API_KEY, and a
+      # single shared step would leak both into the API's process and trip its own guard.
+      - name: Start API (background)
+        run: nohup pnpm --filter @iep/api dev > /tmp/api.log 2>&1 &
+
+      - name: Start worker (background, stub AI provider)
+        env:
+          AI_PROVIDER: stub
+          # Not a real key — the schema requires a non-empty value even in stub mode
+          # (packages/contracts/src/env.ts), but StubProvider never reads it.
+          ANTHROPIC_API_KEY: ci-placeholder-not-a-real-key
+        run: nohup pnpm --filter @iep/worker dev > /tmp/worker.log 2>&1 &
+
+      - name: Start web (background)
+        run: nohup pnpm --filter @iep/web dev > /tmp/web.log 2>&1 &
+
+      - name: Wait for the stack to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/health > /dev/null && curl -sf http://localhost:5173 > /dev/null; then
+              echo "stack is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "stack did not come up in time"
+          echo "── api.log ──"; cat /tmp/api.log
+          echo "── worker.log ──"; cat /tmp/worker.log
+          echo "── web.log ──"; cat /tmp/web.log
+          exit 1
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @iep/e2e exec playwright install --with-deps chromium
+
+      - name: E2E journeys
+        run: pnpm test:e2e
+
+      - name: Server logs (only on failure)
+        if: failure()
+        run: |
+          echo "── api.log ──"; cat /tmp/api.log || true
+          echo "── worker.log ──"; cat /tmp/worker.log || true
+          echo "── web.log ──"; cat /tmp/web.log || true
