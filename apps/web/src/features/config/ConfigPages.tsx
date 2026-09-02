@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { Clock, Scale, ShieldAlert, SlidersHorizontal, Target, TrendingUp, Users, Wrench } from "lucide-react";
 import {
   Badge, Card, CardContent, CardHeader, CardTitle, ErrorState, Skeleton, Table, TableBody,
   TableCell, TableHead, TableHeader, TableRow,
@@ -28,6 +29,21 @@ const GROUP_ORDER: readonly CriterionGroup[] = [
   "VALUE", "FEASIBILITY", "EFFORT", "STRATEGIC", "RISK", "DEMAND",
 ];
 
+/**
+ * A colour per group, purely categorical — like the pipeline tiles on the dashboard,
+ * not a verdict. RISK deliberately gets the neutral tone rather than a warm one: P-1 is
+ * explicit that effort and risk are not faults, and DIRECTION_HELP already says so in
+ * words below — the last thing this page needs is a colour quietly taking that back.
+ */
+const GROUP_STYLE: Record<CriterionGroup, { icon: typeof TrendingUp; tone: string }> = {
+  VALUE: { icon: TrendingUp, tone: "bg-accent-050 text-accent-700" },
+  FEASIBILITY: { icon: Wrench, tone: "bg-state-info-bg text-state-info" },
+  EFFORT: { icon: Clock, tone: "bg-ramp-1 text-accent-700" },
+  STRATEGIC: { icon: Target, tone: "bg-state-warn-bg text-state-warn" },
+  RISK: { icon: ShieldAlert, tone: "bg-muted text-muted-foreground" },
+  DEMAND: { icon: Users, tone: "bg-accent-100 text-accent-700" },
+};
+
 const DIRECTION_HELP: Record<string, string> = {
   HIGHER_IS_BETTER: "A higher score raises the rank.",
   // The wording matters: effort and risk are not faults, and this line is the one place
@@ -47,7 +63,15 @@ export function CriteriaPage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  Evaluation criteria
       </nav>
-      <h1>Evaluation criteria</h1>
+      <h1 className="flex items-center gap-3">
+        <span
+          aria-hidden
+          className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground"
+        >
+          <SlidersHorizontal className="size-4.5" />
+        </span>
+        Evaluation criteria
+      </h1>
       <p className="muted">
         Every score in the platform comes from these. Each one is scored 0–100 from the
         analysis, then weighted by whichever profile is in use.
@@ -65,9 +89,18 @@ export function CriteriaPage() {
         />
       ) : (
         <div className="mt-6 space-y-6">
-          {GROUP_ORDER.filter((g) => query.data.items.some((c) => c.group === g)).map((group) => (
+          {GROUP_ORDER.filter((g) => query.data.items.some((c) => c.group === g)).map((group) => {
+            const { icon: GroupIcon, tone } = GROUP_STYLE[group];
+            return (
             <Card key={group}>
-              <CardHeader><CardTitle>{GROUP_LABEL[group]}</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2.5">
+                  <span aria-hidden className={`grid size-7 shrink-0 place-items-center rounded-md ${tone}`}>
+                    <GroupIcon className="size-4" />
+                  </span>
+                  {GROUP_LABEL[group]}
+                </CardTitle>
+              </CardHeader>
               <CardContent className="space-y-5">
                 {query.data.items
                   .filter((c) => c.group === group)
@@ -100,7 +133,8 @@ export function CriteriaPage() {
                   ))}
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
 
           <p className="text-100 text-muted-foreground">
             These are configuration, not code. Changing them is an admin action that
@@ -125,7 +159,15 @@ export function ProfilesPage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  Evaluation profiles
       </nav>
-      <h1>Evaluation profiles</h1>
+      <h1 className="flex items-center gap-3">
+        <span
+          aria-hidden
+          className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground"
+        >
+          <Scale className="size-4.5" />
+        </span>
+        Evaluation profiles
+      </h1>
       <p className="muted">
         A profile decides what matters. The same idea can rank differently under two of
         them, and neither ranking is wrong — they are answers to different questions.

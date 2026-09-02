@@ -103,7 +103,15 @@ export function AuditPage() {
         <Link to="/ideas">Ideas</Link>  ›  Audit log
       </nav>
       <AdminSubNav />
-      <h1>Audit log</h1>
+      <h1 className="flex items-center gap-3">
+        <span
+          aria-hidden
+          className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"
+        >
+          <ScrollText className="size-4.5" />
+        </span>
+        Audit log
+      </h1>
       <p className="muted">
         Append-only. Every decision a person made, in the same transaction as the change
         itself — the database refuses updates and deletes on this table.
@@ -128,7 +136,7 @@ export function AuditPage() {
         />
       ) : (
         <>
-          <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             {[undefined, "idea", "evaluation", "ranking_run"].map((type) => (
               <Link
                 key={type ?? "all"}
@@ -140,23 +148,27 @@ export function AuditPage() {
                   setParams(next);
                 }}
                 aria-current={entityType === type ? "true" : undefined}
-                className={entityType === type ? "text-200 font-medium" : "text-200 text-muted-foreground"}
+                className={
+                  entityType === type
+                    ? "brand-pill rounded-full px-3 py-1.5 text-100 font-semibold text-grad-ink no-underline"
+                    : "rounded-full bg-card px-3 py-1.5 text-100 font-medium text-muted-foreground no-underline ring-1 ring-inset ring-border transition-colors duration-[var(--dur-fast)] hover:text-foreground"
+                }
               >
                 {type ? type.replace("_", " ") : "Everything"}
               </Link>
             ))}
           </div>
 
-          <Card>
+          <Card className="overflow-hidden py-0">
             <CardContent className="overflow-x-auto p-0">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>When</TableHead>
-                    <TableHead>Who</TableHead>
-                    <TableHead>What</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Reason</TableHead>
+                <TableHeader className="bg-muted">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className={HEAD}>When</TableHead>
+                    <TableHead className={HEAD}>Who</TableHead>
+                    <TableHead className={HEAD}>What</TableHead>
+                    <TableHead className={HEAD}>Subject</TableHead>
+                    <TableHead className={HEAD}>Reason</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
