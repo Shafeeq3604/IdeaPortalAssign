@@ -33,16 +33,19 @@ module.exports = {
       startServerReadyTimeout: 30000,
       numberOfRuns: 3,
       puppeteerScript: "./login.cjs",
+      // NOT settings.chromeFlags — LHCI logs "collect.settings.chromeFlags option will be
+      // ignored" and silently drops it whenever puppeteerScript is set, since puppeteer
+      // owns the launch in that mode. puppeteerLaunchOptions.args is what actually reaches
+      // puppeteer.launch(); the first attempt at this fix used the wrong option and Chrome
+      // kept crashing with the exact same "No usable sandbox!" as before it.
+      puppeteerLaunchOptions: {
+        args: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+      },
       settings: {
         onlyCategories: ["performance"],
         formFactor: "mobile",
         throttlingMethod: "simulate",
         screenEmulation: { mobile: true, width: 412, height: 823, deviceScaleFactor: 2.625 },
-        // GitHub's runners disable the unprivileged user namespaces Chromium's sandbox
-        // needs (Ubuntu's AppArmor policy) and Chrome refuses to launch at all without
-        // this — "No usable sandbox!". Harmless here: the runner's VM is the sandbox
-        // boundary, same reasoning Playwright's own CI docs give for E2E.
-        chromeFlags: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
       },
     },
     assert: {
