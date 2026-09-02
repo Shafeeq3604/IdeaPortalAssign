@@ -3,7 +3,13 @@
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
     "typecheck": { "dependsOn": ["^build"] },
-    "test": { "dependsOn": ["^build"] },
+    /* Turbo 2's default strict env mode only lets a task's process see environment
+       variables declared here — everything else, including a value set by the CI job
+       itself, is silently stripped before the task's process starts. Without this,
+       apps/api's real-database integration test falls back to its own hardcoded local
+       default (postgresql://iep:iep@localhost:5433/iep) instead of whatever the caller
+       actually set, which is invisible until the two happen to disagree. */
+    "test": { "dependsOn": ["^build"], "env": ["DATABASE_URL"] },
     "test:watch": { "cache": false, "persistent": true },
     "test:bdd": { "dependsOn": ["^build"] },
     "test:e2e": { "dependsOn": ["^build"], "cache": false },
