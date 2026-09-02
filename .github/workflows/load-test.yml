@@ -1,0 +1,99 @@
+name: Load test
+
+# SPEC §11.6: k6 is nightly/manual, not per-PR — unlike Lighthouse's fast, cheap budget
+# checks, these are genuinely expensive (a 3,000-idea seed, 200 concurrent virtual users)
+# and would slow down every PR for a signal that does not change from commit to commit.
+on:
+  schedule:
+    - cron: "17 2 * * *" # nightly, off the hour to avoid GitHub's shared cron traffic spike
+  workflow_dispatch: {}
+
+jobs:
+  k6:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: iep
+          POSTGRES_PASSWORD: iep
+          POSTGRES_DB: iep
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U iep"
+          --health-interval 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://iep:iep@localhost:5432/iep
+      REDIS_URL: redis://localhost:6379
+      PORT: 3001
+      PUBLIC_WEB_ORIGIN: http://localhost:5173
+      SESSION_SECRET: ci-only-session-secret-this-is-not-a-real-value-do-not-reuse
+      OIDC_ISSUER: https://example-idp.invalid
+      OIDC_CLIENT_ID: ci-client-id
+      OIDC_CLIENT_SECRET: ci-client-secret
+      OIDC_REDIRECT_URI: http://localhost:3001/auth/callback
+      ATTACHMENT_STORAGE_DIR: ./.storage
+      # Left at the schema default (empty = any domain may self-register): this runner's
+      # database is thrown away at the end of the job, so there is no real signup surface
+      # to protect the way there would be on a reachable deployment (.env.example says so).
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+
+      - name: Migrate database
+        run: pnpm --filter @iep/db exec prisma migrate deploy
+
+      - name: Seed database
+        run: pnpm db:seed
+
+      - name: Seed 3,000 evaluated ideas for the recompute test
+        run: pnpm --filter @iep/load seed 3000
+
+      - name: Start API (background)
+        run: nohup pnpm --filter @iep/api dev > /tmp/api.log 2>&1 &
+
+      - name: Start worker (background, stub AI provider)
+        env:
+          AI_PROVIDER: stub
+          ANTHROPIC_API_KEY: ci-placeholder-not-a-real-key
+        run: nohup pnpm --filter @iep/worker dev > /tmp/worker.log 2>&1 &
+
+      - name: Wait for the API to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/health > /dev/null; then
+              echo "api is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "api did not come up in time"
+          cat /tmp/api.log
+          exit 1
+
+      - uses: grafana/setup-k6-action@v1
+
+      - name: k6 — full recompute of 3,000 ideas <= 30s (SPEC §8.5, §11.6)
+        run: pnpm --filter @iep/load load:recompute
+
+      - name: k6 — 200 concurrent users, API p95 <= 400ms (SPEC §8.5, §11.6)
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: pnpm --filter @iep/load load:concurrent-users
+
+      - name: Server logs (only on failure)
+        if: failure()
+        run: |
+          echo "── api.log ──"; cat /tmp/api.log || true
+          echo "── worker.log ──"; cat /tmp/worker.log || true

@@ -1,0 +1,22 @@
+{
+  "name": "@iep/load",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "tsx --env-file-if-exists=../../.env seed-bulk-ideas.mts",
+    "load:recompute": "k6 run recompute.js",
+    "load:concurrent-users": "k6 run concurrent-users.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@iep/ai": "workspace:*",
+    "@iep/api": "workspace:*",
+    "@iep/db": "workspace:*",
+    "@iep/evaluation": "workspace:*",
+    "@iep/worker": "workspace:*",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
