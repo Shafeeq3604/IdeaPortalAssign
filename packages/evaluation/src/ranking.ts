@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@iep/db";
 import { createEngine } from "@iep/scoring";
 import type { EvaluationResult, RankingEntryResult } from "@iep/scoring";
@@ -138,62 +139,83 @@ export async function recomputeRankings(
 
   const pairs = ranking.entries.map(withEvaluation).filter((p): p is NonNullable<typeof p> => p !== null);
 
-  const run = await db.$transaction(async (tx) => {
-    const created = await tx.rankingRun.create({
-      data: {
-        profileId,
-        cohortKey,
-        engineVersion: config.engineVersion,
-        triggeredById: input.triggeredById ?? null,
-        triggerReason: input.triggerReason,
-      },
-    });
-
-    for (const { entry, evaluation } of pairs) {
-      const row = await tx.rankingEntry.create({
+  const run = await db.$transaction(
+    async (tx) => {
+      const created = await tx.rankingRun.create({
         data: {
-          runId: created.id,
-          ideaId: entry.ideaId,
-          evaluationId: entry.evaluationId,
-          rank: entry.rank,
-          compositeScore: entry.compositeScore,
-          percentile: entry.percentile,
-          previousRank: entry.previousRank,
+          profileId,
+          cohortKey,
+          engineVersion: config.engineVersion,
+          triggeredById: input.triggeredById ?? null,
+          triggerReason: input.triggerReason,
         },
       });
 
       /**
-       * P-2: the explanation is written in the same transaction as the rank.
+       * Bulk writes, not a create() per row (SPEC §11.6: 3,000 ideas <= 30s).
        *
-       * Not "usually" — the response type makes `explanation` required, and a run that
-       * committed ranks without them would produce a 500 on read rather than a bare
-       * number on screen. Failing here is the correct outcome.
+       * This used to await one rankingEntry.create() and one rankingExplanation.create()
+       * per pair, inside this same transaction — 6,000+ sequential round trips at cohort
+       * scale. That blew past Prisma's 5s interactive-transaction default long before
+       * finishing, and the recompute failed outright ("Transaction not found"), not
+       * merely slowly.
+       *
+       * `engine.explain()` is pure computation over data already in memory (P-2: still
+       * written in the same transaction as its rank, just not one row at a time), so
+       * every row is built here before a single write happens, then sent as two
+       * statements. IDs are generated client-side because createMany does not return the
+       * rows it inserted — there is no id to read back for the explanation to point at.
        */
-      const peers = nearestPeers(pairs, entry);
-      const explanation = engine.explain(entry, evaluation, peers, config);
-
-      await tx.rankingExplanation.create({
-        data: {
-          entryId: row.id,
-          strengths: explanation.strengths as never,
-          constraints: explanation.constraints as never,
-          peerComparisons: explanation.peerComparisons as never,
-          // ADR-006: derived from the contribution vector. AI narrative is P5's optional
-          // AI-09 layer on top and would change this to ENGINE_PLUS_AI_NARRATIVE.
-          generatedBy: "ENGINE",
-        },
+      // Built together, keyed by the same generated id, rather than two separate `.map`s
+      // cross-referenced by index — `noUncheckedIndexedAccess` would make that index into
+      // entryData a possibly-undefined read for no reason; the pairing is 1:1 by construction.
+      const rows = pairs.map(({ entry, evaluation }) => {
+        const entryId = randomUUID();
+        const peers = nearestPeers(pairs, entry);
+        const explanation = engine.explain(entry, evaluation, peers, config);
+        return {
+          entry: {
+            id: entryId,
+            runId: created.id,
+            ideaId: entry.ideaId,
+            evaluationId: entry.evaluationId,
+            rank: entry.rank,
+            compositeScore: entry.compositeScore,
+            percentile: entry.percentile,
+            previousRank: entry.previousRank,
+          },
+          explanation: {
+            id: randomUUID(),
+            entryId,
+            strengths: explanation.strengths as never,
+            constraints: explanation.constraints as never,
+            peerComparisons: explanation.peerComparisons as never,
+            // ADR-006: derived from the contribution vector. AI narrative is P5's optional
+            // AI-09 layer on top and would change this to ENGINE_PLUS_AI_NARRATIVE.
+            generatedBy: "ENGINE" as const,
+          },
+        };
       });
-    }
 
-    // Reaching a board is a lifecycle event (FR-16). Ideas already further along keep
-    // their status — being ranked does not un-pilot a pilot.
-    await tx.idea.updateMany({
-      where: { id: { in: pairs.map((p) => p.entry.ideaId) }, status: "EVALUATED" },
-      data: { status: "RANKED" },
-    });
+      const entryData = rows.map((r) => r.entry);
+      const explanationData = rows.map((r) => r.explanation);
 
-    return created;
-  });
+      await tx.rankingEntry.createMany({ data: entryData });
+      await tx.rankingExplanation.createMany({ data: explanationData });
+
+      // Reaching a board is a lifecycle event (FR-16). Ideas already further along keep
+      // their status — being ranked does not un-pilot a pilot.
+      await tx.idea.updateMany({
+        where: { id: { in: pairs.map((p) => p.entry.ideaId) }, status: "EVALUATED" },
+        data: { status: "RANKED" },
+      });
+
+      return created;
+    },
+    // A generous ceiling above the expected real duration, not a target — the fix here is
+    // fewer round trips (createMany), and this is defense-in-depth on top of that.
+    { timeout: 60_000 },
+  );
 
   return {
     runId: run.id,
