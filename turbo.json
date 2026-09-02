@@ -17,7 +17,7 @@
     "test:bdd": { "dependsOn": ["^build"], "env": ["DATABASE_URL"] },
     "test:e2e": { "dependsOn": ["^build"], "cache": false, "env": ["CI", "E2E_BASE_URL"] },
     "lint": {},
-    "eval": { "cache": false },
+    "eval": { "dependsOn": ["^build"], "cache": false },
     "dev": { "cache": false, "persistent": true }
   }
 }

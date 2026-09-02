@@ -70,6 +70,16 @@ jobs:
       - name: Design tokens (no raw hex/px in feature code)
         run: pnpm lint:tokens
 
+      # Layer 7 (SPEC §11.7, §12.4) — but only the three metrics that are deterministic
+      # and cheap: injection escapes (0/25), PII leakage (0), schema validity (100%), and
+      # explanation faithfulness (100%, ADR-006). No model call, no cost, so unlike the
+      # golden-set accuracy metrics these gate every PR rather than running nightly.
+      # These same assertions also run under "Unit + integration" below — duplicated on
+      # purpose, so SPEC §12.4 compliance is its own visible, named check rather than
+      # buried in the general suite.
+      - name: AI evals (PR-blocking, SPEC §12.4)
+        run: pnpm eval
+
       # `migrate deploy`, not the `db:migrate` root script — that runs `migrate dev`,
       # which expects a TTY to confirm schema drift and has no place in CI. The idea
       # integration suite also reads real seeded users (apps/api/src/modules/idea/

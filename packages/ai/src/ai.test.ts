@@ -33,7 +33,7 @@ const baseInput = {
 
 /* ─────────────────────────── redaction (SPEC §4.5) ─────────────────────────── */
 
-describe("redaction — nothing identifying leaves the network", () => {
+describe("PR-BLOCKING — PII leakage must be zero: redaction (SPEC §12.4)", () => {
   it("removes email addresses", () => {
     const r = redact("Contact erin.employee@example.com about this.");
     expect(r.text).not.toContain("@example.com");
