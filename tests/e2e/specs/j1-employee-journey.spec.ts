@@ -260,6 +260,11 @@ test.describe("J-1 employee journey", () => {
 
     // A DRAFT, not a submission: a submitted version's attachments are fixed (§4.3).
     await page.getByRole("button", { name: "Save as draft" }).click();
+    // Wait for the actual navigation, not just the button's name: the submission form
+    // itself now has its own "Add a file" control (files can be staged before either
+    // button is pressed), so matching on name alone can catch that one mid-transition
+    // instead of the Overview page's AttachmentsPanel this step means to reach.
+    await expect(page).toHaveURL(/\/ideas\/[0-9a-f-]+\/overview/);
     await expect(page.getByRole("button", { name: /Add a file/i })).toBeVisible();
 
     await page.locator('input[type="file"]').setInputFiles({
