@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+**/dist
+**/.storage
+.git
+.turbo
+**/.turbo
+coverage
+**/coverage
+**/*.log
+.env
+.env.local
+apps/worker/.env
+tests/e2e/playwright-report
+tests/e2e/test-results
+.vscode
+.claude
