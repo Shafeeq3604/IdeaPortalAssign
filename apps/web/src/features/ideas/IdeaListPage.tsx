@@ -105,12 +105,21 @@ export function IdeaListPage({ scope }: Props) {
   const status = params.getAll("status").filter(isStatus);
   const search = params.get("q") ?? "";
 
+  /**
+   * There is no sort control on this page — the URL's `sort` wins when someone links to
+   * one directly, but absent that, "recent" is the wrong default the moment RANKED is
+   * part of the view. A "Ranked" filter showing ideas in submission order rather than
+   * rank order reads as broken, not as a neutral choice.
+   */
+  const sortParam = params.get("sort");
+  const sort = sortParam ? parseSort(sortParam) : status.includes(IdeaStatus.enum.RANKED) ? "rank" : "recent";
+
   const list = useIdeaList({
     page,
     ...(scope === "mine" && session.data ? { submitterId: session.data.user.id } : {}),
     ...(search ? { q: search } : {}),
     ...(status.length > 0 ? { status } : {}),
-    sort: parseSort(params.get("sort")),
+    sort,
   });
 
   /**

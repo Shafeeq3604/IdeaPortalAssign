@@ -1,3 +1,4 @@
+import type { PrismaClient } from "@iep/db";
 import {
   CreateIdeaRequest, CreateVersionRequest, ListIdeasQuery, TransitionRequest,
   UpdateDraftRequest, canTransition, can, ideaListScope,
@@ -6,7 +7,7 @@ import {
 import type { Handler } from "../../server.js";
 import type { AppContext } from "../../context.js";
 import { requireActor, sendError } from "../../server.js";
-import { makeIdeaRepo } from "./repo.js";
+import { makeIdeaRepo, IDEA_DETAIL_INCLUDE, type IdeaListFilterParams } from "./repo.js";
 import { toIdeaDetail, toIdeaSummary, toVersionDetail, toVersionSummary, toStatusEntry } from "./present.js";
 
 /**
@@ -52,7 +53,7 @@ async function startAnalysis(
  * score and no rank, which is a real state and renders as one.
  */
 async function scoresForCurrentVersions(
-  ctx: Parameters<Handler>[2],
+  ctx: { db: PrismaClient },
   rows: readonly { id: string; currentVersionId?: string | null }[],
 ): Promise<Map<string, { compositeScore: number | null; rank: number | null }>> {
   const out = new Map<string, { compositeScore: number | null; rank: number | null }>();
@@ -101,6 +102,53 @@ async function scoresForCurrentVersions(
   return out;
 }
 
+/**
+ * `sort: "rank"`, the whole page (SPEC row 25).
+ *
+ * Rank cannot be an ORDER BY: it lives on `RankingEntry`, one per run, not on `Idea`
+ * (ADR-008). Sorting by it means knowing every candidate's rank BEFORE paging, so this
+ * takes a different path from the other four sorts — every matching id first, ranked ones
+ * ordered best-first, unranked ones (evaluated but never in a run, or not yet evaluated —
+ * both real states) kept at the end in their existing recency order, THEN the one page's
+ * worth of ids is loaded in full.
+ *
+ * Exported (rather than inlined in the handler) so it can be exercised directly against a
+ * real database, the same way the rest of this module's persistence is tested.
+ */
+export async function listIdeasByRank(
+  db: PrismaClient,
+  filters: IdeaListFilterParams,
+  page: number,
+  perPage: number,
+) {
+  const repo = makeIdeaRepo(db);
+  const all = await repo.listIdsForRank(filters);
+  const scores = await scoresForCurrentVersions({ db }, all);
+  const ordered = [...all].sort((a, b) => {
+    const ra = scores.get(a.id)?.rank ?? null;
+    const rb = scores.get(b.id)?.rank ?? null;
+    if (ra === null && rb === null) return 0;
+    if (ra === null) return 1;
+    if (rb === null) return -1;
+    return ra - rb;
+  });
+
+  const total = ordered.length;
+  const pageIds = ordered.slice((page - 1) * perPage, page * perPage).map((r) => r.id);
+  const pageRows = pageIds.length
+    ? await db.idea.findMany({ where: { id: { in: pageIds } }, include: IDEA_DETAIL_INCLUDE })
+    : [];
+  // `findMany({ id: { in } })` does not promise result order matches the array's — put
+  // the page back in rank order rather than trusting it did.
+  const byId = new Map(pageRows.map((row) => [row.id, row]));
+  const rows = pageIds.map((id) => byId.get(id)).filter((row): row is (typeof pageRows)[number] => Boolean(row));
+
+  return {
+    items: rows.map((row) => toIdeaSummary(row, scores.get(row.id) ?? { compositeScore: null, rank: null })),
+    meta: { page, perPage, total, totalPages: Math.ceil(total / perPage) },
+  };
+}
+
 /** 404, not 403, for a resource the actor may not see — existence is not disclosed. */
 const NOT_FOUND = "No idea with that id";
 
@@ -111,13 +159,21 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
 
     const actor = requireActor(request);
     const repo = makeIdeaRepo(ctx.db);
-    const { rows, total } = await repo.list({
+    const filters = {
       scope: ideaListScope(actor),
       ...(parsed.data.status ? { status: parsed.data.status } : {}),
       ...(parsed.data.departmentId ? { departmentId: parsed.data.departmentId } : {}),
       ...(parsed.data.categoryId ? { categoryId: parsed.data.categoryId } : {}),
       ...(parsed.data.submitterId ? { submitterId: parsed.data.submitterId } : {}),
       ...(parsed.data.q ? { q: parsed.data.q } : {}),
+    };
+
+    if (parsed.data.sort === "rank") {
+      return listIdeasByRank(ctx.db, filters, parsed.data.page, parsed.data.perPage);
+    }
+
+    const { rows, total } = await repo.list({
+      ...filters,
       sort: parsed.data.sort,
       page: parsed.data.page,
       perPage: parsed.data.perPage,

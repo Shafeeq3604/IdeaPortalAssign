@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "@iep/db";
 import { StubProvider } from "@iep/ai";
 import { makeIdeaRepo } from "@iep/api/src/modules/idea/repo.js";
+import { listIdeasByRank } from "@iep/api/src/modules/idea/routes.js";
 import { runPipeline } from "@iep/worker/src/pipeline.js";
 import { evaluateVersion, loadEngineConfig, recomputeRankings } from "@iep/evaluation";
 
@@ -231,5 +232,42 @@ describe("F-04 · turning an analysis into a score", () => {
     expect(Number(after.normalized)).toBe(91);
     expect(after.source).toBe("HUMAN");
     expect(Number(after.contribution)).toBeCloseTo(91 * Number(after.weight), 2);
+  });
+
+  it("Given ranked ideas, When listed with sort=rank, Then they come back best-first regardless of recency", async () => {
+    guard();
+    const a = await givenAnAnalysedIdea("rank-order-a");
+    const b = await givenAnAnalysedIdea("rank-order-b");
+    const c = await givenAnAnalysedIdea("rank-order-c");
+    await evaluateVersion(db, a.versionId);
+    await evaluateVersion(db, b.versionId);
+    await evaluateVersion(db, c.versionId);
+
+    const run = await recomputeRankings(db, { triggerReason: "bdd rank-sort" });
+    if (!run) throw new Error("a cohort with evaluations must produce a run");
+    createdRuns.push(run.runId);
+
+    const entries = await db.rankingEntry.findMany({
+      where: { runId: run.runId, ideaId: { in: [a.ideaId, b.ideaId, c.ideaId] } },
+      orderBy: { rank: "asc" },
+    });
+    expect(entries.length).toBe(3);
+
+    /**
+     * Stamp `updatedAt` the OPPOSITE of rank order — the best-ranked idea is touched
+     * LEAST recently. The bug this guards against fell back to `updatedAt desc` for
+     * `sort: "rank"`, which would list these three exactly backwards; only a real
+     * rank-aware sort gets them in the right order here.
+     */
+    for (const [i, entry] of entries.entries()) {
+      await db.idea.update({
+        where: { id: entry.ideaId },
+        data: { updatedAt: new Date(Date.now() - i * 1000) },
+      });
+    }
+
+    const page = await listIdeasByRank(db, { scope: { all: true }, q: "rank-order-" }, 1, 10);
+    expect(page.items.map((item) => item.id)).toEqual(entries.map((e) => e.ideaId));
+    expect(page.items.map((item) => item.rank)).toEqual(entries.map((e) => e.rank));
   });
 });

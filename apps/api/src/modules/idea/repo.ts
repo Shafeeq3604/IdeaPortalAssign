@@ -76,31 +76,38 @@ export const IDEA_DETAIL_INCLUDE = {
   _count: { select: { versions: true } },
 } as const;
 
+export interface IdeaListFilterParams {
+  scope: IdeaScope;
+  status?: readonly IdeaStatus[];
+  departmentId?: string;
+  categoryId?: string;
+  submitterId?: string;
+  q?: string;
+}
+
+function buildIdeaWhere(params: IdeaListFilterParams): Prisma.IdeaWhereInput {
+  return {
+    AND: [
+      scopeToWhere(params.scope),
+      ...(params.status?.length ? [{ status: { in: params.status as IdeaStatus[] } }] : []),
+      ...(params.departmentId ? [{ departmentId: params.departmentId }] : []),
+      ...(params.categoryId ? [{ categoryId: params.categoryId }] : []),
+      ...(params.submitterId ? [{ submitterId: params.submitterId }] : []),
+      ...(params.q
+        ? [{ versions: { some: { title: { contains: params.q, mode: "insensitive" as const } } } }]
+        : []),
+    ],
+  };
+}
+
 export function makeIdeaRepo(db: PrismaClient) {
   return {
-    async list(params: {
-      scope: IdeaScope;
-      status?: readonly IdeaStatus[];
-      departmentId?: string;
-      categoryId?: string;
-      submitterId?: string;
-      q?: string;
+    async list(params: IdeaListFilterParams & {
       sort: "recent" | "oldest" | "title" | "status" | "rank";
       page: number;
       perPage: number;
     }) {
-      const where: Prisma.IdeaWhereInput = {
-        AND: [
-          scopeToWhere(params.scope),
-          ...(params.status?.length ? [{ status: { in: params.status as IdeaStatus[] } }] : []),
-          ...(params.departmentId ? [{ departmentId: params.departmentId }] : []),
-          ...(params.categoryId ? [{ categoryId: params.categoryId }] : []),
-          ...(params.submitterId ? [{ submitterId: params.submitterId }] : []),
-          ...(params.q
-            ? [{ versions: { some: { title: { contains: params.q, mode: "insensitive" as const } } } }]
-            : []),
-        ],
-      };
+      const where = buildIdeaWhere(params);
 
       const orderBy: Prisma.IdeaOrderByWithRelationInput =
         params.sort === "oldest" ? { createdAt: "asc" }
@@ -118,6 +125,22 @@ export function makeIdeaRepo(db: PrismaClient) {
         db.idea.count({ where }),
       ]);
       return { rows, total };
+    },
+
+    /**
+     * Every matching idea's id, unpaginated — for `sort: "rank"`.
+     *
+     * Rank is not a column on `Idea` (it lives on `RankingEntry`, one per run — ADR-008),
+     * so it cannot be an `ORDER BY` clause the database can apply before paging. The rank
+     * for every candidate has to be known first; this is the "every candidate" half of
+     * that, kept to the two columns the caller needs.
+     */
+    listIdsForRank(params: IdeaListFilterParams) {
+      return db.idea.findMany({
+        where: buildIdeaWhere(params),
+        select: { id: true, currentVersionId: true },
+        orderBy: { updatedAt: "desc" },
+      });
     },
 
     findById(ideaId: string) {
