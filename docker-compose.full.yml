@@ -96,9 +96,9 @@ services:
       OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-http://localhost:3001/auth/callback}
       ATTACHMENT_STORAGE_DIR: ./.storage
       SIGNUP_ENABLED: ${SIGNUP_ENABLED:-true}
-      # Empty means any email domain can self-register — fine for a local/demo run of
-      # this file, wrong on anything internet-reachable. See .env.example.
-      SIGNUP_ALLOWED_EMAIL_DOMAINS: ${SIGNUP_ALLOWED_EMAIL_DOMAINS:-}
+      # SIGNUP_ALLOWED_EMAIL_DOMAINS intentionally not set here — the app's own default
+      # (packages/contracts/src/env.ts) is empty, meaning any email domain can
+      # self-register. That is a deliberate choice for now, not an oversight.
     volumes:
       - iep-attachments:/app/apps/api/.storage
     ports: ["${API_HOST_PORT:-3001}:3001"] # optional — direct access for debugging; the browser normally goes through web's nginx proxy

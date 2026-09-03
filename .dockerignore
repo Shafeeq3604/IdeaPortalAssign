@@ -9,8 +9,13 @@ coverage
 **/coverage
 **/*.log
 .env
-.env.local
+.env.*
 apps/worker/.env
+apps/worker/.env.*
+*.pem
+*.key
+.aws
+.azure
 tests/e2e/playwright-report
 tests/e2e/test-results
 .vscode
