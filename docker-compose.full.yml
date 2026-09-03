@@ -1,0 +1,133 @@
+# Runs the whole stack — Postgres, Redis, API, worker, web — as containers, built from
+# apps/{api,worker,web}/Dockerfile. Separate from the root docker-compose.yml on purpose:
+# that one only ever runs Postgres+Redis, for `pnpm dev` running the app on the host
+# (`pnpm deps:up` = `docker compose up -d`, unchanged) — folding the app services into
+# that same file would make plain `pnpm deps:up` start three app containers nobody asked
+# for. Use this file explicitly instead:
+#
+#   docker compose -f docker-compose.full.yml up --build
+#
+# Then open http://localhost:8080. Needs a few real values as environment variables or a
+# root .env (docker compose reads one automatically) — see the ${...:?...} entries below;
+# SESSION_SECRET has no safe default and this refuses to start without one, same as the
+# app itself (SPEC §4.4).
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: iep
+      POSTGRES_PASSWORD: iep
+      POSTGRES_DB: iep
+    volumes: ["iep-pg-full:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iep"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  # One-shot: applies migrations, then exits. api/worker wait for it to succeed rather
+  # than each racing to migrate on their own boot (SPEC — migrations are a release step,
+  # not a per-replica one; the docker-compose.full.yml case is single-instance-of-each
+  # so the race is theoretical here, but the pattern is the same either way).
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    # `prisma` is a devDependency of packages/db, not of the workspace root — `pnpm exec`
+    # only resolves a binary from the CURRENT package's own dependencies, so this has to
+    # run from inside packages/db, not /app (verified directly: running it from /app
+    # fails with "Command 'prisma' not found").
+    working_dir: /app/packages/db
+    command: ["pnpm", "exec", "prisma", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://iep:iep@postgres:5432/iep
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # Optional, opt-in only: `docker compose -f docker-compose.full.yml --profile seed up`.
+  # A migrated-but-unseeded database has no evaluation criteria or profile at all, so the
+  # engine has nothing to score against yet (verified directly: ranking fails with "no
+  # default evaluation profile" without this) — but seeding also creates four demo
+  # accounts on a published, fixed password (RUNNING.md). That is fine for a local/demo
+  # run and wrong to run unasked on anything else, so it does not run by default the way
+  # `migrate` does.
+  seed:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    working_dir: /app/packages/db
+    command: ["pnpm", "exec", "tsx", "prisma/seed.ts"]
+    environment:
+      DATABASE_URL: postgresql://iep:iep@postgres:5432/iep
+      # The api image sets NODE_ENV=production; the seed script itself refuses to run
+      # under that on purpose ("creates demo accounts with a known password — never run
+      # it in production" — packages/db/prisma/seed.ts). Overridden here, and only here:
+      # this service is explicitly opt-in (--profile seed) for a local/demo run.
+      NODE_ENV: development
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    profiles: ["seed"]
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    environment:
+      DATABASE_URL: postgresql://iep:iep@postgres:5432/iep?connection_limit=20&pool_timeout=20
+      REDIS_URL: redis://redis:6379
+      PUBLIC_WEB_ORIGIN: ${PUBLIC_WEB_ORIGIN:-http://localhost:8080}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be at least 32 chars — see .env.example}
+      # Unused today (ADR-023: password auth; OIDC deferred) but still required at boot
+      # by packages/contracts/src/env.ts. Same placeholders .env.example itself ships.
+      OIDC_ISSUER: ${OIDC_ISSUER:-https://example-idp.invalid}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-dev-client-id}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-dev-client-secret}
+      OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-http://localhost:3001/auth/callback}
+      ATTACHMENT_STORAGE_DIR: ./.storage
+      SIGNUP_ENABLED: ${SIGNUP_ENABLED:-true}
+      # Empty means any email domain can self-register — fine for a local/demo run of
+      # this file, wrong on anything internet-reachable. See .env.example.
+      SIGNUP_ALLOWED_EMAIL_DOMAINS: ${SIGNUP_ALLOWED_EMAIL_DOMAINS:-}
+    volumes:
+      - iep-attachments:/app/apps/api/.storage
+    ports: ["${API_HOST_PORT:-3001}:3001"] # optional — direct access for debugging; the browser normally goes through web's nginx proxy
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    environment:
+      DATABASE_URL: postgresql://iep:iep@postgres:5432/iep?connection_limit=10&pool_timeout=20
+      REDIS_URL: redis://redis:6379
+      # Stub by default so this comes up with zero cost and no real key — set both to use
+      # the real model (apps/worker/.env.example has the same default).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-stub-mode-unused-key}
+      AI_PROVIDER: ${AI_PROVIDER:-stub}
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    depends_on: [api]
+    environment:
+      API_UPSTREAM: http://api:3001
+    ports: ["8080:80"]
+
+volumes:
+  iep-pg-full:
+  iep-attachments:
