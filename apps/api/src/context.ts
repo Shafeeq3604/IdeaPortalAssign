@@ -2,6 +2,7 @@ import type { PrismaClient } from "@iep/db";
 import type { ApiEnv } from "@iep/contracts/env";
 import type { AuthProvider } from "./auth/provider.js";
 import type { SessionStore } from "./auth/session.js";
+import type { AttachmentBackend } from "./modules/idea/attachments.js";
 
 /**
  * Everything a handler may touch, passed explicitly.
@@ -34,4 +35,5 @@ export interface AppContext {
   readonly auth: AuthProvider;
   readonly analysis: AnalysisEnqueuer;
   readonly ranking: RankingEnqueuer;
+  readonly attachments: AttachmentBackend;
 }

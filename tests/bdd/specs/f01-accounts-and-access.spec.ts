@@ -4,6 +4,7 @@ import type { ApiEnv } from "@iep/contracts/env";
 import { buildServer } from "@iep/api/src/server.js";
 import type { AppContext } from "@iep/api/src/context.js";
 import { MemorySessionStore, sessionCookieName } from "@iep/api/src/auth/session.js";
+import { LocalDiskBackend } from "@iep/api/src/modules/idea/attachments.js";
 
 /**
  * F-01 — Getting in, and being let in (FR-01, FR-01a, ADR-023), as a FLOW.
@@ -55,6 +56,7 @@ function makeApp(overrides: Partial<ApiEnv> = {}) {
     auth: { authorizeUrl: () => "", exchange: async () => ({ subject: "", email: "", name: "" }) } as never,
     analysis: { enqueue: async () => true },
     ranking: { enqueue: async () => true },
+    attachments: new LocalDiskBackend("./.storage"),
   };
   return buildServer(ctx);
 }

@@ -5,6 +5,7 @@ import { buildServer } from "@iep/api/src/server.js";
 import type { AppContext } from "@iep/api/src/context.js";
 import { MemorySessionStore } from "@iep/api/src/auth/session.js";
 import { makeIdeaRepo } from "@iep/api/src/modules/idea/repo.js";
+import { LocalDiskBackend } from "@iep/api/src/modules/idea/attachments.js";
 
 /**
  * F-02b — pressing "Submit for analysis" actually starts the analysis (FR-02, FR-03).
@@ -61,6 +62,7 @@ function makeApp(jobs: Enqueued[]) {
       },
     },
     ranking: { enqueue: async () => true },
+    attachments: new LocalDiskBackend("./.storage"),
   };
   return buildServer(ctx);
 }

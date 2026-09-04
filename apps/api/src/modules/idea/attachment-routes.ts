@@ -4,9 +4,7 @@ import {
 import type { Attachment, IdeaStatus } from "@iep/contracts";
 import type { Handler } from "../../server.js";
 import { requireActor, sendError } from "../../server.js";
-import {
-  openStored, removeStored, resolveStored, storeUpload, storedExists,
-} from "./attachments.js";
+import { storeUpload } from "./attachments.js";
 
 /**
  * Attachments (FR-02, SPEC §4.3, requirements.md §29 "Upload PDF/DOCX/TXT").
@@ -110,7 +108,7 @@ export function registerAttachmentRoutes(handlers: Map<string, Handler>): void {
     const part = await request.file({ limits: { fileSize: MAX_ATTACHMENT_BYTES + 1 } });
     if (!part) return sendError(reply, "VALIDATION_FAILED", "No file was sent.");
 
-    const stored = await storeUpload(ctx.env.ATTACHMENT_STORAGE_DIR, part.filename, part.file);
+    const stored = await storeUpload(ctx.attachments, part.filename, part.file);
     if (!stored.ok) {
       request.log.info(
         // The REASON, never the bytes and never the content. A rejected upload is a thing
@@ -161,8 +159,8 @@ export function registerAttachmentRoutes(handlers: Map<string, Handler>): void {
     });
     if (!allowed.allowed) return sendError(reply, "NOT_FOUND", "No attachment with that id");
 
-    const path = resolveStored(ctx.env.ATTACHMENT_STORAGE_DIR, row.storageKey);
-    if (!path || !(await storedExists(path))) {
+    const file = await ctx.attachments.read(row.storageKey);
+    if (!file) {
       return sendError(reply, "NOT_FOUND", "That file is no longer stored");
     }
 
@@ -183,7 +181,7 @@ export function registerAttachmentRoutes(handlers: Map<string, Handler>): void {
       .header("Content-Security-Policy", "default-src 'none'; sandbox")
       .header("Content-Disposition", `attachment; filename="${headerSafe(row.filename)}"`);
 
-    return reply.send(openStored(path));
+    return reply.send(file);
   });
 
   handlers.set("deleteAttachment", async (request, reply, ctx) => {
@@ -231,8 +229,7 @@ export function registerAttachmentRoutes(handlers: Map<string, Handler>): void {
      * download for a user.
      */
     await ctx.db.attachment.delete({ where: { id: attachmentId } });
-    const path = resolveStored(ctx.env.ATTACHMENT_STORAGE_DIR, row.storageKey);
-    if (path) await removeStored(path);
+    await ctx.attachments.remove(row.storageKey);
 
     return { id: attachmentId };
   });

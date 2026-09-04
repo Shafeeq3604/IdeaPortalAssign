@@ -9,6 +9,7 @@ import { buildServer } from "@iep/api/src/server.js";
 import type { AppContext } from "@iep/api/src/context.js";
 import { MemorySessionStore } from "@iep/api/src/auth/session.js";
 import { makeIdeaRepo } from "@iep/api/src/modules/idea/repo.js";
+import { LocalDiskBackend } from "@iep/api/src/modules/idea/attachments.js";
 
 /**
  * F-02 — Attaching a file (FR-02, SPEC §4.3, §9.2), as a FLOW.
@@ -97,6 +98,7 @@ function makeApp() {
     auth: {} as never,
     analysis: { enqueue: async () => true },
     ranking: { enqueue: async () => true },
+    attachments: new LocalDiskBackend(storageDir),
   };
   return buildServer(ctx);
 }

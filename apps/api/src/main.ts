@@ -11,6 +11,7 @@ import {
   makeAnalysisEnqueuer, makeRankingEnqueuer, noopEnqueuer, noopRankingEnqueuer,
 } from "./lib/analysis-queue.js";
 import type { AppContext } from "./context.js";
+import { makeAttachmentBackend } from "./modules/idea/attachments.js";
 
 /**
  * Entry point. Composition happens here and only here, so `buildServer` stays injectable
@@ -73,6 +74,7 @@ const ctx: AppContext = {
   // Replaced just below with a logger-aware instance once Fastify exists.
   analysis: noopEnqueuer,
   ranking: noopRankingEnqueuer,
+  attachments: makeAttachmentBackend(env),
 };
 
 const app = buildServer(ctx);

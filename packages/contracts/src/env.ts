@@ -25,7 +25,17 @@ export const ApiEnv = Base.extend({
   OIDC_CLIENT_ID: nonEmpty,
   OIDC_CLIENT_SECRET: nonEmpty,
   OIDC_REDIRECT_URI: z.string().url(),
-  ATTACHMENT_STORAGE_DIR: nonEmpty,
+
+  /**
+   * Where attachment bytes live. `local` is a real production limitation, not just a dev
+   * default: a restart loses whatever wasn't on a mounted volume, and it breaks outright
+   * the moment there is more than one API instance, since each has its own disk. Object
+   * storage is required before either of those is true of a deployment.
+   */
+  ATTACHMENT_STORAGE_PROVIDER: z.enum(["local", "azure-blob"]).default("local"),
+  ATTACHMENT_STORAGE_DIR: nonEmpty.optional(),
+  AZURE_STORAGE_CONNECTION_STRING: nonEmpty.optional(),
+  AZURE_STORAGE_CONTAINER: nonEmpty.optional(),
 
   /**
    * Self-registration (FR-01a).
@@ -83,6 +93,33 @@ export const ApiEnv = Base.extend({
       "ANTHROPIC_API_KEY must NOT be set on the API process — only the worker holds it (SPEC §4.4)",
     )
     .optional(),
+}).superRefine((env, ctx) => {
+  // Each provider's own required fields, rather than making both sets of fields always
+  // required: an azure-blob deployment should not have to invent a throwaway
+  // ATTACHMENT_STORAGE_DIR it will never use, and vice versa.
+  if (env.ATTACHMENT_STORAGE_PROVIDER === "local" && !env.ATTACHMENT_STORAGE_DIR) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["ATTACHMENT_STORAGE_DIR"],
+      message: "Required when ATTACHMENT_STORAGE_PROVIDER is \"local\"",
+    });
+  }
+  if (env.ATTACHMENT_STORAGE_PROVIDER === "azure-blob") {
+    if (!env.AZURE_STORAGE_CONNECTION_STRING) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["AZURE_STORAGE_CONNECTION_STRING"],
+        message: "Required when ATTACHMENT_STORAGE_PROVIDER is \"azure-blob\"",
+      });
+    }
+    if (!env.AZURE_STORAGE_CONTAINER) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["AZURE_STORAGE_CONTAINER"],
+        message: "Required when ATTACHMENT_STORAGE_PROVIDER is \"azure-blob\"",
+      });
+    }
+  }
 });
 export type ApiEnv = z.infer<typeof ApiEnv>;
 
