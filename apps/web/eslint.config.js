@@ -6,7 +6,10 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // `.deploy` is a committed `turbo prune` snapshot (see scripts/prepare-deploy.mjs)
+  // that mirrors other workspace packages' source verbatim, relative-path imports
+  // included; linting it directly resolves those imports against the wrong depth.
+  globalIgnores(['dist', '**/.deploy/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

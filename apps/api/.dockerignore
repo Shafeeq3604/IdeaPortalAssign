@@ -1,0 +1,9 @@
+# Context is this directory (apps/api) — see Dockerfile header. Only .deploy/ is ever
+# COPYed; everything else here just needs to not slow down "sending build context".
+node_modules
+dist
+.turbo
+.storage
+.env
+.env.*
+*.log

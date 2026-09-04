@@ -15,7 +15,11 @@ import { join, relative, sep } from "node:path";
  */
 
 const ROOT = join(import.meta.dirname, "..", "..");
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".turbo", "coverage", "scratchpad"]);
+// `.deploy` is a committed `turbo prune` snapshot (apps/api, apps/worker, apps/web —
+// see scripts/prepare-deploy.mjs) that mirrors other workspace packages' source
+// verbatim; scanning it double-counts every rule this file checks against whatever
+// it mirrors.
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".turbo", "coverage", "scratchpad", ".deploy"]);
 
 function walk(dir: string, out: string[] = []): string[] {
   if (!existsSync(dir)) return out;

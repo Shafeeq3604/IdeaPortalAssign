@@ -1,0 +1,9 @@
+# Context is this directory (apps/web) — see Dockerfile header. Only .deploy/ and
+# nginx.conf.template are ever COPYed; everything else here just needs to not slow
+# down "sending build context".
+node_modules
+dist
+.turbo
+.env
+.env.*
+*.log

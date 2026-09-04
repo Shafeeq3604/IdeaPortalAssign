@@ -1,0 +1,493 @@
+/*
+ * IEP design tokens — "Considered Clarity" (SPEC §7, §8). FROZEN AT P0.
+ *
+ * Three rules the direction imposes:
+ *   1. Ink before colour   — hierarchy from type weight and spacing; colour is information.
+ *   2. Borders before shadows — hairlines separate; elevation is for things that float.
+ *   3. No verdict palette  — green/red never encode idea quality (P-1). They are system state.
+ *
+ * Feature code may not use a raw hex or px value. `pnpm lint:tokens` enforces it.
+ */
+
+:root {
+  /* ── Ink ramp ── */
+  /*
+   * Tailwind's slate, exactly.
+   *
+   * The previous ramp was a bespoke blue-grey, and beside a saturated violet header it
+   * read as dishwater — "the white seems too normal and basic" was the report, and the
+   * diagnosis was the neutral, not the white. Slate is cooler and a shade bluer, which is
+   * why it is the ramp every modern product pairs with an indigo accent.
+   *
+   * Using the real values rather than approximating them also means anyone reaching for
+   * `slate-200` from muscle memory gets the colour they expect.
+   */
+  --ink-900: #0f172a;
+  --ink-700: #334155;
+  /*
+   * slate-600, not slate-500.
+   *
+   * The brief said `text-slate-500` for subtext, and it fails: 4.76:1 on white but
+   * 4.34:1 on slate-100 and 4.26:1 on the amber tile — and secondary text lands on a tint
+   * constantly, in table headers, muted panels and status tiles. A colour is only legible
+   * against a named background, which is why every token in this file is documented as a
+   * pair. slate-600 is 7.6:1 on white and never below 6.7:1 on any surface here.
+   */
+  --ink-500: #475569;
+  /* Was #7c8598 (3.7:1 on white) — below WCAG AA for normal text, and the P9 axe pass
+     flagged it on every signed-in page at once. Being a token is what made that a
+     one-line fix instead of a sweep. Now 4.8:1 on surface, 4.5:1 on canvas. */
+  --ink-400: #64748b;   /* slate-500 — 4.8:1 on white, the floor for body text */
+  --ink-300: #cbd5e1;
+  --ink-200: #e2e8f0;   /* slate-200 — the card border */
+  --ink-100: #f1f5f9;
+  --ink-050: #f8fafc;   /* slate-50 — the page canvas */
+  --ink-000: #ffffff;
+
+  /* ── Semantic surfaces ── */
+  /*
+   * Canvas slate-50, cards pure white — five points of luminance apart, which is almost
+   * nothing. The separation is therefore NOT doing the work: the border and the shadow
+   * are, and both were tuned for a canvas this close.
+   */
+  --canvas: var(--ink-050);
+  --surface: var(--ink-000);
+  --surface-sunken: var(--ink-100);
+  --border: var(--ink-200);
+  --border-strong: var(--ink-300);
+  --text: var(--ink-900);
+  --text-secondary: var(--ink-500);
+  --text-tertiary: var(--ink-400);
+
+  /* ── Accent: one, calm indigo ── */
+  --accent-700: #2b3ba8;
+  --accent-600: #3548c7;
+  --accent-500: #4c5fdb;
+  --accent-100: #e6e9fb;
+  --accent-050: #f2f4fe;
+  --focus-ring: var(--accent-500);
+
+  /* ── Evidence: DIRECTION, not verdict. Deliberately not green/red. ── */
+  --factor-up: #1f7a6b;        /* raises the ranking  (teal) */
+  --factor-up-bg: #e4f2ef;
+  --factor-down: #8a5a2b;      /* lowers the ranking  (clay) */
+  --factor-down-bg: #f6ede3;
+  --factor-neutral: var(--ink-400);
+
+  /* ── Score magnitude ramp: neutral → accent, no good/bad reading ── */
+  --ramp-1: #e8ebf2;
+  --ramp-2: #c6ceea;
+  --ramp-3: #9aa7df;
+  --ramp-4: #6b7cd2;
+  --ramp-5: #3548c7;
+
+  /* ── AI provenance (SPEC §7.4) ── */
+  --ai-surface: #f5f2fc;
+  --ai-border: #dcd2f2;
+  --ai-ink: #5b4b8a;
+
+  /* ── System state ONLY. Never applied to an idea's score. ── */
+  /*
+   * Each state is a PAIR: ink and the tint it sits on. A pill needs both, and defining
+   * them together is what stops someone pairing a light ink with a light tint later.
+   * Ratios below are ink-on-tint, computed, and re-checked by the axe sweep.
+   */
+  --state-info: #1f4c80;        /* 6.6:1 on its tint */
+  --state-info-bg: #e6eefb;
+  --state-warn: #825609;        /* 6.1:1 */
+  --state-warn-bg: #fdf1dd;
+  --state-ok: #1d6039;          /* 6.5:1 */
+  --state-ok-bg: #e6f4ec;
+  --state-danger: #8a2b2a;      /* 7.0:1 */
+  --state-danger-bg: #fbeaea;
+  --state-neutral: var(--text-secondary);
+  --state-neutral-bg: var(--surface-sunken);
+
+  /* ── Type: 1.200 minor third, base 16px ── */
+  /* ── Welcome surfaces: sign-in and sign-up ONLY (SPEC §7.1 amendment) ──
+   *
+   * A deliberately separate, warm palette for the two screens seen before anyone signs
+   * in. Everything past the door stays on the cool ink-and-indigo scale, because the
+   * working application should be quiet and the front door should not be.
+   *
+   * These names appear nowhere else. If a third screen wants them, that is a design
+   * decision taken on purpose, not one made by importing a token.
+   */
+  --welcome-canvas: #f5f6ff;      /* cool indigo tint behind the card */
+  --welcome-surface: #ffffff;
+  --welcome-ink: #1e1b4b;         /* indigo-950 — 15.4:1 on surface */
+  --welcome-ink-soft: #4b5563;    /* 7.5:1 on surface — AA for body text */
+  --welcome-rule: #e0e3f5;
+  --welcome-accent: #4f46e5;      /* indigo-600 — carries white at 6.3:1 */
+  --welcome-accent-soft: #eef1ff;
+  --welcome-on-accent: #ffffff;  /* 6.3:1 on --welcome-accent */
+
+
+  /* ── The gradient panel ──
+   *
+   * Three stops, indigo → violet, and NOTHING warmer under text. Amber is an accent on
+   * the numerals and pills only: white on the amber end of a gradient is about 2:1, and
+   * a headline that becomes unreadable halfway across is a headline nobody finishes.
+   *
+   * Every value below was computed against its own stop, not eyeballed:
+   *   white on --grad-from  17.1:1     white on --grad-to   5.7:1
+   *   --grad-ink-soft on --grad-via    5.4:1
+   *   --grad-highlight on --grad-from  6.6:1
+   */
+  --grad-from: #1e1b4b;
+  --grad-via: #4c1d95;
+  --grad-to: #7c3aed;
+  --grad-ink: #ffffff;
+  --grad-ink-soft: #ddd6fe;       /* violet-200 */
+  --grad-highlight: #fbbf24;      /* amber-400, the one warm accent */
+  --grad-rule: #ffffff26;
+
+  /*
+   * A real serif, from the system.
+   *
+   * No webfont on purpose: the sign-in page is the one screen that must render correctly
+   * on a cold cache over a bad connection, and a display face that arrives late is worse
+   * than one that was never asked for.
+   */
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+    Georgia, "Times New Roman", serif;
+
+  --font-sans: "Inter var", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-100: 0.694rem;
+  --fs-200: 0.833rem;
+  --fs-300: 1rem;
+  --fs-400: 1.2rem;
+  --fs-500: 1.44rem;
+  --fs-600: 1.728rem;
+  --fs-700: 2.074rem;
+  --fs-800: 2.488rem;
+  --lh-tight: 1.2;
+  --lh-snug: 1.35;
+  --lh-normal: 1.55;
+  --lh-relaxed: 1.7;
+
+  /* ── Spacing (4px base) ── */
+  --sp-0: 0;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+
+  /* ── Radius ── */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-full: 9999px;
+
+  /* ── Elevation: e-1 cards, e-2 sticky, e-3 popovers, e-4 modals. Nothing else floats. ── */
+  --e-0: none;
+  /*
+   * Cast from slate-900 rather than a near-black, and a little deeper than before.
+   *
+   * White on slate-50 is a five-point step; at the old opacities a card had no edge and
+   * the page read as one undifferentiated sheet. A tinted shadow also keeps the greys
+   * cool — a neutral-black shadow over a cool canvas turns muddy where they overlap.
+   */
+  --e-1: 0 1px 2px rgb(15 23 42 / 7%), 0 1px 1px rgb(15 23 42 / 4%);
+  --e-2: 0 2px 6px -1px rgb(15 23 42 / 10%), 0 1px 2px rgb(15 23 42 / 6%);
+  --e-3: 0 10px 20px -5px rgb(15 23 42 / 13%), 0 3px 6px rgb(15 23 42 / 7%);
+  --e-4: 0 20px 38px -10px rgb(15 23 42 / 18%), 0 6px 12px rgb(15 23 42 / 8%);
+
+  /* ── Layout ── */
+  --container: 1280px;
+  --content: 960px;
+  --prose: 68ch;
+
+  /* ── Motion (SPEC §8.2) ── */
+  --dur-instant: 80ms;
+  --dur-fast: 140ms;
+  --dur-base: 200ms;
+  --dur-reveal: 240ms;
+  --dur-slow: 320ms;
+  --dur-settle: 420ms;
+  --dur-pulse: 1800ms;
+  --dur-panel-drift: 24000ms;  /* ambient gradient drift on the welcome panel */
+  --dur-flow: 2200ms;          /* the pipeline-flow shimmer on the dashboard hero */   /* pending-pulse, one shared clock (SPEC 8.3) */
+  --dur-tally: 600ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-settle: cubic-bezier(0.34, 1.06, 0.64, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --stagger: 24ms;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * DARK — same token names redefined. Components never branch on theme.
+ * Three-state: explicit choice stamps data-theme; "system" stamps nothing.
+ * ══════════════════════════════════════════════════════════════════ */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink-900: #f1f5f9;
+    --ink-700: #cbd5e1;
+    --ink-500: #94a3b8;
+    --ink-400: #94a3b8;   /* slate-400 — 7.1:1 on the dark canvas */
+    --ink-300: #475569;
+    --ink-200: #334155;
+    --ink-100: #1e293b;
+    --ink-050: #0f172a;   /* slate-900 canvas */
+    --ink-000: #1e293b;   /* slate-800 — surface sits ABOVE canvas in dark */
+
+    --accent-700: #8e9bff;
+    --accent-600: #7c8bfa;
+    --accent-500: #9aa6ff;
+    --accent-100: #252c4a;
+    --accent-050: #1e2438;
+
+    --factor-up: #5fc9b4;
+    --factor-up-bg: #12312c;
+    --factor-down: #d19a63;
+    --factor-down-bg: #33261a;
+
+    --ramp-1: #2a3140;
+    --ramp-2: #3c4766;
+    --ramp-3: #55638f;
+    --ramp-4: #6f7fbe;
+    --ramp-5: #8e9bff;
+
+    /* ── Welcome surfaces (see the light block for why these exist) ── */
+    --welcome-canvas: #0f0f1a;
+    --welcome-surface: #1a1a2e;
+    --welcome-ink: #e9e9f5;
+    --welcome-ink-soft: #a1a1c0;   /* 7.1:1 on surface */
+    --welcome-rule: #2e2e4a;
+    --welcome-accent: #818cf8;     /* indigo-400 — 7.0:1 on surface */
+    --welcome-accent-soft: #232344;
+  --welcome-on-accent: #14142b;
+    --welcome-on-accent: #14142b;  /* the accent lightens in dark, so the label darkens */
+
+
+    /* The panel is already dark in both themes; it only deepens. */
+    --grad-from: #0d0b26;
+    --grad-via: #2e1065;
+    --grad-to: #5b21b6;
+    --grad-ink: #ffffff;
+    --grad-ink-soft: #c4b5fd;
+    --grad-highlight: #fcd34d;
+    --grad-rule: #ffffff1f;
+
+    --ai-surface: #221e33;
+    --ai-border: #3b3357;
+    --ai-ink: #b6a8e0;
+
+    --state-info: #8dc0f5;
+    --state-info-bg: #16233a;
+    --state-warn: #edc275;
+    --state-warn-bg: #33280f;
+    --state-ok: #7fca9b;
+    --state-ok-bg: #12301f;
+    --state-danger: #f09a9a;
+    --state-danger-bg: #331a1a;
+    --state-neutral: var(--text-secondary);
+    --state-neutral-bg: var(--surface-sunken);
+
+    /* Shadows do not read on a dark ground — borders do the work (SPEC §7.3). */
+    --e-1: none;
+    --e-2: none;
+    --e-3: 0 8px 16px -4px rgb(0 0 0 / 45%);
+    --e-4: 0 16px 32px -8px rgb(0 0 0 / 55%);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink-900: #f1f5f9;
+  --ink-700: #cbd5e1;
+  --ink-500: #94a3b8;
+  --ink-400: #94a3b8;   /* slate-400 — 7.1:1 on the dark canvas */
+  --ink-300: #475569;
+  --ink-200: #334155;
+  --ink-100: #1e293b;
+  --ink-050: #0f172a;   /* slate-900 canvas */
+  --ink-000: #1e293b;   /* slate-800 — surface sits ABOVE canvas in dark */
+
+  --accent-700: #8e9bff;
+  --accent-600: #7c8bfa;
+  --accent-500: #9aa6ff;
+  --accent-100: #252c4a;
+  --accent-050: #1e2438;
+
+  --factor-up: #5fc9b4;
+  --factor-up-bg: #12312c;
+  --factor-down: #d19a63;
+  --factor-down-bg: #33261a;
+
+  --ramp-1: #2a3140;
+  --ramp-2: #3c4766;
+  --ramp-3: #55638f;
+  --ramp-4: #6f7fbe;
+  --ramp-5: #8e9bff;
+
+  /* ── Welcome surfaces (see the light block for why these exist) ── */
+  --welcome-canvas: #0f0f1a;
+  --welcome-surface: #1a1a2e;
+  --welcome-ink: #e9e9f5;
+  --welcome-ink-soft: #a1a1c0;   /* 7.1:1 on surface */
+  --welcome-rule: #2e2e4a;
+  --welcome-accent: #818cf8;     /* indigo-400 — 7.0:1 on surface */
+  --welcome-accent-soft: #232344;
+
+
+  /* The panel is already dark in both themes; it only deepens. */
+  --grad-from: #0d0b26;
+  --grad-via: #2e1065;
+  --grad-to: #5b21b6;
+  --grad-ink: #ffffff;
+  --grad-ink-soft: #c4b5fd;
+  --grad-highlight: #fcd34d;
+  --grad-rule: #ffffff1f;
+
+  --ai-surface: #221e33;
+  --ai-border: #3b3357;
+  --ai-ink: #b6a8e0;
+
+  --state-info: #8dc0f5;
+  --state-info-bg: #16233a;
+  --state-warn: #edc275;
+  --state-warn-bg: #33280f;
+  --state-ok: #7fca9b;
+  --state-ok-bg: #12301f;
+  --state-danger: #f09a9a;
+  --state-danger-bg: #331a1a;
+  --state-neutral: var(--text-secondary);
+  --state-neutral-bg: var(--surface-sunken);
+
+  --e-1: none;
+  --e-2: none;
+  --e-3: 0 8px 16px -4px rgb(0 0 0 / 45%);
+  --e-4: 0 16px 32px -8px rgb(0 0 0 / 55%);
+}
+
+/* ── shadcn/ui theme bridge (ADR-019): shadcn reads these names. ── */
+:root,
+:root[data-theme="dark"] {
+  --background: var(--canvas);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+  --primary: var(--accent-600);
+  --primary-foreground: var(--ink-000);
+  --secondary: var(--surface-sunken);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-sunken);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--accent-100);
+  --accent-foreground: var(--accent-700);
+  --destructive: var(--state-danger);
+  --destructive-foreground: var(--ink-000);
+  --input: var(--border);
+  --ring: var(--focus-ring);
+  --radius: var(--r-md);
+}
+
+/* ── Base ── */
+body {
+  background: var(--canvas);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-300);
+  line-height: var(--lh-normal);
+}
+
+/* Mandatory on every score, rank, percentage and week range (SPEC §7.2) —
+   figures must align in columns and must not jitter during `tally`. */
+.tabular,
+[data-numeric] {
+  font-variant-numeric: tabular-nums;
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * REDUCED MOTION — a parallel definition, not an afterthought (SPEC §8.6).
+ * Information carried by motion must survive its removal: `settle-rank`
+ * drops the FLIP but keeps the highlight ring and the delta chip.
+ * ══════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════
+ * Named transitions (SPEC §8.3) — the two P3 uses.
+ *
+ * Defined here, in the design system, rather than per component: "AI arrives quietly"
+ * is a product rule, and a component that reimplements the fade decides that rule for
+ * itself. The reduced-motion block below neutralises both.
+ * ══════════════════════════════════════════════════════════════════ */
+
+@keyframes iep-defer {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes iep-pending-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.85; }
+}
+
+/* `defer` — AI content mounting, analysis step completion. Fade + 2px rise, no scale. */
+.motion-defer {
+  animation: iep-defer var(--dur-base) var(--ease-standard) both;
+}
+
+/* `pending-pulse` — in-flight steps and skeletons. */
+.motion-pending-pulse {
+  animation: iep-pending-pulse var(--dur-pulse) var(--ease-in-out) infinite;
+}
+
+@keyframes iep-reveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* `reveal-reasoning` — explanation panels, criterion rows, evidence disclosure. */
+.motion-reveal {
+  animation: iep-reveal var(--dur-reveal) var(--ease-out-quint) both;
+}
+
+/* Per-item stagger, capped at 8 then instant — a long list should not crawl. */
+.motion-reveal > *:nth-child(1) { animation-delay: calc(var(--stagger) * 0); }
+.motion-reveal > *:nth-child(2) { animation-delay: calc(var(--stagger) * 1); }
+.motion-reveal > *:nth-child(3) { animation-delay: calc(var(--stagger) * 2); }
+.motion-reveal > *:nth-child(4) { animation-delay: calc(var(--stagger) * 3); }
+.motion-reveal > *:nth-child(5) { animation-delay: calc(var(--stagger) * 4); }
+.motion-reveal > *:nth-child(6) { animation-delay: calc(var(--stagger) * 5); }
+.motion-reveal > *:nth-child(7) { animation-delay: calc(var(--stagger) * 6); }
+.motion-reveal > *:nth-child(8) { animation-delay: calc(var(--stagger) * 7); }
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-instant: 0ms;
+    --dur-fast: 80ms;
+    --dur-base: 80ms;
+    --dur-reveal: 80ms;
+    --dur-slow: 80ms;
+    --dur-settle: 0ms;
+    --dur-tally: 0ms;
+    --stagger: 0ms;
+    --ease-settle: linear;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 80ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,40 @@
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+
+    # Client-side routing (react-router): any path that isn't a real file falls back to
+    # index.html, so a hard refresh on e.g. /ideas/123/overview doesn't 404 at the edge.
+    location / {
+        try_files $uri /index.html;
+    }
+
+    # Hashed asset filenames (index-<hash>.js) are safe to cache forever; index.html is
+    # not, since it is what points at whichever hash is current.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+
+    # Same-origin `/api` in production, exactly like Vite's dev proxy (see
+    # apps/web/vite.config.ts) — the session cookie needs no CORS or SameSite exception
+    # either way, and the app never has to know it's talking to a separate service.
+    location /api/ {
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass ${API_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /health {
+        access_log off;
+        return 200 "ok\n";
+        add_header Content-Type text/plain;
+    }
+}

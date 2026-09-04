@@ -1,0 +1,466 @@
+/*
+ * P0.0 shell styling. Tokens only — no raw hex, no raw px (SPEC §7.6).
+ * Replaced by Tailwind + shadcn in Step 3 / P1.
+ */
+
+/*
+ * Element defaults go in @layer base — NOT unlayered.
+ *
+ * Unlayered CSS wins over every layered rule, so a bare `a { color: … }` here silently
+ * beat Tailwind's `text-primary-foreground` (which lives in @layer utilities) and
+ * rendered indigo text on an indigo button. The button looked completely empty.
+ *
+ * Anything that a utility class should be able to override belongs in this layer.
+ */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background: var(--canvas);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: var(--fs-300);
+    line-height: var(--lh-normal);
+  }
+
+  code {
+    font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+    font-size: var(--fs-200);
+    background: var(--surface-sunken);
+    padding: var(--sp-1) var(--sp-2);
+    border-radius: var(--r-sm);
+  }
+
+  a {
+    color: var(--accent-600);
+    text-decoration: none;
+  }
+
+  /*
+   * A link INSIDE a sentence needs more than colour (WCAG 1.4.1).
+   *
+   * Against muted body text the accent only reaches 1.2:1, so colour alone does not
+   * distinguish it — axe flagged exactly that on the submission form. Standalone links
+   * in nav, tables and lists of links keep the clean look; links embedded in prose get
+   * an underline, which is where the rule actually bites.
+   */
+  p a,
+  dd a,
+  /* A breadcrumb is a text block too: the crumb sits in a line of separators and muted
+     text, so the same rule applies to it. */
+  .crumbs a,
+  /*
+    A link sharing a table cell with other content — a title next to a status badge — is
+    a link in a text block by any reasonable reading, and axe agrees. A cell containing
+    ONLY a link is unambiguous and stays clean.
+  */
+  td a:not(:only-child),
+  li > a:not(:only-child) {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  :where(a, button, [tabindex]):focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
+  min-height: 100%;
+}
+
+.shell__main {
+  min-width: 0;
+}
+
+/* ── dev nav ── */
+
+.dev-nav {
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  padding: var(--sp-6) var(--sp-5);
+  overflow-y: auto;
+  max-height: 100vh;
+}
+
+.dev-nav__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-6);
+  font-size: var(--fs-200);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.dev-nav__count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+}
+
+.dev-nav__group {
+  margin-bottom: var(--sp-5);
+}
+
+.dev-nav__heading {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-100);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.dev-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dev-nav li a {
+  display: block;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  font-size: var(--fs-200);
+}
+
+.dev-nav li a:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.dev-nav li a[aria-current="page"] {
+  background: var(--accent-100);
+  color: var(--accent-700);
+  font-weight: 500;
+}
+
+/* ── page ── */
+
+.page {
+  max-width: var(--content);
+  padding: var(--sp-10) var(--sp-8);
+}
+
+.page h1 {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-700);
+  line-height: var(--lh-tight);
+  font-weight: 600;
+}
+
+.crumbs {
+  margin-bottom: var(--sp-4);
+  font-size: var(--fs-200);
+  color: var(--text-tertiary);
+}
+
+.muted {
+  margin: 0 0 var(--sp-8);
+  color: var(--text-secondary);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: minmax(0, 10rem) minmax(0, 1fr);
+  gap: var(--sp-3) var(--sp-5);
+  margin: 0;
+  padding: var(--sp-5) var(--sp-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--e-1);
+}
+
+.facts dt {
+  font-size: var(--fs-200);
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.facts dd {
+  margin: 0;
+  font-size: var(--fs-200);
+}
+
+@media (max-width: 48rem) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dev-nav {
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-1) 0;
+  }
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  margin-bottom: var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+
+.user-menu__name {
+  margin: 0;
+  font-size: var(--fs-200);
+  font-weight: 600;
+}
+
+.user-menu__roles {
+  margin: 0;
+  font-size: var(--fs-100);
+  color: var(--text-secondary);
+}
+
+/*
+ * The sign-in / sign-up gradient panel.
+ *
+ * Lives here rather than in a feature file for two reasons: `pnpm lint:tokens` bans raw
+ * durations in `features/**`, and a keyframe belongs with the stylesheet rather than
+ * inlined in a component. The colours are still tokens — nothing is hardcoded.
+ */
+.welcome-panel {
+  background-image:
+    /* Deep indigo held at the top-left so the panel has real tonal range. Without it the
+       violet stop floods the whole surface and the gradient reads as one flat colour. */
+    radial-gradient(circle at 8% 6%, color-mix(in oklab, var(--grad-from) 92%, transparent), transparent 62%),
+    radial-gradient(circle at 88% 18%, color-mix(in oklab, var(--grad-to) 60%, transparent), transparent 55%),
+    radial-gradient(circle at 78% 88%, color-mix(in oklab, var(--grad-highlight) 20%, transparent), transparent 52%),
+    linear-gradient(135deg, var(--grad-from) 0%, var(--grad-via) 48%, var(--grad-to) 100%);
+  background-size: 150% 150%, 160% 160%, 160% 160%, 200% 200%;
+  animation: welcome-drift var(--dur-panel-drift) var(--ease-in-out) infinite alternate;
+}
+
+@keyframes welcome-drift {
+  from { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 50%; }
+  to   { background-position: 10% 14%, 88% 16%, 80% 86%, 100% 50%; }
+}
+
+/*
+ * A slow ambient drift is decoration. Anyone who has asked their system to stop moving
+ * things has asked for a reason, and a login page is not the place to argue.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .welcome-panel { animation: none; }
+}
+
+/* A whisper of the panel colour behind the card, so the right side is a surface rather
+ * than an absence. Two stops at very low strength — anything more competes with the
+ * gradient it is meant to answer. */
+.welcome-stage {
+  background-image:
+    radial-gradient(ellipse at 70% 0%, color-mix(in oklab, var(--welcome-accent) 9%, transparent), transparent 60%),
+    radial-gradient(ellipse at 20% 100%, color-mix(in oklab, var(--grad-to) 7%, transparent), transparent 55%);
+}
+
+/*
+ * The brand gradient, as a bar.
+ *
+ * The sign-in page had a saturated identity and the application behind it was white and
+ * grey, so signing in felt like leaving the product for a spreadsheet. This is the same
+ * three stops as `.welcome-panel`, flattened for a 56px header — the strip of colour that
+ * makes the two halves one product.
+ */
+.brand-bar {
+  background-image: linear-gradient(
+    100deg,
+    var(--grad-from) 0%,
+    var(--grad-via) 45%,
+    var(--grad-to) 100%
+  );
+}
+
+/* The rail beside the sidebar, so the colour does not stop dead under the header. */
+/* Two stops, not one: the violet hands off to the accent tint before it fades out, which
+   is what stops the top of the sidebar reading as a bruise on a white column. */
+.brand-rail {
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--grad-to) 14%, transparent) 0%,
+    color-mix(in oklab, var(--accent-100) 50%, transparent) 26%,
+    transparent 62%
+  );
+}
+
+/*
+ * A page heading gets a short gradient underline. Cheap, and it is what stops every
+ * screen opening with the same undifferentiated slab of text.
+ */
+.page > h1::after {
+  content: "";
+  display: block;
+  width: var(--sp-12);
+  height: 3px;
+  margin-top: var(--sp-3);
+  border-radius: var(--r-full);
+  background-image: linear-gradient(90deg, var(--accent-600), var(--grad-to));
+}
+
+/*
+ * Dashboard hero (Idea Platform Redesign — "hero").
+ *
+ * Here rather than in the component for the same reason as `.welcome-panel`:
+ * `pnpm lint:tokens` bans raw durations in `features/**`, and keyframes belong in a
+ * stylesheet. Every colour is still a token.
+ */
+.dash-hero {
+  background-image:
+    radial-gradient(600px 300px at 88% 10%, color-mix(in oklab, var(--grad-highlight) 30%, transparent), transparent 58%),
+    radial-gradient(520px 380px at 6% 108%, color-mix(in oklab, var(--grad-to) 85%, transparent), transparent 60%),
+    linear-gradient(120deg, var(--grad-from) 0%, var(--grad-via) 52%, var(--grad-to) 100%);
+  box-shadow: var(--e-4);
+}
+
+/* The dot grid the canvas lays over the gradient, faded out towards the corner. */
+.dash-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--grad-rule) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: linear-gradient(200deg, #000, transparent 80%);
+}
+
+.dash-pulse { animation: dash-pulse var(--dur-pulse) var(--ease-in-out) infinite; }
+@keyframes dash-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+.dash-flow {
+  background-image: linear-gradient(90deg, transparent, var(--grad-highlight), transparent);
+  animation: dash-flow var(--dur-flow) linear infinite;
+}
+@keyframes dash-flow { from { transform: translateX(-100%); } to { transform: translateX(320%); } }
+
+/*
+ * Both animations are decoration on a screen people read. Anyone who asked their system
+ * to stop moving things asked for a reason.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .dash-pulse,
+  .dash-flow { animation: none; }
+  .dash-flow { opacity: 0.5; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * Idea Platform Redesign — the shared surfaces
+ *
+ * Same reason as `.welcome-panel` and `.dash-hero` above: `pnpm lint:tokens` bans raw
+ * durations and raw px inside `features/**`, keyframes belong in a stylesheet, and a
+ * conic gradient with an interpolated stop is unreadable inline. Every colour is a
+ * token; the only thing a component passes in is a number.
+ * ══════════════════════════════════════════════════════════════════ */
+
+/*
+ * The brand pill — active nav item, active filter, active profile.
+ *
+ * grad-via → grad-to, NOT accent-700 → grad-to as the canvas has it. The canvas was
+ * drawn in light mode, where accent-700 is a deep indigo that carries white at 8:1. In
+ * dark it becomes #8e9bff, and white on that is 2.5:1 — the label on every active
+ * control in the product would have quietly failed AA in one theme. The grad-* stops are
+ * dark in BOTH themes by design, which is exactly what a white-on-colour pill needs.
+ */
+.brand-pill {
+  background-image: linear-gradient(100deg, var(--grad-via) 0%, var(--grad-to) 100%);
+}
+
+/* The amber rail down the active item's left edge — the canvas's second cue, so the
+   active row is not carried by colour alone (WCAG 1.4.1, same rule as the nav rail). */
+.brand-pill--railed::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--sp-2);
+  bottom: var(--sp-2);
+  width: 3px;
+  border-radius: var(--r-full);
+  background: var(--grad-highlight);
+}
+
+/*
+ * The score ring — a conic gradient filled to `--ring-turn`.
+ *
+ * The ramp, not a verdict palette: a 40 and a 90 differ in how much of the ring is
+ * filled, not in hue (P-1). Set `--ring-turn` inline as a `turn` value.
+ */
+.score-ring {
+  background: conic-gradient(
+    from -90deg,
+    var(--ramp-5) 0turn var(--ring-turn, 0turn),
+    var(--ramp-1) var(--ring-turn, 0turn) 1turn
+  );
+}
+
+/* Same ring on the gradient panel, where the ramp would disappear into the violet. */
+.score-ring--on-brand {
+  background: conic-gradient(
+    from -90deg,
+    var(--grad-highlight) 0turn var(--ring-turn, 0turn),
+    var(--grad-rule) var(--ring-turn, 0turn) 1turn
+  );
+}
+
+/*
+ * The podium crown — rank 1 on the board.
+ *
+ * The same three stops as `.dash-hero` at a different angle, so the two most important
+ * panels in the product read as the same object rather than two accidents.
+ */
+.board-crown {
+  background-image:
+    radial-gradient(300px 180px at 88% 0%, color-mix(in oklab, var(--grad-highlight) 40%, transparent), transparent 62%),
+    linear-gradient(150deg, var(--grad-from) 0%, var(--grad-via) 55%, var(--grad-to) 100%);
+}
+
+.board-crown::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--grad-rule) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* The dotted track the outcome stages sit on. Drawn once, behind all four. */
+.stage-track {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--border-strong) 0 6px,
+    transparent 6px 12px
+  );
+}

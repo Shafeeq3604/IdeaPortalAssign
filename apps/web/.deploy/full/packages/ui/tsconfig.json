@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "jsx": "react-jsx",
+    "lib": [
+      "ES2023",
+      "DOM"
+    ],
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "exactOptionalPropertyTypes": false
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "$comment": "exactOptionalPropertyTypes is OFF here, and only here. src/components/ui/** is VENDORED shadcn code (ADR-019) that upstream does not compile under that flag. Relaxing it for the baseline is honest; patching upstream files would be silently undone by the next registry update. Every other package, and both apps, keep it ON."
+}

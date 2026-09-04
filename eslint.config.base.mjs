@@ -14,7 +14,13 @@ import { defineConfig, globalIgnores } from "eslint/config";
  * get real linting without ten near-identical copies of the same rule set to drift.
  */
 export const base = defineConfig([
-  globalIgnores(["dist", "node_modules", "coverage", "generated"]),
+  // `.deploy` is a committed `turbo prune` snapshot (apps/api, apps/worker, apps/web —
+  // see scripts/prepare-deploy.mjs) that mirrors other workspace packages' source
+  // verbatim, relative-path imports included; linting it directly resolves those
+  // imports against the wrong depth and fails, e.g. apps/worker/eslint.config.mjs's
+  // own `../../eslint.config.base.mjs` import breaking once nested under
+  // apps/web/.deploy/full/apps/worker/.
+  globalIgnores(["dist", "node_modules", "coverage", "generated", "**/.deploy/**"]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [js.configs.recommended, tseslint.configs.recommended],

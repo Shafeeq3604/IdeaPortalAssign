@@ -1,0 +1,25 @@
+{
+  "name": "@iep/ai",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "eval": "vitest run -t \"SPEC §12.4\""
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.121.0",
+    "@iep/contracts": "workspace:*",
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.25.2"
+  }
+}

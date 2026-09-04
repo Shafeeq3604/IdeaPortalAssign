@@ -1,0 +1,5 @@
+# Generated artefacts must be byte-identical across platforms, or the OpenAPI
+# drift gate reports false positives on Windows checkouts (SPEC §11.3).
+* text=auto eol=lf
+openapi.json text eol=lf
+*.png binary
