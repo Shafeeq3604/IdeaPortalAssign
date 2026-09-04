@@ -1,0 +1,33 @@
+# Validra's deployment manifest. NOT used for local dev — that's docker-compose.deps.yml
+# (Postgres+Redis for `pnpm dev`) and docker-compose.full.yml (the whole stack, for local
+# testing). This file exists solely so Validra's own service discovery gets one thing
+# right: the BUILD CONTEXT.
+#
+# Validra's per-Dockerfile discovery correctly found all three services
+# (apps/{api,worker,web}/Dockerfile), but built each one using its own directory as the
+# build context. That fails immediately in a pnpm workspace monorepo — apps/api/ alone
+# has no pnpm-lock.yaml, no pnpm-workspace.yaml, and none of the sibling packages
+# (@iep/contracts, @iep/db, @iep/evaluation) this app actually depends on. The real
+# failure seen from Validra:
+#
+#   [ERR_PNPM_NO_LOCKFILE] Cannot install with "frozen-lockfile" because
+#   pnpm-lock.yaml is absent
+#
+# A root docker-compose.yml is Validra's own documented fix for exactly this: it "names
+# the services and their build contexts explicitly." No Postgres/Redis here — Validra
+# provisions and connects those separately; this file's only job is the build.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
