@@ -4,7 +4,7 @@ on: [push, pull_request]
 jobs:
   gate:
     runs-on: ubuntu-latest
-    # `docker-compose.yml`'s own image and credentials, so a schema change that needs the
+    # `docker-compose.deps.yml`'s own image and credentials, so a schema change that needs the
     # pgvector extension (packages/db/prisma/schema.prisma's `embedding` columns) behaves
     # identically here and locally — a plain `postgres` image cannot run these migrations.
     services:
@@ -20,7 +20,7 @@ jobs:
           --health-interval 5s
           --health-retries 10
       # Only needed from "Start API (background)" onward (BullMQ, for the E2E stack).
-      # docker-compose.yml maps this to 6380 locally to dodge a Redis a developer may
+      # docker-compose.deps.yml maps this to 6380 locally to dodge a Redis a developer may
       # already have on 6379 — a clean runner has no such conflict, so this uses the
       # plain default port instead of carrying that workaround into CI.
       redis:

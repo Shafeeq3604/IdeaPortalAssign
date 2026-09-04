@@ -1,9 +1,13 @@
 # Runs the whole stack — Postgres, Redis, API, worker, web — as containers, built from
-# apps/{api,worker,web}/Dockerfile. Separate from the root docker-compose.yml on purpose:
-# that one only ever runs Postgres+Redis, for `pnpm dev` running the app on the host
-# (`pnpm deps:up` = `docker compose up -d`, unchanged) — folding the app services into
-# that same file would make plain `pnpm deps:up` start three app containers nobody asked
-# for. Use this file explicitly instead:
+# apps/{api,worker,web}/Dockerfile. Separate from docker-compose.deps.yml on purpose: that
+# one only ever runs Postgres+Redis, for `pnpm dev` running the app on the host
+# (`pnpm deps:up` = `docker compose -f docker-compose.deps.yml up -d`, unchanged) — folding
+# the app services into that same file would make plain `pnpm deps:up` start three app
+# containers nobody asked for. It also used to be named plain `docker-compose.yml`, which
+# is the exact name some platform auto-deploy tools look for FIRST when discovering a
+# repo's services — a file with that name but only Postgres+Redis in it risks being read
+# as "this app has two services" and nothing else ever gets found. Renamed for that reason,
+# not for anything to do with local dev. Use this file explicitly instead:
 #
 #   docker compose -f docker-compose.full.yml up --build
 #
