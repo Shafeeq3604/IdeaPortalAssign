@@ -13,8 +13,17 @@ import { evaluateVersion, recomputeRankings } from "@iep/evaluation";
  * apps/worker — the AI pipeline consumer (P3).
  *
  * This is the ONLY process that holds the Anthropic key (SPEC §4.4). The API refuses to
- * boot if it can see one; this one refuses to start without it when the real provider is
- * selected — the two guards point in opposite directions on purpose.
+ * boot if it can see one.
+ *
+ * This one used to refuse to start at all without a key when AI_PROVIDER=anthropic — the
+ * two guards pointing in opposite directions on purpose. In practice that made a single
+ * missing secret take the whole analysis pipeline down permanently (the container
+ * crash-loops, nothing ever consumes the queue, every submission sits at PENDING forever)
+ * instead of leaving the idea rankable on the free stub, which is the same resilience
+ * principle the per-step fallback in pipeline.ts already applies one level up. So this now
+ * degrades loudly to the stub provider instead of refusing to boot — "loudly" meaning an
+ * error-level log on every startup, since a silent stub substitution would be worse than
+ * the crash it replaces.
  */
 
 const env = loadEnv(WorkerEnv, process.env);
@@ -23,10 +32,12 @@ const db = getPrisma();
 function makeProvider(): AiProvider {
   if (env.AI_PROVIDER === "stub") return new StubProvider();
   if (!env.ANTHROPIC_API_KEY) {
-    throw new Error(
-      "AI_PROVIDER=anthropic but no ANTHROPIC_API_KEY. It belongs in apps/worker/.env " +
-        "(never the repo root — the API must not be able to see it).",
+    console.error(
+      "[worker] AI_PROVIDER=anthropic but no ANTHROPIC_API_KEY is set. Falling back to " +
+        "the stub provider so analysis keeps running — set ANTHROPIC_API_KEY on the " +
+        "WORKER service (never the API) to use the real model.",
     );
+    return new StubProvider();
   }
   return new AnthropicProvider({ apiKey: env.ANTHROPIC_API_KEY });
 }

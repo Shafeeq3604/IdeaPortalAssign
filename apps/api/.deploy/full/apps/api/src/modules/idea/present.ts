@@ -125,13 +125,17 @@ export function toIdeaDetail(idea: Row, actor: { userId: string; roles: readonly
     status: idea.status as IdeaStatus,
   };
 
-  const allowedTransitions = ALL_TRANSITIONS.filter(
-    (t) =>
-      t.from === resource.status &&
-      t.availableInM1 &&
-      t.roles.some((r) => actor.roles.includes(r)) &&
-      (!t.submitterOnly || idea.submitterId === actor.userId),
-  ).map((t) => t.to);
+  const isOwner = idea.submitterId === actor.userId;
+  const allowedTransitions = ALL_TRANSITIONS.filter((t) => {
+    if (t.from !== resource.status || !t.availableInM1) return false;
+    const roleAllowed = t.roles.some((r) => actor.roles.includes(r)) &&
+      (!t.submitterOnly || isOwner);
+    // Mirrors lifecycle.ts's canTransition(): `ownerAllowed` is an independent OR-path,
+    // not a narrowing of `roles` — it is how a submitter may archive their own idea
+    // without widening what a reviewer/admin may do to someone else's.
+    const ownerAllowed = t.ownerAllowed === true && isOwner;
+    return roleAllowed || ownerAllowed;
+  }).map((t) => t.to);
 
   return {
     ...toIdeaSummary(idea),

@@ -15,8 +15,18 @@ export interface Transition {
   readonly requiresReason: boolean;
   /** false = the enum member exists but the transition is unreachable until a later milestone. */
   readonly availableInM1: boolean;
-  /** Owner-only: the actor must be the idea's submitter. */
+  /** Owner-only: the actor must be the idea's submitter. Narrows `roles` — a role in
+   *  `roles` may only use this transition on their own idea. */
   readonly submitterOnly?: boolean;
+  /**
+   * Widens beyond `roles`: the idea's submitter may perform this transition regardless
+   * of role, even one not listed in `roles` at all. Unlike `submitterOnly` (which
+   * narrows an already role-granted transition) this is an independent OR-path — it
+   * exists so a reviewer's standing power to act on ANY idea and a submitter's power to
+   * withdraw only THEIR OWN idea can share one (from, to) row without either widening
+   * the other.
+   */
+  readonly ownerAllowed?: boolean;
 }
 
 const ANY_REVIEWER: readonly Role[] = ["REVIEWER", "ADMIN"];
@@ -44,12 +54,23 @@ export const TRANSITIONS: readonly Transition[] = [
 ];
 
 /** States an idea may be parked/blocked/rejected/archived from. */
-const INTERRUPTIBLE: readonly IdeaStatus[] = [
+export const INTERRUPTIBLE: readonly IdeaStatus[] = [
   "SUBMITTED", "AI_ANALYSIS", "NEEDS_CLARIFICATION", "EVALUATED", "RANKED",
   "UNDER_REVIEW", "PROTOTYPE_CANDIDATE",
 ];
 
-/** Terminal and hold states, generated so they cannot drift out of sync. */
+/**
+ * Terminal and hold states, generated so they cannot drift out of sync.
+ *
+ * NEEDS_CLARIFICATION → ARCHIVED alone also carries `ownerAllowed`: it is the one
+ * INTERRUPTIBLE state where the idea has bounced back to the submitter rather than
+ * moved forward under a reviewer's judgment, so it is still theirs to withdraw — the
+ * same boundary EDITABLE draws for editing (permissions.ts). Every other row here,
+ * including every OTHER path to ARCHIVED, stays reviewer-only: once an idea has moved
+ * forward past that point it has left the owner's hands (permissions.test.ts), and
+ * PARKED/BLOCKED/REJECTED are a verdict on the idea's merit regardless of state — SPEC
+ * §4.2 reserves that for someone other than its author.
+ */
 export const INTERRUPT_TRANSITIONS: readonly Transition[] = INTERRUPTIBLE.flatMap((from) =>
   (["PARKED", "BLOCKED", "REJECTED", "ARCHIVED"] as const).map((to) => ({
     from,
@@ -57,8 +78,25 @@ export const INTERRUPT_TRANSITIONS: readonly Transition[] = INTERRUPTIBLE.flatMa
     roles: ANY_REVIEWER,
     requiresReason: true, // FR-23: "Rejected with Reason" — and the same for every hold
     availableInM1: true,
+    ...(to === "ARCHIVED" && from === "NEEDS_CLARIFICATION" ? { ownerAllowed: true } : {}),
   })),
 );
+
+/**
+ * The submitter may also withdraw a DRAFT outright — it has never left their hands at
+ * all, so there is no reviewer judgment to override. DRAFT is not in INTERRUPTIBLE (no
+ * reviewer has ever had power over a draft; it isn't visible to them), so this is its
+ * own entry rather than folded into INTERRUPT_TRANSITIONS above. `roles: []` because
+ * this transition has no role-based grant at all — `ownerAllowed` is the only path in.
+ */
+export const OWNER_WITHDRAW_DRAFT_TRANSITION: Transition = {
+  from: "DRAFT",
+  to: "ARCHIVED",
+  roles: [],
+  requiresReason: true,
+  availableInM1: true,
+  ownerAllowed: true,
+};
 
 /** PARKED/BLOCKED may return to where they came from — the resume path. */
 export const RESUME_TRANSITIONS: readonly Transition[] = (["PARKED", "BLOCKED"] as const).flatMap(
@@ -76,6 +114,7 @@ export const ALL_TRANSITIONS: readonly Transition[] = [
   ...TRANSITIONS,
   ...INTERRUPT_TRANSITIONS,
   ...RESUME_TRANSITIONS,
+  OWNER_WITHDRAW_DRAFT_TRANSITION,
 ];
 
 export function findTransition(from: IdeaStatus, to: IdeaStatus): Transition | undefined {
@@ -109,10 +148,15 @@ export function canTransition(
   if ((check.milestone ?? "M1") === "M1" && !transition.availableInM1) {
     return { ok: false, code: "NOT_AVAILABLE_YET" };
   }
-  if (!transition.roles.some((r) => check.actorRoles.includes(r))) {
+
+  const roleAllowed = transition.roles.some((r) => check.actorRoles.includes(r));
+  const ownerAllowed = Boolean(transition.ownerAllowed) && check.isSubmitter;
+  if (!roleAllowed && !ownerAllowed) {
     return { ok: false, code: "ROLE_NOT_PERMITTED" };
   }
-  if (transition.submitterOnly && !check.isSubmitter) {
+  // `submitterOnly` narrows the ROLE-based grant only. The owner path above is already
+  // submitter-scoped by construction, so it is never subject to this second check.
+  if (roleAllowed && transition.submitterOnly && !check.isSubmitter) {
     return { ok: false, code: "NOT_SUBMITTER" };
   }
   if (transition.requiresReason && !check.reason?.trim()) {

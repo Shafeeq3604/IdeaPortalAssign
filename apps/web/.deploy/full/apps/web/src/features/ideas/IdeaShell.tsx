@@ -1,6 +1,9 @@
 import * as React from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
-import { Badge, Button, ErrorState, Skeleton } from "@iep/ui";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import {
+  Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
+  DialogTitle, ErrorState, Label, Skeleton, Textarea,
+} from "@iep/ui";
 import { ROUTES } from "@iep/contracts";
 import { STATUS_LABEL, useIdea, useTransition } from "./api";
 import { VoteButtons } from "../feedback/VoteButtons";
@@ -28,8 +31,13 @@ const TABS = [
 export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.ReactNode }) {
   const { ideaId = "" } = useParams();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const query = useIdea(ideaId);
   const transition = useTransition(ideaId);
+  const [archiveOpen, setArchiveOpen] = React.useState(false);
+  const [archiveReason, setArchiveReason] = React.useState("");
+  const [archiveTouched, setArchiveTouched] = React.useState(false);
+  const archiveReasonMissing = archiveReason.trim().length === 0;
 
   if (query.isPending) {
     return (
@@ -151,7 +159,79 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
             {transition.isPending ? "Submitting…" : "Submit for analysis"}
           </Button>
         ) : null}
+        {idea.permissions.allowedTransitions.includes("ARCHIVED") ? (
+          <Button variant="destructive" onClick={() => setArchiveOpen(true)}>
+            Archive this idea
+          </Button>
+        ) : null}
       </div>
+
+      <Dialog
+        open={archiveOpen}
+        onOpenChange={(open) => {
+          setArchiveOpen(open);
+          if (!open) {
+            setArchiveReason("");
+            setArchiveTouched(false);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Archive this idea?</DialogTitle>
+            <DialogDescription>
+              It comes off your active list and the board. Every version, evaluation, and
+              audit entry stays exactly as it is — nothing is deleted — but there is
+              currently no way to bring it back to an active status from here.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div>
+            <Label htmlFor="field-archiveReason">Why (required)</Label>
+            <Textarea
+              id="field-archiveReason"
+              value={archiveReason}
+              onChange={(event) => setArchiveReason(event.target.value)}
+              rows={3}
+              aria-invalid={archiveTouched && archiveReasonMissing}
+              aria-describedby={
+                archiveTouched && archiveReasonMissing ? "error-archiveReason" : undefined
+              }
+            />
+            {archiveTouched && archiveReasonMissing ? (
+              <p id="error-archiveReason" role="alert" className="mt-1 text-100 text-destructive">
+                Archiving needs a reason. It's recorded in the idea's history.
+              </p>
+            ) : null}
+          </div>
+
+          {transition.isError ? (
+            <p role="alert" className="text-100 text-destructive">
+              The idea was not archived. Nothing has changed — try again.
+            </p>
+          ) : null}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setArchiveOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={transition.isPending}
+              onClick={() => {
+                setArchiveTouched(true);
+                if (archiveReasonMissing) return;
+                transition.mutate(
+                  { to: "ARCHIVED", reason: archiveReason.trim() },
+                  { onSuccess: () => navigate("/ideas") },
+                );
+              }}
+            >
+              {transition.isPending ? "Archiving…" : "Archive this idea"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {children(idea)}
     </main>
