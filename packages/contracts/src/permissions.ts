@@ -168,7 +168,11 @@ export function can(actor: Actor, action: Action, idea?: IdeaResource): Decision
     case "idea:transition": {
       if (!idea) return deny("NOT_VISIBLE");
       if (has(actor, "REVIEWER") || has(actor, "ADMIN")) return ALLOW;
-      // An employee may only push their own DRAFT to SUBMITTED.
+      // An employee may only push their own DRAFT to SUBMITTED, or withdraw (archive)
+      // their own idea — but only while it is still theirs to change (EDITABLE). Once
+      // it has left their hands, only a reviewer/admin may move it further; this is the
+      // coarse gate, the lifecycle table (lifecycle.ts) is the precise authority on
+      // which target status is actually legal from here.
       if (isOwner && EDITABLE.includes(idea.status)) return ALLOW;
       return deny("ROLE_NOT_PERMITTED");
     }
