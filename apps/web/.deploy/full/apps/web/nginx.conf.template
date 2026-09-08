@@ -26,7 +26,16 @@ server {
         rewrite ^/api/(.*)$ /$1 break;
         proxy_pass ${API_UPSTREAM};
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
+        # A bare container name (local docker-compose) doesn't care about Host, but a
+        # platform that fronts services behind shared, name-based ingress (Azure
+        # Container Apps) routes on it — forwarding the BROWSER's Host here sent every
+        # request to the wrong backend and came back 502, verified directly against a
+        # real deployment. $proxy_host is nginx's own name for "whatever proxy_pass
+        # is pointed at", so this is correct for both cases without a second env var.
+        # proxy_ssl_server_name matches SNI to the same host for the TLS handshake,
+        # which that kind of ingress also keys on; it is a no-op for a plain http:// upstream.
+        proxy_set_header Host $proxy_host;
+        proxy_ssl_server_name on;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;

@@ -1,9 +1,3 @@
--- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
-
--- CreateExtension
-CREATE EXTENSION IF NOT EXISTS "vector";
-
 -- CreateEnum
 CREATE TYPE "Role" AS ENUM ('EMPLOYEE', 'REVIEWER', 'ADMIN', 'MANAGEMENT');
 
@@ -170,7 +164,6 @@ CREATE TABLE "idea_versions" (
     "change_summary" TEXT,
     "author_id" UUID NOT NULL,
     "content_hash" TEXT NOT NULL,
-    "embedding" vector(1536),
     "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "idea_versions_pkey" PRIMARY KEY ("id")
@@ -577,7 +570,6 @@ CREATE TABLE "existing_solutions" (
     "owner_department_id" UUID,
     "categories" TEXT[],
     "is_active" BOOLEAN NOT NULL DEFAULT true,
-    "embedding" vector(1536),
 
     CONSTRAINT "existing_solutions_pkey" PRIMARY KEY ("id")
 );

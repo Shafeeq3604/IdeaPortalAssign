@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import type { UserConfig } from "vite";
 import type { InlineConfig } from "vitest/node";
+import { defaultExclude } from "vitest/config";
 
 /**
  * `vitest/config`'s own `defineConfig` re-exports Vite's, merged with the `test` field —
@@ -25,6 +26,11 @@ const config: ConfigWithTest = {
     // need for a second, Node-only project just for them.
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    // `.deploy` is a committed `turbo prune` snapshot (see scripts/prepare-deploy.mjs)
+    // that mirrors other workspace packages' source verbatim, including THEIR test
+    // files — vitest picks those up too under a bare glob, and they fail: resolved
+    // from the wrong depth, they can't find their own package's node_modules.
+    exclude: [...defaultExclude, "**/.deploy/**"],
   },
   server: {
     proxy: {
