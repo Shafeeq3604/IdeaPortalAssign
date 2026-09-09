@@ -434,7 +434,7 @@ function IdeaCard({ idea }: { idea: IdeaSummary }) {
           <span className="text-100 text-muted-foreground">Not submitted</span>
         ) : (
           <span className="relative">
-            <VoteCount ideaId={idea.id} />
+            <VoteCount up={idea.feedback.up} down={idea.feedback.down} />
           </span>
         )}
       </div>

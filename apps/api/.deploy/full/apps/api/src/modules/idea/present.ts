@@ -30,11 +30,22 @@ const isoRequired = (d: Date): string => d.toISOString();
    the response shape is guaranteed by the contract schemas, which the tests validate. */
 type Row = any;
 
+/** Zero votes, no opinion recorded — the same "nothing yet" state a fresh idea has. */
+const NO_FEEDBACK: { up: number; down: number; myVote: "UP" | "DOWN" | null } = {
+  up: 0,
+  down: 0,
+  myVote: null,
+};
+
 /**
  * @param scored The idea's current-version score and rank, when it has one.
+ * @param feedback Vote totals and the caller's own vote, when they were fetched.
  *
- * Passed in rather than read here because it takes two queries the caller batches across
- * the whole page — doing it per row would be an N+1 on every list in the product.
+ * Both are passed in rather than read here because each takes queries the caller batches
+ * across the whole page — doing either per row would be an N+1 on every list in the
+ * product (the same reasoning that already applied to `scored` now applies to feedback:
+ * every `IdeaCard` on `/ideas` was independently calling `useFeedback(ideaId)`, turning a
+ * 20-idea page into 20 extra round trips just to show vote counts).
  */
 export function toIdeaSummary(
   idea: Row,
@@ -42,6 +53,7 @@ export function toIdeaSummary(
     compositeScore: null,
     rank: null,
   },
+  feedback: { up: number; down: number; myVote: "UP" | "DOWN" | null } = NO_FEEDBACK,
 ) {
   return {
     id: idea.id,
@@ -67,6 +79,7 @@ export function toIdeaSummary(
      */
     rank: scored.rank,
     compositeScore: scored.compositeScore,
+    feedback,
   };
 }
 
@@ -118,7 +131,11 @@ export function toStatusEntry(h: Row) {
  * the server will refuse. Sending the decisions means the UI can hide impossible actions
  * without re-implementing the policy, and the two can never disagree.
  */
-export function toIdeaDetail(idea: Row, actor: { userId: string; roles: readonly Role[] }) {
+export function toIdeaDetail(
+  idea: Row,
+  actor: { userId: string; roles: readonly Role[] },
+  feedback: { up: number; down: number; myVote: "UP" | "DOWN" | null } = NO_FEEDBACK,
+) {
   const resource = {
     ideaId: idea.id,
     submitterId: idea.submitterId,
@@ -138,7 +155,7 @@ export function toIdeaDetail(idea: Row, actor: { userId: string; roles: readonly
   }).map((t) => t.to);
 
   return {
-    ...toIdeaSummary(idea),
+    ...toIdeaSummary(idea, undefined, feedback),
     currentVersion: toVersionDetail(idea.currentVersion),
     versionCount: idea._count?.versions ?? 1,
     openRecommendationCount: 0, // P5 supplies this

@@ -25,6 +25,7 @@ function idea(overrides: Partial<IdeaSummary> = {}): IdeaSummary {
     updatedAt: "2026-08-01T00:00:00.000Z",
     rank: 3,
     compositeScore: 82.4,
+    feedback: { up: 0, down: 0, myVote: null },
     ...overrides,
   };
 }
@@ -50,11 +51,6 @@ function stubFetch(handlers: { list?: (url: URL) => unknown; session?: unknown }
     }
     if (url.pathname === "/api/ideas" && handlers.list) {
       return Promise.resolve(new Response(JSON.stringify(handlers.list(url)), { status: 200 }));
-    }
-    // Every card also queries vote counts; answering with an empty summary keeps that
-    // query harmless instead of leaving it pending or throwing.
-    if (url.pathname.endsWith("/feedback")) {
-      return Promise.resolve(new Response(JSON.stringify({ up: 0, down: 0, myVote: null }), { status: 200 }));
     }
     return Promise.resolve(new Response(JSON.stringify({}), { status: 404 }));
   });

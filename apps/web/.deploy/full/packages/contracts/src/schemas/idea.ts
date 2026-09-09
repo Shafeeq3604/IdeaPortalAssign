@@ -3,6 +3,7 @@ import { IdeaStatus, MaturityLevel, Role } from "../enums.js";
 import {
   ActorRef, CategoryRef, DepartmentRef, Id, PageQuery, Timestamp, paginated, queryArray,
 } from "./common.js";
+import { FeedbackVote } from "./review.js";
 
 /** Idea capture, versioning and lifecycle (FR-02, FR-16, FR-23, FR-24). */
 
@@ -91,6 +92,19 @@ export const IdeaSummary = z.object({
   /** Present once ranked. Rank without explanation is never returned (P-2). */
   rank: z.number().int().min(1).nullable(),
   compositeScore: z.number().min(0).max(100).nullable(),
+  /**
+   * Vote totals and the caller's own vote, inline on every list row (SPC-14.1, 2026-09-09).
+   *
+   * Additive: a list item now carries what `GET /ideas/{id}/feedback` already returned,
+   * so `IdeaCard` (apps/web/src/features/ideas/IdeaListPage.tsx) reads it from the row it
+   * already has instead of firing its own `useFeedback(ideaId)` per card — the difference
+   * between one request per page and one request per idea shown on it.
+   */
+  feedback: z.object({
+    up: z.number().int().min(0),
+    down: z.number().int().min(0),
+    myVote: FeedbackVote.nullable(),
+  }),
 });
 export type IdeaSummary = z.infer<typeof IdeaSummary>;
 

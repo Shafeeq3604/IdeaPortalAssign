@@ -266,7 +266,7 @@ describe("F-04 · turning an analysis into a score", () => {
       });
     }
 
-    const page = await listIdeasByRank(db, { scope: { all: true }, q: "rank-order-" }, 1, 10);
+    const page = await listIdeasByRank(db, { scope: { all: true }, q: "rank-order-" }, 1, 10, submitterId);
     expect(page.items.map((item) => item.id)).toEqual(entries.map((e) => e.ideaId));
     expect(page.items.map((item) => item.rank)).toEqual(entries.map((e) => e.rank));
   });

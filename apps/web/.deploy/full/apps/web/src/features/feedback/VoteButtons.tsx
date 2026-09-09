@@ -73,12 +73,13 @@ export function VoteButtons({
 /**
  * The counts without the controls, for places a vote would be out of place — a dense
  * table row, or someone else's idea in a list you are scanning.
+ *
+ * Takes the totals directly rather than calling `useFeedback(ideaId)` itself: the list
+ * endpoint now returns every idea's vote counts inline (`IdeaSummary.feedback`), so a page
+ * of cards reads them off the row it already has instead of each card firing its own
+ * request — one round trip for the whole page instead of one per idea shown on it.
  */
-export function VoteCount({ ideaId }: { ideaId: string }) {
-  const feedback = useFeedback(ideaId);
-  if (!feedback.data) return null;
-  const { up, down } = feedback.data;
-
+export function VoteCount({ up, down }: { up: number; down: number }) {
   return (
     <span className="inline-flex items-center gap-3 text-100 text-muted-foreground">
       <span className="inline-flex items-center gap-1">

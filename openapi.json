@@ -2526,6 +2526,33 @@
             "maximum": 100,
             "nullable": true
           },
+          "feedback": {
+            "type": "object",
+            "properties": {
+              "up": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "down": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "myVote": {
+                "type": "string",
+                "enum": [
+                  "UP",
+                  "DOWN"
+                ],
+                "nullable": true
+              }
+            },
+            "required": [
+              "up",
+              "down",
+              "myVote"
+            ],
+            "additionalProperties": false
+          },
           "currentVersion": {
             "type": "object",
             "properties": {
@@ -2691,6 +2718,7 @@
           "updatedAt",
           "rank",
           "compositeScore",
+          "feedback",
           "currentVersion",
           "versionCount",
           "openRecommendationCount",
@@ -3773,6 +3801,33 @@
                   "minimum": 0,
                   "maximum": 100,
                   "nullable": true
+                },
+                "feedback": {
+                  "type": "object",
+                  "properties": {
+                    "up": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "down": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "myVote": {
+                      "type": "string",
+                      "enum": [
+                        "UP",
+                        "DOWN"
+                      ],
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "up",
+                    "down",
+                    "myVote"
+                  ],
+                  "additionalProperties": false
                 }
               },
               "required": [
@@ -3787,7 +3842,8 @@
                 "submittedAt",
                 "updatedAt",
                 "rank",
-                "compositeScore"
+                "compositeScore",
+                "feedback"
               ],
               "additionalProperties": false
             }
@@ -5308,6 +5364,33 @@
             "maximum": 100,
             "nullable": true
           },
+          "feedback": {
+            "type": "object",
+            "properties": {
+              "up": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "down": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "myVote": {
+                "type": "string",
+                "enum": [
+                  "UP",
+                  "DOWN"
+                ],
+                "nullable": true
+              }
+            },
+            "required": [
+              "up",
+              "down",
+              "myVote"
+            ],
+            "additionalProperties": false
+          },
           "currentVersion": {
             "type": "object",
             "properties": {
@@ -5473,6 +5556,7 @@
           "updatedAt",
           "rank",
           "compositeScore",
+          "feedback",
           "currentVersion",
           "versionCount",
           "openRecommendationCount",
@@ -5689,6 +5773,33 @@
             "maximum": 100,
             "nullable": true
           },
+          "feedback": {
+            "type": "object",
+            "properties": {
+              "up": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "down": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "myVote": {
+                "type": "string",
+                "enum": [
+                  "UP",
+                  "DOWN"
+                ],
+                "nullable": true
+              }
+            },
+            "required": [
+              "up",
+              "down",
+              "myVote"
+            ],
+            "additionalProperties": false
+          },
           "currentVersion": {
             "type": "object",
             "properties": {
@@ -5854,6 +5965,7 @@
           "updatedAt",
           "rank",
           "compositeScore",
+          "feedback",
           "currentVersion",
           "versionCount",
           "openRecommendationCount",
@@ -7347,16 +7459,6 @@
           },
           "401": {
             "description": "UNAUTHENTICATED",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "AI_BUDGET_EXCEEDED",
             "content": {
               "application/json": {
                 "schema": {

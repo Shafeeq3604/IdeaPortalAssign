@@ -103,6 +103,55 @@ async function scoresForCurrentVersions(
 }
 
 /**
+ * Vote totals and the caller's own vote, for a page of ideas in two queries rather than
+ * `useFeedback(ideaId)` firing once per `IdeaCard` — the same N+1 `scoresForCurrentVersions`
+ * above already avoids for scores, now applied to feedback (found live: a 20-idea page was
+ * making 20+ separate round trips just to render vote counts).
+ */
+async function feedbackForIdeas(
+  ctx: { db: PrismaClient },
+  rows: readonly { id: string }[],
+  userId: string,
+): Promise<Map<string, { up: number; down: number; myVote: "UP" | "DOWN" | null }>> {
+  const out = new Map<string, { up: number; down: number; myVote: "UP" | "DOWN" | null }>();
+  const ids = rows.map((r) => r.id);
+  if (ids.length === 0) return out;
+
+  const [counts, mine] = await Promise.all([
+    ctx.db.feedback.groupBy({
+      by: ["ideaId", "type"],
+      where: { ideaId: { in: ids } },
+      _count: { _all: true },
+    }),
+    ctx.db.feedback.findMany({
+      where: { ideaId: { in: ids }, userId, type: { in: ["WOULD_USE", "SEE_RISK"] } },
+      select: { ideaId: true, type: true },
+    }),
+  ]);
+
+  const countsByIdea = new Map<string, { up: number; down: number }>();
+  for (const c of counts) {
+    const entry = countsByIdea.get(c.ideaId) ?? { up: 0, down: 0 };
+    if (c.type === "WOULD_USE") entry.up = c._count._all;
+    else if (c.type === "SEE_RISK") entry.down = c._count._all;
+    countsByIdea.set(c.ideaId, entry);
+  }
+
+  const myVoteByIdea = new Map<string, "UP" | "DOWN">();
+  for (const m of mine) {
+    myVoteByIdea.set(m.ideaId, m.type === "WOULD_USE" ? "UP" : "DOWN");
+  }
+
+  for (const row of rows) {
+    out.set(row.id, {
+      ...(countsByIdea.get(row.id) ?? { up: 0, down: 0 }),
+      myVote: myVoteByIdea.get(row.id) ?? null,
+    });
+  }
+  return out;
+}
+
+/**
  * `sort: "rank"`, the whole page (SPEC row 25).
  *
  * Rank cannot be an ORDER BY: it lives on `RankingEntry`, one per run, not on `Idea`
@@ -120,6 +169,7 @@ export async function listIdeasByRank(
   filters: IdeaListFilterParams,
   page: number,
   perPage: number,
+  userId: string,
 ) {
   const repo = makeIdeaRepo(db);
   const all = await repo.listIdsForRank(filters);
@@ -142,9 +192,16 @@ export async function listIdeasByRank(
   // the page back in rank order rather than trusting it did.
   const byId = new Map(pageRows.map((row) => [row.id, row]));
   const rows = pageIds.map((id) => byId.get(id)).filter((row): row is (typeof pageRows)[number] => Boolean(row));
+  const feedback = await feedbackForIdeas({ db }, rows, userId);
 
   return {
-    items: rows.map((row) => toIdeaSummary(row, scores.get(row.id) ?? { compositeScore: null, rank: null })),
+    items: rows.map((row) =>
+      toIdeaSummary(
+        row,
+        scores.get(row.id) ?? { compositeScore: null, rank: null },
+        feedback.get(row.id),
+      ),
+    ),
     meta: { page, perPage, total, totalPages: Math.ceil(total / perPage) },
   };
 }
@@ -169,7 +226,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     };
 
     if (parsed.data.sort === "rank") {
-      return listIdeasByRank(ctx.db, filters, parsed.data.page, parsed.data.perPage);
+      return listIdeasByRank(ctx.db, filters, parsed.data.page, parsed.data.perPage, actor.userId);
     }
 
     const { rows, total } = await repo.list({
@@ -179,11 +236,18 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
       perPage: parsed.data.perPage,
     });
 
-    const scores = await scoresForCurrentVersions(ctx, rows);
+    const [scores, feedback] = await Promise.all([
+      scoresForCurrentVersions(ctx, rows),
+      feedbackForIdeas(ctx, rows, actor.userId),
+    ]);
 
     return {
       items: rows.map((row: { id: string }) =>
-        toIdeaSummary(row, scores.get(row.id) ?? { compositeScore: null, rank: null }),
+        toIdeaSummary(
+          row,
+          scores.get(row.id) ?? { compositeScore: null, rank: null },
+          feedback.get(row.id),
+        ),
       ),
       meta: {
         page: parsed.data.page,
@@ -244,7 +308,8 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     if (!can(actor, "idea:read", resource).allowed) {
       return sendError(reply, "NOT_FOUND", NOT_FOUND);
     }
-    return toIdeaDetail(idea, actor);
+    const feedback = await feedbackForIdeas(ctx, [idea], actor.userId);
+    return toIdeaDetail(idea, actor, feedback.get(idea.id));
   });
 
   handlers.set("updateDraft", async (request, reply, ctx) => {
@@ -283,7 +348,8 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     await repo.updateDraftVersion(idea.currentVersionId, parsed.data as Record<string, string | null>);
     const fresh = await repo.findById(ideaId);
     if (!fresh) throw new Error(`Idea ${ideaId} disappeared between its own update and re-fetch`);
-    return toIdeaDetail(fresh, actor);
+    const feedback = await feedbackForIdeas(ctx, [fresh], actor.userId);
+    return toIdeaDetail(fresh, actor, feedback.get(fresh.id));
   });
 
   handlers.set("createVersion", async (request, reply, ctx) => {
@@ -497,6 +563,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
 
     const transitioned = await repo.findById(ideaId);
     if (!transitioned) throw new Error(`Idea ${ideaId} disappeared between its own transition and re-fetch`);
-    return toIdeaDetail(transitioned, actor);
+    const feedback = await feedbackForIdeas(ctx, [transitioned], actor.userId);
+    return toIdeaDetail(transitioned, actor, feedback.get(transitioned.id));
   });
 }
