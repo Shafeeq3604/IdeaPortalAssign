@@ -244,11 +244,18 @@ export function buildServer(ctx: AppContext): FastifyInstance {
       /Can't reach database server|Server has closed the connection/.test(text);
 
     if (dbDown) {
-      request.log.error("database unreachable — is it running? `pnpm deps:up`");
+      // The client-facing remedy differs by environment: `pnpm deps:up` starts a local
+      // Docker Postgres and means nothing outside a dev machine — telling a deployed
+      // instance's caller to run it is actively misleading, not just unhelpful.
+      request.log.error(
+        isProd ? "database unreachable" : "database unreachable — is it running? `pnpm deps:up`",
+      );
       return sendError(
         reply,
         "DEPENDENCY_UNAVAILABLE",
-        "The database is not reachable. Start it with: corepack pnpm deps:up",
+        isProd
+          ? "The database is not reachable right now. Try again shortly."
+          : "The database is not reachable. Start it with: corepack pnpm deps:up",
       );
     }
 

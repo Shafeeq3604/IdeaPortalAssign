@@ -42,6 +42,10 @@
   --color-muted: var(--surface-sunken);
   --color-muted-foreground: var(--text-secondary);
   --color-border: var(--border);
+  /* Same bug class as the grad-from fix above: `bg-border-strong` (IdeaListPage's PARKED/
+     ARCHIVED status rule) generated no rule at all without this — an absent utility, not
+     a visible error, so it rendered as a fully transparent bar. */
+  --color-border-strong: var(--border-strong);
   --color-input: var(--border);
   --color-ring: var(--focus-ring);
 
