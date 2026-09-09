@@ -5,6 +5,7 @@ import * as I from "./schemas/idea.js";
 import * as A from "./schemas/analysis.js";
 import * as E from "./schemas/evaluation.js";
 import * as R from "./schemas/review.js";
+import * as D from "./schemas/discovery.js";
 
 /**
  * The API endpoint registry (P0 deliverables 2b + 3). FROZEN AT P0.
@@ -55,6 +56,7 @@ export interface EndpointDef {
 const IdeaParams = z.object({ ideaId: C.Id });
 const VersionParams = z.object({ ideaId: C.Id, versionNo: z.coerce.number().int().min(1) });
 const RunParams = z.object({ runId: C.Id });
+const DiscoveryQueryParams = z.object({ discoveryQueryId: C.Id });
 
 const OWN = ["idea:read:own"] as const;
 const READ = ["idea:read"] as const;
@@ -65,6 +67,7 @@ const AUDIT = ["audit:read"] as const;
 const USERS = ["user:manage"] as const;
 const CONFIG_WRITE = ["config:write"] as const;
 const RECOMPUTE = ["ranking:recompute"] as const;
+const DISCOVERY = ["discovery:use"] as const;
 
 export const ENDPOINTS: readonly EndpointDef[] = [
   /* ── meta ── */
@@ -344,6 +347,26 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     summary: "Record, change or clear your vote. Never affects the ranking (FR-18, P-1).",
     access: { requires: [...OWN] }, params: IdeaParams, body: R.SetFeedbackRequest,
     response: R.IdeaFeedbackSummary, successStatus: 200, errors: ["NOT_FOUND"],
+  },
+
+  /* ── discovery agent (SPC-001) — standalone, no idea linkage ── */
+  {
+    operationId: "createDiscoveryQuery", method: "POST", path: "/discovery/queries", tag: "discovery",
+    summary: "Submit a free-text research query to the Discovery Agent (SPC-1..SPC-10).",
+    access: { requires: [...DISCOVERY] }, body: D.CreateDiscoveryQueryRequest,
+    response: D.DiscoveryQueryResponse, successStatus: 202, errors: ["VALIDATION_FAILED"],
+  },
+  {
+    operationId: "getDiscoveryQuery", method: "GET", path: "/discovery/queries/{discoveryQueryId}", tag: "discovery",
+    summary: "Poll one discovery query's status and, once SUCCEEDED, its report.",
+    access: { requires: [...DISCOVERY] }, params: DiscoveryQueryParams,
+    response: D.DiscoveryQueryResponse, successStatus: 200, errors: ["NOT_FOUND"],
+  },
+  {
+    operationId: "listDiscoveryQueries", method: "GET", path: "/discovery/queries", tag: "discovery",
+    summary: "The signed-in user's own discovery history (SPC-15 — never another user's).",
+    access: { requires: [...DISCOVERY] }, response: D.ListDiscoveryQueriesResponse,
+    successStatus: 200, errors: [],
   },
 ];
 

@@ -61,6 +61,14 @@ enum AnalysisStatus {
   FAILED
   SKIPPED
 }
+
+/// SPC-001 — AI Discovery Agent (standalone research tool, not linked to any idea).
+enum DiscoveryStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
 enum Band {
   NEGLIGIBLE
   LOW
@@ -264,6 +272,7 @@ model User {
   overrides            ScoreOverride[]
   statusChanges        StatusHistory[]
   auditEntries         AuditLog[]
+  discoveryQueries     DiscoveryQuery[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -912,4 +921,40 @@ model PilotRecord {
   outcome   String?
 
   @@map("pilot_records")
+}
+
+// ─────────────────────── DISCOVERY AGENT (SPC-001) ───────────────────────
+// Standalone research tool. Deliberately has NO relation to Idea, IdeaVersion,
+// Evaluation, CriterionScore, or RankingEntry — a discovery query can never create,
+// modify, or link one (SPC-13). A user acting on a finding submits a real idea by hand.
+
+model DiscoveryQuery {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The user's free-text prompt, after redaction (SPC-3). Visible only to `user` — no
+  /// discovery-history read endpoint returns another user's rows (SPC-15).
+  query         String
+  status        DiscoveryStatus @default(PENDING)
+  /// Model-classified category (e.g. TREND_SCAN). Free text, not a hardcoded enum — the
+  /// model names its own classification rather than the system pre-defining a fixed list.
+  discoveryType String?         @map("discovery_type")
+
+  /// One-paragraph synthesis. Null until SUCCEEDED.
+  summary String?
+  /// DiscoveryResultItem[] (title, summary, sources[]) — see @iep/contracts. Null until
+  /// SUCCEEDED; always AI-generated content, presented with provenance (SPEC §7.4).
+  items   Json?
+
+  provider String? // "anthropic" | "stub" — which produced this result
+  model    String?
+  errorCode String? @map("error_code")
+
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt  DateTime? @map("started_at") @db.Timestamptz(3)
+  finishedAt DateTime? @map("finished_at") @db.Timestamptz(3)
+
+  @@index([userId, createdAt])
+  @@map("discovery_queries")
 }

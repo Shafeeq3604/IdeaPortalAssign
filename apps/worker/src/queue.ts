@@ -68,3 +68,17 @@ export function makeRankingQueue(redisUrl: string): Queue<RankingJob> {
     },
   });
 }
+
+/**
+ * The discovery queue (SPC-001).
+ *
+ * One job per query, single-pass (SPC-10 — one model call does intent, filtering,
+ * ranking and synthesis together; there is no per-step coordination to do). No retry
+ * on failure by default: a failed discovery query is cheap for the user to resubmit,
+ * and a silent automatic retry would spend model cost the user never asked for twice.
+ */
+export const DISCOVERY_QUEUE = "iep.discovery";
+
+export interface DiscoveryJob {
+  readonly discoveryQueryId: string;
+}

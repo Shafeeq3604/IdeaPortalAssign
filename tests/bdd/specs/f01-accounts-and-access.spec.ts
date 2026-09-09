@@ -56,6 +56,7 @@ function makeApp(overrides: Partial<ApiEnv> = {}) {
     auth: { authorizeUrl: () => "", exchange: async () => ({ subject: "", email: "", name: "" }) } as never,
     analysis: { enqueue: async () => true },
     ranking: { enqueue: async () => true },
+    discovery: { enqueue: async () => true },
     attachments: new LocalDiskBackend("./.storage"),
   };
   return buildServer(ctx);

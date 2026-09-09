@@ -11,3 +11,7 @@ export * from "./provider-schema.js";
 export * from "./clamp.js";
 export { StubProvider } from "./providers/stub.js";
 export { AnthropicProvider } from "./providers/anthropic.js";
+export {
+  StubDiscoveryProvider, AnthropicDiscoveryProvider,
+  type DiscoveryChatProvider, type DiscoveryChatResult, type DiscoveryResultItem,
+} from "./discovery.js";

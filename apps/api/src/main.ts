@@ -10,6 +10,7 @@ import { MemorySessionStore, RedisSessionStore, type SessionStore } from "./auth
 import {
   makeAnalysisEnqueuer, makeRankingEnqueuer, noopEnqueuer, noopRankingEnqueuer,
 } from "./lib/analysis-queue.js";
+import { makeDiscoveryEnqueuer, noopDiscoveryEnqueuer } from "./lib/discovery-queue.js";
 import type { AppContext } from "./context.js";
 import { makeAttachmentBackend } from "./modules/idea/attachments.js";
 
@@ -74,6 +75,7 @@ const ctx: AppContext = {
   // Replaced just below with a logger-aware instance once Fastify exists.
   analysis: noopEnqueuer,
   ranking: noopRankingEnqueuer,
+  discovery: noopDiscoveryEnqueuer,
   attachments: makeAttachmentBackend(env),
 };
 
@@ -83,6 +85,7 @@ if (redis) {
   Object.assign(ctx, {
     analysis: makeAnalysisEnqueuer(env.REDIS_URL, app.log),
     ranking: makeRankingEnqueuer(env.REDIS_URL, app.log),
+    discovery: makeDiscoveryEnqueuer(env.REDIS_URL, app.log),
   });
 }
 registerDevLogin(app, ctx);

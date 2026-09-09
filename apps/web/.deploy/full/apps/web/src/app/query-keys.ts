@@ -69,6 +69,12 @@ export const queryKeys = {
     users: (filters: Filters) => ["admin", "users", filters] as const,
     departments: () => ["admin", "departments"] as const,
   },
+
+  /** SPC-001 — AI Discovery Agent. Standalone: no idea-scoped key touches this. */
+  discovery: {
+    history: () => ["discovery", "history"] as const,
+    detail: (discoveryQueryId: string) => ["discovery", "detail", discoveryQueryId] as const,
+  },
 } as const;
 
 /**

@@ -62,6 +62,7 @@ function makeApp(jobs: Enqueued[]) {
       },
     },
     ranking: { enqueue: async () => true },
+    discovery: { enqueue: async () => true },
     attachments: new LocalDiskBackend("./.storage"),
   };
   return buildServer(ctx);

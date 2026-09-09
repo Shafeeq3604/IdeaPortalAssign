@@ -108,6 +108,15 @@ export const ROUTES: readonly RouteDef[] = [
     renders: ["AuditLog", "AiModelRoute"], searchParams: ["entity", "entityId", "actor", "action", "from", "to", "page"] },
 
   { id: "help.dataAndAi", path: "/help/data-and-ai", title: "Data & AI notice", roles: ALL, backPath: "/", renders: [] },
+
+  /**
+   * SPC-001 — AI Discovery Agent. Deliberately NOT part of RELATIONSHIPS: that array is
+   * locked to SPEC §6.2's 46 rows exactly (assertion 2, "no invented rows") because this
+   * route predates any SPEC row for it. It is a real, reachable route — linked directly
+   * from the app shell's sidebar, the same layer as "Submit an idea" / "Explore ideas" —
+   * just not yet part of the formal entity-relationship contract.
+   */
+  { id: "discovery", path: "/discovery", title: "Discover", roles: ALL, backPath: "/", renders: ["DiscoveryQuery"] },
 ];
 
 /** The 46 relationships of SPEC §6.2, in order. */

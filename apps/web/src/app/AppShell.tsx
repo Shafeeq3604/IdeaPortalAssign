@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown, Compass, LayoutDashboard, ListChecks, LogOut, PenSquare, Plus, Settings,
-  ShieldCheck, Trophy, User,
+  ShieldCheck, Sparkles, Trophy, User,
 } from "lucide-react";
 import { Button } from "@iep/ui";
 import type { Role } from "@iep/contracts";
@@ -336,6 +336,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Plus aria-hidden className="size-4" />
             <span className="hidden sm:inline">New idea</span>
             <span className="sr-only sm:hidden">New idea</span>
+          </Link>
+          {/*
+            SPC-001 — AI Discovery Agent. Deliberately a header icon, not a sidebar item:
+            REQUIREMENTS §20 fixes the main navigation at four destinations for everyone
+            plus three for privileged roles, "nothing else" — adding a fifth would break
+            that explicit constraint. This is the same layer as ThemeToggle/AccountMenu,
+            not a sidebar addition.
+          */}
+          <Link
+            to="/discovery"
+            aria-label="Discover"
+            title="Discover — ask the AI research agent"
+            className={`${ON_BAR} inline-flex size-8 items-center justify-center rounded-md`}
+          >
+            <Sparkles aria-hidden className="size-4" />
           </Link>
           <ThemeToggle className={ON_BAR} />
           <AccountMenu />

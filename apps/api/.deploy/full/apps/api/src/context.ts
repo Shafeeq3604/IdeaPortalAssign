@@ -28,6 +28,14 @@ export interface RankingEnqueuer {
   }): Promise<boolean>;
 }
 
+/**
+ * SPC-001 — same degrade-never-throw contract as `AnalysisEnqueuer`: a discovery query
+ * is always saved even if the queue is unavailable to process it.
+ */
+export interface DiscoveryEnqueuer {
+  enqueue(job: { discoveryQueryId: string }): Promise<boolean>;
+}
+
 export interface AppContext {
   readonly env: ApiEnv;
   readonly db: PrismaClient;
@@ -35,5 +43,6 @@ export interface AppContext {
   readonly auth: AuthProvider;
   readonly analysis: AnalysisEnqueuer;
   readonly ranking: RankingEnqueuer;
+  readonly discovery: DiscoveryEnqueuer;
   readonly attachments: AttachmentBackend;
 }

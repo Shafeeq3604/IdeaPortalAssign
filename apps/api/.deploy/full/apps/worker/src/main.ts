@@ -1,12 +1,16 @@
 import { Worker } from "bullmq";
 import { getPrisma } from "@iep/db";
 import { WorkerEnv, loadEnv } from "@iep/contracts/env";
-import { AnthropicProvider, StubProvider, type AiProvider } from "@iep/ai";
 import {
-  ANALYSIS_QUEUE, RANKING_QUEUE, connectionFrom, makeRankingQueue,
-  type AnalysisJob, type RankingJob,
+  AnthropicProvider, StubProvider, type AiProvider,
+  AnthropicDiscoveryProvider, StubDiscoveryProvider, type DiscoveryChatProvider,
+} from "@iep/ai";
+import {
+  ANALYSIS_QUEUE, RANKING_QUEUE, DISCOVERY_QUEUE, connectionFrom, makeRankingQueue,
+  type AnalysisJob, type RankingJob, type DiscoveryJob,
 } from "./queue.js";
 import { runPipeline } from "./pipeline.js";
+import { runDiscoveryQuery } from "./discovery.js";
 import { evaluateVersion, recomputeRankings } from "@iep/evaluation";
 
 /**
@@ -43,6 +47,26 @@ function makeProvider(): AiProvider {
 }
 
 const provider = makeProvider();
+
+/**
+ * SPC-001 — same degrade-to-stub philosophy as `makeProvider()` above, and the same
+ * reason: a missing key must never take a whole feature down permanently. This is a
+ * separate, smaller provider pair (packages/ai/src/discovery.ts) — not a widening of
+ * the frozen `AiProvider`/`AnalysisStep` contract.
+ */
+function makeDiscoveryProvider(): DiscoveryChatProvider {
+  if (env.AI_PROVIDER === "stub") return new StubDiscoveryProvider();
+  if (!env.ANTHROPIC_API_KEY) {
+    console.error(
+      "[worker] AI_PROVIDER=anthropic but no ANTHROPIC_API_KEY is set. Discovery Agent " +
+        "falling back to its stub provider.",
+    );
+    return new StubDiscoveryProvider();
+  }
+  return new AnthropicDiscoveryProvider({ apiKey: env.ANTHROPIC_API_KEY });
+}
+
+const discoveryProvider = makeDiscoveryProvider();
 
 /**
  * The worker enqueues its own ranking recomputes rather than running one inline.
@@ -122,15 +146,35 @@ ranker.on("failed", (job, error) => {
   console.error(`[ranking] job ${job?.id} failed:`, error.message);
 });
 
+const discoveryWorker = new Worker<DiscoveryJob>(
+  DISCOVERY_QUEUE,
+  async (job) => {
+    const started = Date.now();
+    await runDiscoveryQuery(
+      { db, provider: discoveryProvider, redactionEnabled: env.PII_REDACTION_ENABLED },
+      job.data,
+    );
+    console.log(`[discovery] ${job.data.discoveryQueryId} done in ${Date.now() - started}ms`);
+  },
+  { connection: connectionFrom(env.REDIS_URL), concurrency: 2 },
+);
+
+discoveryWorker.on("failed", (job, error) => {
+  console.error(`[discovery] job ${job?.id} failed:`, error.message);
+});
+
 console.log(
-  `iep-worker listening on ${ANALYSIS_QUEUE} + ${RANKING_QUEUE} · provider=${provider.name} · ` +
+  `iep-worker listening on ${ANALYSIS_QUEUE} + ${RANKING_QUEUE} + ${DISCOVERY_QUEUE} · ` +
+    `provider=${provider.name} · discoveryProvider=${discoveryProvider.name} · ` +
     `budget=$${env.AI_BUDGET_PER_VERSION_USD}/version · redaction=${env.PII_REDACTION_ENABLED}`,
 );
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
     void (async () => {
-      await Promise.all([worker.close(), ranker.close(), rankingQueue.close()]);
+      await Promise.all([
+        worker.close(), ranker.close(), discoveryWorker.close(), rankingQueue.close(),
+      ]);
       process.exit(0);
     })();
   });

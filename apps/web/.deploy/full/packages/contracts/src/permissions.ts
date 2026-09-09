@@ -27,6 +27,9 @@ export const PERMISSIONS = [
   "ranking:recompute",
   "audit:read",
   "user:manage",
+  /** SPC-001 — AI Discovery Agent. Granted to every role: it's a standalone research
+   * tool, not gated by idea ownership or review authority. */
+  "discovery:use",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -44,13 +47,15 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
    */
   EMPLOYEE: [
     "idea:create", "idea:read", "idea:read:own", "idea:edit:own",
-    "idea:transition", "config:read",
+    "idea:transition", "config:read", "discovery:use",
   ],
   REVIEWER: [
     "idea:create", "idea:read", "idea:read:own", "idea:transition",
-    "review:write", "score:override", "config:read",
+    "review:write", "score:override", "config:read", "discovery:use",
   ],
-  MANAGEMENT: ["idea:create", "idea:read", "idea:read:own", "config:read", "dashboard:read"],
+  MANAGEMENT: [
+    "idea:create", "idea:read", "idea:read:own", "config:read", "dashboard:read", "discovery:use",
+  ],
   ADMIN: [
     "idea:create", "idea:read", "idea:read:own", "idea:transition",
     // `review:write` was missing while every other capability was present. The navigation
@@ -59,6 +64,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     // matters is unaffected: `can()` still stops anyone reviewing their OWN idea.
     "review:write",
     "config:read", "config:write", "dashboard:read", "audit:read", "user:manage", "ranking:recompute",
+    "discovery:use",
   ],
 };
 

@@ -19,6 +19,7 @@ import { CriteriaPage, ProfilesPage } from "./features/config/ConfigPages";
 import { AuditPage, UsersPage } from "./features/admin/AdminPages";
 import { DepartmentPage, PersonPage } from "./features/people/ScopedIdeaPages";
 import { DataAndAiPage } from "./features/help/DataAndAiPage";
+import { DiscoveryChatPage } from "./features/discovery/DiscoveryChatPage";
 import { AppProviders } from "./app/providers";
 import { AppShell } from "./app/AppShell";
 import { RouteErrorBoundary } from "./app/error-boundary";
@@ -121,6 +122,7 @@ function Shell() {
             <Route path="/people/:userId" element={<PersonPage />} />
             <Route path="/departments/:departmentId" element={<DepartmentPage />} />
             <Route path="/help/data-and-ai" element={<DataAndAiPage />} />
+            <Route path="/discovery" element={<DiscoveryChatPage />} />
             <Route path="/ideas/:ideaId/history" element={<HistoryTab />} />
             <Route path="/ideas/:ideaId/versions/:versionNo" element={<VersionPage />} />
             <Route path="/ideas/:ideaId/revise" element={<ReviseIdeaPage />} />

@@ -110,4 +110,9 @@ describe("invalidateAfter", () => {
       ["dashboard", null],
     ]);
   });
+
+  it("builds discovery keys, standalone from every idea-scoped key (SPC-001)", () => {
+    expect(queryKeys.discovery.history()).toEqual(["discovery", "history"]);
+    expect(queryKeys.discovery.detail("dq-1")).toEqual(["discovery", "detail", "dq-1"]);
+  });
 });
