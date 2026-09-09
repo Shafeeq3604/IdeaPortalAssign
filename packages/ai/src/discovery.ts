@@ -98,10 +98,15 @@ const DISCOVERY_OUTPUT_SCHEMA = {
   properties: {
     discoveryType: { type: "string" },
     summary: { type: "string" },
+    /**
+     * No `minItems`/`maxItems` — Anthropic's structured-output JSON Schema rejects them
+     * with a 400 ("property 'maxItems' is not supported"), same reason
+     * packages/ai/src/schemas/analysis.ts never used them either. Length is enforced in
+     * code instead: SPC-12 drops sourceless items after the fact, and the prompt itself
+     * asks for "3-8" findings.
+     */
     items: {
       type: "array",
-      minItems: 1,
-      maxItems: 8,
       items: {
         type: "object",
         additionalProperties: false,
@@ -109,7 +114,7 @@ const DISCOVERY_OUTPUT_SCHEMA = {
         properties: {
           title: { type: "string" },
           summary: { type: "string" },
-          sources: { type: "array", minItems: 1, items: { type: "string" } },
+          sources: { type: "array", items: { type: "string" } },
         },
       },
     },
@@ -169,8 +174,10 @@ export class AnthropicDiscoveryProvider implements DiscoveryChatProvider {
         return { ok: false, errorCode: "SCHEMA_INVALID" };
       }
 
-      // SPC-12: a candidate item with no source is dropped, not surfaced.
-      const items = data.items.filter((i) => i.sources.length > 0);
+      // SPC-12: a candidate item with no source is dropped, not surfaced. The 8-item cap
+      // is enforced here, not in the JSON Schema (Anthropic's structured output rejects
+      // `maxItems`) — the prompt already asks for "3-8" findings, this just backstops it.
+      const items = data.items.filter((i) => i.sources.length > 0).slice(0, 8);
       if (items.length === 0) return { ok: false, errorCode: "SCHEMA_INVALID" };
 
       const rate = TIER_RATES.B;
@@ -194,6 +201,13 @@ export class AnthropicDiscoveryProvider implements DiscoveryChatProvider {
       if (error instanceof Error && /timeout|aborted/i.test(error.message)) {
         return { ok: false, errorCode: "TIMEOUT" };
       }
+      // Worker-only detail, mirroring AnthropicProvider's comment on the same trade-off:
+      // the provider's own message reaches this log, never a client (SPEC §4.4).
+      const status = (error as { status?: number }).status;
+      const providerMessage =
+        (error as { error?: { error?: { message?: string } } }).error?.error?.message ??
+        (error as { message?: string }).message ?? null;
+      console.error(`[discovery] provider call failed (status=${status ?? "n/a"}):`, providerMessage);
       return { ok: false, errorCode: "UNAVAILABLE" };
     }
   }
