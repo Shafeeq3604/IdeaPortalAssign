@@ -201,3 +201,21 @@ through SPC-14, SPC-16, SPC-17, and SPC-18 (stub fallback) are all implemented a
 covered by tests (`packages/ai/src/discovery.test.ts`, and manually verified end-to-end
 through the running app). See `docs/adr/CONTRACT-LOG.md`'s 2026-09-09 entry for the exact
 contract surface.
+
+### 2026-09-09 — follow-up: submit-as-idea bridge + clickable sources
+
+Requester follow-up, same day: findings should be traceable to their source, and actable
+on — "the ideas should be able to be posted on submit ideas... go to the source where it
+came from." Two frontend-only additions to `DiscoveryChatPage.tsx`, no contract change:
+
+- **Clickable sources.** A source string is rendered as a link when it matches
+  `/^https?:\/\//i` (SPC-11's "real URL only if genuinely confident"); everything else
+  (a named publication, subreddit, or report) stays plain text, unchanged.
+- **"Submit as idea" per finding.** Navigates to the existing `/ideas/new` route with the
+  finding's title and summary (plus its source list, folded into the description text)
+  passed as React Router navigation *state* — not a URL param, not a stored reference.
+  `SubmitIdeaPage` reads it only to pre-fill `IdeaForm`'s `defaultValues`; the three other
+  required fields (problem, users, outcome) are left for the human to write, same as any
+  other submission. **SPC-13 is unaffected**: no `discovery_queries` row is read, written,
+  or linked by this — it was already anticipated verbatim in `schema.prisma`'s SPC-13
+  comment, "a user acting on a finding submits a real idea by hand."

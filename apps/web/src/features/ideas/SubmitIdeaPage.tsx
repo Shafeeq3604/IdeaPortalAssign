@@ -1,12 +1,20 @@
 import * as React from "react";
-import { useNavigate } from "react-router-dom";
-import { FileText, Paperclip, PenSquare, Trash2, Upload } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { FileText, Paperclip, PenSquare, Sparkles, Trash2, Upload } from "lucide-react";
 import { Button } from "@iep/ui";
 import { ATTACHMENT_TYPES, MAX_ATTACHMENTS_PER_VERSION, MAX_ATTACHMENT_BYTES } from "@iep/contracts";
 import type { Attachment } from "@iep/contracts";
 import { ApiError, api } from "../../app/api-client";
 import { IdeaForm, type IdeaFormValues } from "./IdeaForm";
 import { useCreateIdea } from "./api";
+
+/** Handed off by the Discovery Agent's "Submit as idea" action (state, not the URL — this
+ * is one-time initialization for a form the human still fills in and submits by hand,
+ * not filter/tab state that Back should restore). */
+interface DiscoveryPrefill {
+  readonly title?: string;
+  readonly description?: string;
+}
 
 const ACCEPT = ATTACHMENT_TYPES.map((t) => `${t.extension},${t.mime}`).join(",");
 const TYPE_NAMES = ATTACHMENT_TYPES.map((t) => t.label).join(", ");
@@ -20,6 +28,8 @@ function formatBytes(bytes: number): string {
 /** Idea submission (FR-02). */
 export function SubmitIdeaPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefill = (location.state as { prefill?: DiscoveryPrefill } | null)?.prefill;
   const create = useCreateIdea();
   const [files, setFiles] = React.useState<File[]>([]);
   const [fileProblem, setFileProblem] = React.useState<string | null>(null);
@@ -139,7 +149,18 @@ export function SubmitIdeaPage() {
         platform structures it for you, and a person makes every decision.
       </p>
 
+      {prefill ? (
+        <div className="flex items-start gap-2 rounded-lg border border-border bg-accent-050 p-4 text-200">
+          <Sparkles aria-hidden className="mt-0.5 size-4 shrink-0 text-accent-700" />
+          <p>
+            Pre-filled from a Discovery Agent finding — review it, fill in the rest, and
+            submit only once it reads the way you'd actually put it.
+          </p>
+        </div>
+      ) : null}
+
       <IdeaForm
+        defaultValues={prefill}
         submitLabel="Submit for analysis"
         onSubmit={submit}
         serverError={create.error}

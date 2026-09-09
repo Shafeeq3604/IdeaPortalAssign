@@ -1,16 +1,81 @@
 import * as React from "react";
-import { Send, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ExternalLink, PenSquare, Send, Sparkles } from "lucide-react";
 import { Badge, Button, Skeleton, Textarea } from "@iep/ui";
+import type { DiscoveryResultItem } from "@iep/contracts";
 import { useCreateDiscoveryQuery, useDiscoveryHistory, useDiscoveryQuery } from "./api";
 
 /**
  * SPC-001 — AI Discovery Agent chat page.
  *
- * A standalone chatbot (SPC-13): nothing here reads or writes an Idea. Each message the
- * user sends becomes one discovery query, run once through the 6-step workflow in
- * `packages/ai/src/discovery.ts` (understand intent → identify sources → discover →
- * filter → rank → present), and answered as one chat turn.
+ * A standalone chatbot (SPC-13): processing a query never reads or writes an Idea record
+ * — nothing here is enforced by a foreign key or a server-side link. "Submit as idea"
+ * below is a client-only convenience: it hands the finding's text to the ordinary,
+ * human-authored `/ideas/new` form (`SubmitIdeaPage`) as a pre-fill, exactly as
+ * `schema.prisma`'s SPC-13 comment anticipated — "a user acting on a finding submits a
+ * real idea by hand." No discovery_queries row is read, written, or referenced by that
+ * form; the two stay structurally unrelated.
  */
+
+/** A source is a clickable link only when it actually looks like one (SPC-9/SPC-11's
+ * "real URL only if genuinely confident" — the rest are named publications/communities,
+ * shown as plain text rather than a dead or misleading link). */
+const URL_PATTERN = /^https?:\/\//i;
+
+function SourceList({ sources }: { sources: readonly string[] }) {
+  return (
+    <p className="mt-1 text-050 text-muted-foreground">
+      Sources:{" "}
+      {sources.map((source, i) => (
+        <React.Fragment key={source}>
+          {i > 0 ? " · " : ""}
+          {URL_PATTERN.test(source) ? (
+            <a
+              href={source}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-0.5 underline underline-offset-2 hover:text-foreground"
+            >
+              {source}
+              <ExternalLink aria-hidden className="size-2.5" />
+            </a>
+          ) : (
+            source
+          )}
+        </React.Fragment>
+      ))}
+    </p>
+  );
+}
+
+function FindingItem({ item }: { item: DiscoveryResultItem }) {
+  const navigate = useNavigate();
+
+  const submitAsIdea = () => {
+    navigate("/ideas/new", {
+      state: {
+        prefill: {
+          title: item.title.slice(0, 200),
+          description:
+            `${item.summary}\n\n— via the AI Discovery Agent. Sources: ${item.sources.join(", ")}`
+              .slice(0, 20_000),
+        },
+      },
+    });
+  };
+
+  return (
+    <li className="rounded-md border border-border p-2.5">
+      <p className="text-200 font-semibold">{item.title}</p>
+      <p className="text-100 text-muted-foreground">{item.summary}</p>
+      <SourceList sources={item.sources} />
+      <Button type="button" variant="outline" size="sm" className="mt-2" onClick={submitAsIdea}>
+        <PenSquare aria-hidden className="size-3.5" />
+        Submit as idea
+      </Button>
+    </li>
+  );
+}
 
 function TurnBubble({ discoveryQueryId, query }: { discoveryQueryId: string; query: string }) {
   const { data, isPending } = useDiscoveryQuery(discoveryQueryId);
@@ -50,13 +115,7 @@ function TurnBubble({ discoveryQueryId, query }: { discoveryQueryId: string; que
             <p className="text-200">{data.summary}</p>
             <ol className="space-y-2">
               {data.items.map((item, i) => (
-                <li key={i} className="rounded-md border border-border p-2.5">
-                  <p className="text-200 font-semibold">{item.title}</p>
-                  <p className="text-100 text-muted-foreground">{item.summary}</p>
-                  <p className="mt-1 text-050 text-muted-foreground">
-                    Sources: {item.sources.join(" · ")}
-                  </p>
-                </li>
+                <FindingItem key={i} item={item} />
               ))}
             </ol>
           </div>
@@ -92,8 +151,10 @@ export function DiscoveryChatPage() {
         </h1>
         <p className="text-200 text-muted-foreground">
           Ask a research question — trends, opportunity ideas, or recurring problems people
-          discuss. This is a standalone research tool: nothing here creates or changes an
-          idea. It answers from what the model already knows, not a live web search.
+          discuss. It answers from what the model already knows, not a live web search, and
+          cites where each finding comes from. Nothing here creates or changes an idea on
+          its own — if a finding is worth pursuing, use "Submit as idea" to start a real
+          submission that you write and send yourself.
         </p>
       </div>
 

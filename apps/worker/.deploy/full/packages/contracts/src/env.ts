@@ -124,7 +124,10 @@ export const ApiEnv = Base.extend({
 export type ApiEnv = z.infer<typeof ApiEnv>;
 
 export const WorkerEnv = Base.extend({
-  ANTHROPIC_API_KEY: nonEmpty,
+  // Optional, not required: a missing key is a valid, supported state (the worker falls
+  // back to the stub provider rather than refusing to boot — see apps/worker/src/main.ts).
+  // Requiring it here would defeat that fallback before it ever runs.
+  ANTHROPIC_API_KEY: nonEmpty.optional(),
   AI_PROVIDER: z.enum(["anthropic", "stub"]).default("anthropic"),
   /** Hard caps that fail CLOSED to the fallback, never silently degrade (SPEC §12.1). */
   AI_BUDGET_PER_VERSION_USD: z.coerce.number().positive().default(0.75),
