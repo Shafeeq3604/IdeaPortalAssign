@@ -485,7 +485,7 @@ export function RoleLegend() {
   return (
     // A softer, sunken panel rather than another white card — this is reference
     // material sitting below the table, not another row of data to scan.
-    <Card className="mt-6 border-border/80 bg-muted py-0 shadow-none">
+    <Card className="mt-6 bg-muted py-0 shadow-none">
       <CardContent className="grid gap-4 p-5 sm:grid-cols-2">
         {ROLES.map((role) => {
           const Icon = ROLE_ICON[role];

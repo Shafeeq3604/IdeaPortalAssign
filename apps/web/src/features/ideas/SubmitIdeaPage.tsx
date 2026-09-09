@@ -138,7 +138,7 @@ export function SubmitIdeaPage() {
       <h1 className="flex items-center gap-3">
         <span
           aria-hidden
-          className="grid size-9 shrink-0 place-items-center rounded-lg bg-state-warn-bg text-state-warn"
+          className="grid size-10 shrink-0 place-items-center rounded-xl bg-state-warn-bg text-state-warn shadow-e1 ring-1 ring-inset ring-state-warn/20"
         >
           <PenSquare className="size-4.5" />
         </span>
@@ -150,9 +150,14 @@ export function SubmitIdeaPage() {
       </p>
 
       {prefill ? (
-        <div className="flex items-start gap-2 rounded-lg border border-border bg-accent-050 p-4 text-200">
-          <Sparkles aria-hidden className="mt-0.5 size-4 shrink-0 text-accent-700" />
-          <p>
+        <div className="flex items-start gap-3 rounded-2xl bg-accent-050 p-4 text-200 shadow-e1 ring-1 ring-inset ring-accent-100">
+          <span
+            aria-hidden
+            className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-accent-600 to-grad-to text-primary-foreground"
+          >
+            <Sparkles className="size-4" />
+          </span>
+          <p className="pt-1">
             Pre-filled from a Discovery Agent finding — review it, fill in the rest, and
             submit only once it reads the way you'd actually put it.
           </p>
@@ -175,9 +180,14 @@ export function SubmitIdeaPage() {
             themselves optional supporting material, so they belong with the rest of it,
             not ahead of the six required questions.
           */
-          <div className="rounded-xl border border-border p-4">
+          <div className="rounded-2xl bg-card p-4 shadow-e1 ring-1 ring-inset ring-border">
             <p className="flex items-center gap-2 font-medium">
-              <Paperclip aria-hidden className="size-4.5 text-muted-foreground" />
+              <span
+                aria-hidden
+                className="grid size-7 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"
+              >
+                <Paperclip className="size-3.5" />
+              </span>
               Attachments (optional)
             </p>
             <p className="mt-1 text-200 text-muted-foreground">

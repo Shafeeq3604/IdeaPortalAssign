@@ -157,7 +157,7 @@ export function IdeaForm({
       className="space-y-8"
     >
       {requireChangeSummary ? (
-        <section className="space-y-2 rounded-lg border border-border bg-card p-6 shadow-e1">
+        <section className="space-y-2 rounded-2xl bg-card p-6 shadow-e2 ring-1 ring-inset ring-border">
           <Label htmlFor="field-changeSummary">What did you change?</Label>
           <p className="text-200 text-muted-foreground">
             This is shown on the history timeline so the change is traceable.
@@ -174,12 +174,12 @@ export function IdeaForm({
       {REQUIRED_SECTIONS.map((section) => (
         <section
           key={section.step}
-          className="space-y-6 rounded-xl border border-border bg-card p-6 shadow-e1"
+          className="space-y-6 rounded-2xl bg-card p-6 shadow-e2 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] focus-within:shadow-e3"
         >
           <div className="flex items-start gap-3">
             <span
               aria-hidden
-              className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent text-200 font-semibold text-accent-foreground"
+              className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-accent-600 to-grad-to text-200 font-semibold text-primary-foreground shadow-e1"
             >
               {section.step}
             </span>
@@ -192,7 +192,7 @@ export function IdeaForm({
         </section>
       ))}
 
-      <section className="space-y-6 rounded-xl border border-dashed border-border bg-card p-6">
+      <section className="space-y-6 rounded-2xl border border-dashed border-border bg-muted/50 p-6">
         <div className="flex items-start gap-3">
           {/*
             Dashed, and numbered with a dash rather than a 4. Optional means optional:
@@ -200,7 +200,7 @@ export function IdeaForm({
           */}
           <span
             aria-hidden
-            className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-200 font-semibold text-muted-foreground"
+            className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-200 font-semibold text-muted-foreground ring-1 ring-inset ring-border"
           >
             +
           </span>

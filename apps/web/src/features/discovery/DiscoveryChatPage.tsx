@@ -65,11 +65,11 @@ function FindingItem({ item }: { item: DiscoveryResultItem }) {
   };
 
   return (
-    <li className="rounded-md border border-border p-2.5">
+    <li className="rounded-xl bg-card p-3 shadow-e1 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e2">
       <p className="text-200 font-semibold">{item.title}</p>
-      <p className="text-100 text-muted-foreground">{item.summary}</p>
+      <p className="mt-0.5 text-100 text-muted-foreground">{item.summary}</p>
       <SourceList sources={item.sources} />
-      <Button type="button" variant="outline" size="sm" className="mt-2" onClick={submitAsIdea}>
+      <Button type="button" variant="outline" size="sm" className="mt-2.5" onClick={submitAsIdea}>
         <PenSquare aria-hidden className="size-3.5" />
         Submit as idea
       </Button>
@@ -83,13 +83,18 @@ function TurnBubble({ discoveryQueryId, query }: { discoveryQueryId: string; que
 
   return (
     <div className="space-y-2">
-      <div className="ml-auto max-w-[80%] rounded-lg rounded-br-sm bg-accent px-4 py-2 text-200 text-accent-foreground">
+      <div className="ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-gradient-to-br from-accent-600 to-grad-to px-4 py-2 text-200 text-primary-foreground shadow-e1">
         {query}
       </div>
 
-      <div className="mr-auto max-w-[80%] rounded-lg rounded-bl-sm border border-border bg-card px-4 py-3 shadow-e1">
+      <div className="mr-auto max-w-[80%] rounded-2xl rounded-bl-md bg-card px-4 py-3 shadow-e2 ring-1 ring-inset ring-border">
         <div className="mb-2 flex items-center gap-1.5 text-100 text-muted-foreground">
-          <Sparkles aria-hidden className="size-3.5" />
+          <span
+            aria-hidden
+            className="grid size-5 shrink-0 place-items-center rounded-full bg-accent-100 text-accent-700"
+          >
+            <Sparkles className="size-3" />
+          </span>
           <span>Discovery Agent</span>
           {/* SPC-17: every result is marked AI-generated, plainly. */}
           <Badge variant="secondary" className="text-050">AI-generated</Badge>
@@ -144,23 +149,31 @@ export function DiscoveryChatPage() {
 
   return (
     <main className="page mx-auto flex max-w-3xl flex-col gap-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-500 font-bold">
-          <Sparkles aria-hidden className="size-5" />
-          Discover
-        </h1>
-        <p className="text-200 text-muted-foreground">
-          Ask a research question — trends, opportunity ideas, or recurring problems people
-          discuss. It answers from what the model already knows, not a live web search, and
-          cites where each finding comes from. Nothing here creates or changes an idea on
-          its own — if a finding is worth pursuing, use "Submit as idea" to start a real
-          submission that you write and send yourself.
-        </p>
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden
+          className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-accent-600 to-grad-to text-primary-foreground shadow-e1"
+        >
+          <Sparkles className="size-4.5" />
+        </span>
+        <div>
+          <h1 className="text-500 font-bold">Discover</h1>
+          <p className="text-200 text-muted-foreground">
+            Ask a research question — trends, opportunity ideas, or recurring problems people
+            discuss. It answers from what the model already knows, not a live web search, and
+            cites where each finding comes from. Nothing here creates or changes an idea on
+            its own — if a finding is worth pursuing, use "Submit as idea" to start a real
+            submission that you write and send yourself.
+          </p>
+        </div>
       </div>
 
       {turns.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-6 text-center text-200 text-muted-foreground">
-          Try: "What are the latest AI trends in software development?"
+        <div className="rounded-2xl bg-accent-050 p-6 text-center shadow-e1 ring-1 ring-inset ring-accent-100">
+          <p className="text-200 text-muted-foreground">Try:</p>
+          <p className="mt-1 text-300 font-medium text-accent-700">
+            "What are the latest AI trends in software development?"
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -170,24 +183,34 @@ export function DiscoveryChatPage() {
         </div>
       )}
 
-      <form onSubmit={submit} className="flex items-end gap-2">
+      <form
+        onSubmit={submit}
+        className="flex items-end gap-2 rounded-2xl bg-card p-2 shadow-e2 ring-1 ring-inset ring-border"
+      >
         <Textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask the Discovery Agent…"
           rows={2}
           maxLength={2_000}
+          className="border-0 shadow-none focus-visible:ring-0"
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) submit(e);
           }}
         />
-        <Button type="submit" disabled={!input.trim() || create.isPending} aria-label="Send">
+        <Button
+          type="submit"
+          size="icon"
+          disabled={!input.trim() || create.isPending}
+          aria-label="Send"
+          className="bg-gradient-to-br from-accent-600 to-grad-to shadow-e1 hover:opacity-90"
+        >
           <Send aria-hidden className="size-4" />
         </Button>
       </form>
 
       {history.data && history.data.items.length > 0 ? (
-        <div>
+        <div className="rounded-2xl bg-card p-4 shadow-e1 ring-1 ring-inset ring-border">
           <h2 className="mb-2 text-200 font-semibold text-muted-foreground">Recent queries</h2>
           <ul className="space-y-1">
             {history.data.items
@@ -197,7 +220,7 @@ export function DiscoveryChatPage() {
                 <li key={h.id}>
                   <button
                     type="button"
-                    className="text-left text-200 text-accent-700 underline-offset-2 hover:underline"
+                    className="rounded-md text-left text-200 text-accent-700 underline-offset-2 hover:underline"
                     onClick={() => setTurns((prev) => [...prev, { id: h.id, query: h.query }])}
                   >
                     {h.query}
