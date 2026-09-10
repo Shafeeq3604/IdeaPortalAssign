@@ -97,11 +97,7 @@ Respond with ONLY the JSON object described by the schema. No prose outside it.`
 interface DiscoveryLlmOutput {
   readonly discoveryType: string;
   readonly summary: string;
-  readonly items: ReadonlyArray<{
-    readonly title: string;
-    readonly summary: string;
-    readonly sources?: readonly string[];
-  }>;
+  readonly items: ReadonlyArray<Omit<DiscoveryResultItem, "sources"> & { sources?: readonly string[] }>;
 }
 
 const DISCOVERY_OUTPUT_SCHEMA = {
