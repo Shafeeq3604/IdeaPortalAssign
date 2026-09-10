@@ -10,7 +10,7 @@ import { useCreateDiscoveryQuery, useDiscoveryHistory, useDiscoveryQuery } from 
  *
  * A standalone chatbot (SPC-13): processing a query never reads or writes an Idea record
  * — nothing here is enforced by a foreign key or a server-side link. "Submit as idea"
- * below is a client-only convenience: it hands the finding's text to the ordinary,
+ * below is a client-only convenience: it hands the generated idea's text to the ordinary,
  * human-authored `/ideas/new` form (`SubmitIdeaPage`) as a pre-fill, exactly as
  * `schema.prisma`'s SPC-13 comment anticipated — "a user acting on a finding submits a
  * real idea by hand." No discovery_queries row is read, written, or referenced by that
@@ -23,6 +23,7 @@ import { useCreateDiscoveryQuery, useDiscoveryHistory, useDiscoveryQuery } from 
 const URL_PATTERN = /^https?:\/\//i;
 
 function SourceList({ sources }: { sources: readonly string[] }) {
+  if (sources.length === 0) return null;
   return (
     <p className="mt-1 text-050 text-muted-foreground">
       Sources:{" "}
@@ -48,17 +49,16 @@ function SourceList({ sources }: { sources: readonly string[] }) {
   );
 }
 
-function FindingItem({ item }: { item: DiscoveryResultItem }) {
+function IdeaItem({ item }: { item: DiscoveryResultItem }) {
   const navigate = useNavigate();
 
   const submitAsIdea = () => {
+    const sourcesLine = item.sources.length > 0 ? ` Sources: ${item.sources.join(", ")}` : "";
     navigate("/ideas/new", {
       state: {
         prefill: {
           title: item.title.slice(0, 200),
-          description:
-            `${item.summary}\n\n— via the AI Discovery Agent. Sources: ${item.sources.join(", ")}`
-              .slice(0, 20_000),
+          description: `${item.summary}\n\n— via the AI Discovery Agent.${sourcesLine}`.slice(0, 20_000),
         },
       },
     });
@@ -120,7 +120,7 @@ function TurnBubble({ discoveryQueryId, query }: { discoveryQueryId: string; que
             <p className="text-200">{data.summary}</p>
             <ol className="space-y-2">
               {data.items.map((item, i) => (
-                <FindingItem key={i} item={item} />
+                <IdeaItem key={i} item={item} />
               ))}
             </ol>
           </div>
@@ -160,10 +160,11 @@ export function DiscoveryChatPage() {
           <h1 className="text-500 font-bold">Discover</h1>
           <p className="text-200 text-muted-foreground">
             Ask a research question — trends, opportunity ideas, or recurring problems people
-            discuss. It answers from what the model already knows, not a live web search, and
-            cites where each finding comes from. Nothing here creates or changes an idea on
-            its own — if a finding is worth pursuing, use "Submit as idea" to start a real
-            submission that you write and send yourself.
+            discuss. It generates original ideas inspired by what the model already knows, not
+            a live web search, framed for how they could help your organization and its
+            clients. Nothing here creates or changes an idea on its own — if one is worth
+            pursuing, use "Submit as idea" to start a real submission that you write and send
+            yourself.
           </p>
         </div>
       </div>

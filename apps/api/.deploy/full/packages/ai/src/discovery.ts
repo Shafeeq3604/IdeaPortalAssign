@@ -20,8 +20,9 @@ import { TIER_MODELS, TIER_RATES } from "./routing/routes.js";
 export interface DiscoveryResultItem {
   readonly title: string;
   readonly summary: string;
-  /** Named sources (a URL when the model is confident of one, otherwise a named
-   * publication/report/community it is recalling) — never fabricated as a bare "[1]". */
+  /** Optional (SPC-20): a generated idea is never dropped or required to carry one. When
+   * present it is a real URL only if the model is confident, otherwise a named
+   * publication/report/community it is recalling — never fabricated as a bare "[1]". */
   readonly sources: readonly string[];
 }
 
@@ -56,28 +57,36 @@ export interface DiscoveryChatProvider {
  *
  * No live web search is wired up. The model answers from its own trained knowledge,
  * which the prompt requires it to say plainly rather than imply it browsed the web.
+ *
+ * SPC-19/SPC-21/SPC-22 (2026-09-10): the agent generates original ideas inspired by
+ * what it knows, rather than presenting cited findings — sourcing is no longer required
+ * (SPC-20), and every idea states how it could help generically, since no org-profile
+ * data exists to tailor it to a specific organization.
  */
-const DISCOVERY_SYSTEM_PROMPT = `You are the Discovery Agent for an internal employee \
-idea platform. An employee has asked you a free-text research question. Answer it by \
-working through six steps, but only the final result is shown to them:
+export const DISCOVERY_SYSTEM_PROMPT = `You are the Discovery Agent for an internal \
+employee idea platform. An employee has asked you a free-text research question. Answer \
+it by working through six steps, but only the final result is shown to them:
 
 1. Understand intent — what kind of discovery are they asking for (a trend scan, a \
    search for startup/opportunity ideas, a search for recurring problems people \
    discuss, or something else)? Name this as "discoveryType", a short UPPER_SNAKE_CASE \
    label you choose yourself (e.g. TREND_SCAN, OPPORTUNITY_SEARCH, PROBLEM_DISCOVERY) — \
    there is no fixed list; classify honestly.
-2. Identify what data/sources would matter for this question.
+2. Identify what real-world trends, patterns, or context are relevant to this question.
 3. Discover — recall what you actually know that is relevant, from training, not live \
    browsing. You have no web search tool. Never claim to have searched the web just now.
-4. Filter — drop anything low-quality, generic, or not actually relevant.
+4. Generate — using that context as inspiration, come up with your own original ideas.
+   Do not present this as a report of things you found or looked up; these are ideas
+   you are generating, inspired by what you know.
 5. Rank — order what remains by relevance and usefulness to the question asked.
-6. Present — a short overall summary, then 3-8 concrete findings.
+6. Present — a short overall summary, then 3-8 concrete, original ideas.
 
-Every finding MUST cite at least one source: a real URL only if you are genuinely \
-confident it is correct, otherwise name the publication, report, organisation, or \
-community you are recalling this from (e.g. "Stack Overflow Developer Survey", \
-"Gartner", "a common r/webdev discussion topic") rather than inventing a URL. A finding \
-you cannot attribute to anything real should not be included at all.
+Every idea's summary MUST include a plain-language sentence on how it could help an \
+organization like the requester's, and its clients, generically — do not claim it fits \
+any specific named organization, since you have no information about one. A source is \
+never required: name one only if you are genuinely confident of a real, specific \
+inspiration (a URL, publication, report, or community) — never invent one, and never \
+drop an idea just because it has none.
 
 This is a standalone research tool. Do not suggest that submitting this as a platform \
 idea happens automatically, and do not reference any idea, evaluation, or ranking \
@@ -88,7 +97,7 @@ Respond with ONLY the JSON object described by the schema. No prose outside it.`
 interface DiscoveryLlmOutput {
   readonly discoveryType: string;
   readonly summary: string;
-  readonly items: readonly DiscoveryResultItem[];
+  readonly items: ReadonlyArray<Omit<DiscoveryResultItem, "sources"> & { sources?: readonly string[] }>;
 }
 
 const DISCOVERY_OUTPUT_SCHEMA = {
@@ -110,7 +119,7 @@ const DISCOVERY_OUTPUT_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "summary", "sources"],
+        required: ["title", "summary"],
         properties: {
           title: { type: "string" },
           summary: { type: "string" },
@@ -174,10 +183,11 @@ export class AnthropicDiscoveryProvider implements DiscoveryChatProvider {
         return { ok: false, errorCode: "SCHEMA_INVALID" };
       }
 
-      // SPC-12: a candidate item with no source is dropped, not surfaced. The 8-item cap
-      // is enforced here, not in the JSON Schema (Anthropic's structured output rejects
-      // `maxItems`) — the prompt already asks for "3-8" findings, this just backstops it.
-      const items = data.items.filter((i) => i.sources.length > 0).slice(0, 8);
+      // SPC-20: a generated idea is never dropped for lacking a source (supersedes the
+      // old SPC-12 filter). The 8-item cap is enforced here, not in the JSON Schema
+      // (Anthropic's structured output rejects `maxItems`) — the prompt already asks for
+      // "3-8" ideas, this just backstops it.
+      const items = data.items.slice(0, 8).map((i) => ({ ...i, sources: i.sources ?? [] }));
       if (items.length === 0) return { ok: false, errorCode: "SCHEMA_INVALID" };
 
       const rate = TIER_RATES.B;
@@ -240,9 +250,12 @@ export class StubDiscoveryProvider implements DiscoveryChatProvider {
         `ANTHROPIC_API_KEY on the worker for a real, model-generated discovery report.`,
       items: [
         {
-          title: "Stub finding 1",
-          summary: "This is placeholder content — the stub provider never calls a model.",
-          sources: ["StubDiscoveryProvider (no external source — offline mode)"],
+          title: "Stub idea 1",
+          summary:
+            "This is a placeholder generated idea — the stub provider never calls a model. " +
+            "How this could help: a real answer would explain how this idea helps your " +
+            "organization and its clients.",
+          sources: [],
         },
       ],
       usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 },

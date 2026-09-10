@@ -19,6 +19,7 @@
     "lint:tokens": "node scripts/lint-tokens.mjs",
     "typecheck": "turbo run typecheck",
     "db:migrate": "pnpm --filter @iep/db migrate",
+    "db:migrate:deploy": "pnpm --filter @iep/db migrate:deploy",
     "db:seed": "pnpm --filter @iep/db seed",
     "eval": "turbo run eval",
     "lighthouse": "turbo run lighthouse",

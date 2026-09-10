@@ -24,12 +24,12 @@ export const CreateDiscoveryQueryRequest = z.object({
 });
 export type CreateDiscoveryQueryRequest = z.infer<typeof CreateDiscoveryQueryRequest>;
 
-/** One finding. Every item carries at least one source — sourceless findings are
- * dropped before the report ever reaches the client (SPC-12). */
+/** One generated idea. A source is never required (SPC-20 supersedes SPC-12's
+ * mandatory-source filter) — `sources` may be empty. */
 export const DiscoveryResultItem = z.object({
   title: z.string(),
   summary: z.string(),
-  sources: z.array(z.string()).min(1),
+  sources: z.array(z.string()).default([]),
 });
 export type DiscoveryResultItem = z.infer<typeof DiscoveryResultItem>;
 

@@ -87,4 +87,8 @@ try { await r.connect(); await r.ping(); r.disconnect(); process.exit(0); }\
 catch { process.exit(1); }\
 "]
 
-CMD ["pnpm", "exec", "tsx", "src/main.ts"]
+# See apps/api/Dockerfile's CMD for why this runs `migrate deploy` on every start: it's
+# an idempotent, lock-safe no-op once the schema is current, and running it here too
+# (rather than only from the API) means the worker never depends on the API having
+# started first to get a schema it can query against.
+CMD ["sh", "-c", "cd /app && pnpm --filter @iep/db run migrate:deploy && cd /app/apps/worker && pnpm exec tsx src/main.ts"]

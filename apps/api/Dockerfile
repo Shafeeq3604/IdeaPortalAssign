@@ -94,4 +94,27 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
 
-CMD ["pnpm", "exec", "tsx", "src/main.ts"]
+# `prisma migrate deploy` (not `migrate dev` — that one wants a shadow database and an
+# interactive prompt, neither available here) applies whatever migrations the target
+# database is missing, then exits. It is safe to run on every container start, including
+# concurrently from multiple replicas/services: Prisma takes an advisory lock on
+# `_prisma_migrations` for the duration, so a second caller simply waits rather than
+# racing. Nothing here creates or edits a table by hand — this only ever applies the
+# migration files already shipped in this image (packages/db/prisma/migrations, part of
+# @iep/db's own workspace source, pulled in as `apps/api`'s dependency by `turbo prune`).
+#
+# CAVEAT for a FRESH database (a new environment, first deploy ever): migration
+# `20260908060000_reserved_similarity_embeddings` runs CREATE EXTENSION "vector", which
+# the app's own DB role can never have permission for on Azure Postgres (see that
+# migration's own comment) — `migrate deploy` will hit it, fail, and this container will
+# not start (the `&&` chain stops there). Before the first deploy of an image built after
+# 2026-09-10 against a fresh database, someone with DB access must run, once, from
+# anywhere that can reach it (e.g. `az containerapp exec` into a currently-running api
+# container, even an older image — the CLI and migration files were already present
+# before this change):
+#   1. node packages/db/node_modules/prisma/build/index.js migrate deploy   (fails here, expected)
+#   2. node packages/db/node_modules/prisma/build/index.js migrate resolve --applied 20260908060000_reserved_similarity_embeddings
+#   3. node packages/db/node_modules/prisma/build/index.js migrate deploy   (now succeeds)
+# After that one-time resolve, every future `migrate deploy` on this environment
+# (including this CMD's automatic one) is a clean no-op for it, permanently.
+CMD ["sh", "-c", "cd /app && pnpm --filter @iep/db run migrate:deploy && cd /app/apps/api && pnpm exec tsx src/main.ts"]
