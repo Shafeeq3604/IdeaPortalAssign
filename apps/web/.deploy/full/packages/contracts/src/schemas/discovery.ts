@@ -24,11 +24,29 @@ export const CreateDiscoveryQueryRequest = z.object({
 });
 export type CreateDiscoveryQueryRequest = z.infer<typeof CreateDiscoveryQueryRequest>;
 
-/** One generated idea. A source is never required (SPC-20 supersedes SPC-12's
- * mandatory-source filter) — `sources` may be empty. */
+/**
+ * One generated idea, shaped after the idea-submission form's own sections (SPC-23) so
+ * "Submit as idea" can prefill more than a title and one paragraph.
+ *
+ * `summary` is kept, optional, for backward compatibility only: a `discoveryReport` row
+ * persisted before SPC-23 has `summary` and no `problem`/`approach`/`whoItHelps` —
+ * consumers render that flat paragraph when the structured fields are absent, rather than
+ * failing to parse an older row. Every new item populates the structured fields instead.
+ *
+ * A source is never required (SPC-20 supersedes SPC-12's mandatory-source filter) —
+ * `sources` may be empty.
+ */
 export const DiscoveryResultItem = z.object({
   title: z.string(),
-  summary: z.string(),
+  summary: z.string().optional(),
+  /** What goes wrong today, and for whom — the problem the idea addresses. */
+  problem: z.string().optional(),
+  /** The idea itself, in plain language — what to build or do. */
+  approach: z.string().optional(),
+  /** Which people, teams, or clients would benefit, and how. */
+  whoItHelps: z.string().optional(),
+  /** What would be different if it worked. */
+  expectedOutcome: z.string().optional(),
   sources: z.array(z.string()).default([]),
 });
 export type DiscoveryResultItem = z.infer<typeof DiscoveryResultItem>;

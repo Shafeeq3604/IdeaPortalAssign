@@ -54,7 +54,15 @@ describe("AnthropicDiscoveryProvider (SPC-20)", () => {
       JSON.stringify({
         discoveryType: "OPPORTUNITY_SEARCH",
         summary: "Ideas generated from known trends.",
-        items: [{ title: "A generated idea", summary: "No source field at all." }],
+        items: [
+          {
+            title: "A generated idea",
+            problem: "No source field at all.",
+            approach: "Build it anyway.",
+            whoItHelps: "Anyone who needs it.",
+            expectedOutcome: "Things improve.",
+          },
+        ],
       }),
     );
     const provider = new AnthropicDiscoveryProvider({ apiKey: "test", client });
@@ -62,6 +70,36 @@ describe("AnthropicDiscoveryProvider (SPC-20)", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.items).toHaveLength(1);
+  });
+
+  it("carries the four structured fields through from the model's response (SPC-23)", async () => {
+    const client = fakeClient(
+      JSON.stringify({
+        discoveryType: "OPPORTUNITY_SEARCH",
+        summary: "Ideas generated from known trends.",
+        items: [
+          {
+            title: "A generated idea",
+            problem: "Teams lose time on manual triage.",
+            approach: "An assistant that pre-sorts incoming requests.",
+            whoItHelps: "Support and ops teams, and the clients waiting on them.",
+            expectedOutcome: "Faster first response, less manual sorting.",
+          },
+        ],
+      }),
+    );
+    const provider = new AnthropicDiscoveryProvider({ apiKey: "test", client });
+    const result = await provider.run("give me startup ideas");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.items[0]).toMatchObject({
+      title: "A generated idea",
+      problem: "Teams lose time on manual triage.",
+      approach: "An assistant that pre-sorts incoming requests.",
+      whoItHelps: "Support and ops teams, and the clients waiting on them.",
+      expectedOutcome: "Faster first response, less manual sorting.",
+    });
   });
 
   it("delimits the query as untrusted data rather than sending it bare (SPC-9)", async () => {
@@ -103,5 +141,14 @@ describe("Discovery system prompt (SPC-22)", () => {
   it("still instructs the model not to claim a live web search was performed", () => {
     expect(DISCOVERY_SYSTEM_PROMPT).toMatch(/never claim to have searched the web/i);
     expect(DISCOVERY_SYSTEM_PROMPT).toMatch(/no web search tool/i);
+  });
+});
+
+describe("Discovery system prompt (SPC-23)", () => {
+  it("instructs the model to structure each idea into problem/approach/who-it-helps/outcome", () => {
+    expect(DISCOVERY_SYSTEM_PROMPT).toMatch(/"problem"/);
+    expect(DISCOVERY_SYSTEM_PROMPT).toMatch(/"approach"/);
+    expect(DISCOVERY_SYSTEM_PROMPT).toMatch(/"whoItHelps"/);
+    expect(DISCOVERY_SYSTEM_PROMPT).toMatch(/"expectedOutcome"/);
   });
 });

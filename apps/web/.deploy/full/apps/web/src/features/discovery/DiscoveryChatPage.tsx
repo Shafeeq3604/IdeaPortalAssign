@@ -49,17 +49,40 @@ function SourceList({ sources }: { sources: readonly string[] }) {
   );
 }
 
+/** One labeled part of a structured item — same vocabulary as `IdeaForm.tsx`'s own
+ * section labels, since these are the fields a "Submit as idea" prefill feeds. */
+function Field({ label, text }: { label: string; text: string }) {
+  return (
+    <p className="mt-1.5 text-100">
+      <span className="font-medium text-muted-foreground">{label}: </span>
+      {text}
+    </p>
+  );
+}
+
 function IdeaItem({ item }: { item: DiscoveryResultItem }) {
   const navigate = useNavigate();
+  // SPC-23: a discoveryReport row persisted before the structured shape shipped has
+  // `summary` and none of the four fields below — rendered as the old flat paragraph
+  // instead of failing to show anything.
+  const structured = Boolean(item.problem && item.approach && item.whoItHelps);
 
   const submitAsIdea = () => {
-    const sourcesLine = item.sources.length > 0 ? ` Sources: ${item.sources.join(", ")}` : "";
+    const sourcesLine = item.sources.length > 0 ? `\n\nSources: ${item.sources.join(", ")}` : "";
     navigate("/ideas/new", {
       state: {
-        prefill: {
-          title: item.title.slice(0, 200),
-          description: `${item.summary}\n\n— via the AI Discovery Agent.${sourcesLine}`.slice(0, 20_000),
-        },
+        prefill: structured
+          ? {
+              title: item.title.slice(0, 200),
+              problemStatement: item.problem?.slice(0, 2_000),
+              description: `${item.approach}${sourcesLine}`.slice(0, 20_000),
+              expectedUsers: item.whoItHelps?.slice(0, 2_000),
+              expectedOutcome: item.expectedOutcome?.slice(0, 2_000),
+            }
+          : {
+              title: item.title.slice(0, 200),
+              description: `${item.summary}\n\n— via the AI Discovery Agent.${sourcesLine}`.slice(0, 20_000),
+            },
       },
     });
   };
@@ -67,7 +90,16 @@ function IdeaItem({ item }: { item: DiscoveryResultItem }) {
   return (
     <li className="rounded-xl bg-card p-3 shadow-e1 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e2">
       <p className="text-200 font-semibold">{item.title}</p>
-      <p className="mt-0.5 text-100 text-muted-foreground">{item.summary}</p>
+      {structured ? (
+        <div>
+          <Field label="The problem" text={item.problem ?? ""} />
+          <Field label="The idea" text={item.approach ?? ""} />
+          <Field label="Who it helps" text={item.whoItHelps ?? ""} />
+          {item.expectedOutcome ? <Field label="What would change" text={item.expectedOutcome} /> : null}
+        </div>
+      ) : (
+        <p className="mt-0.5 text-100 text-muted-foreground">{item.summary}</p>
+      )}
       <SourceList sources={item.sources} />
       <Button type="button" variant="outline" size="sm" className="mt-2.5" onClick={submitAsIdea}>
         <PenSquare aria-hidden className="size-3.5" />

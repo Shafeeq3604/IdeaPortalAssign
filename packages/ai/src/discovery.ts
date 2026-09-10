@@ -19,7 +19,14 @@ import { TIER_MODELS, TIER_RATES } from "./routing/routes.js";
 
 export interface DiscoveryResultItem {
   readonly title: string;
-  readonly summary: string;
+  /** What goes wrong today, and for whom (SPC-23) — mirrors the idea form's "The problem". */
+  readonly problem: string;
+  /** The idea itself, in plain language (SPC-23) — mirrors "Your idea". */
+  readonly approach: string;
+  /** Who benefits and how (SPC-23) — mirrors "Who would use it". */
+  readonly whoItHelps: string;
+  /** What would be different if it worked (SPC-23) — mirrors "What would change". */
+  readonly expectedOutcome: string;
   /** Optional (SPC-20): a generated idea is never dropped or required to carry one. When
    * present it is a real URL only if the model is confident, otherwise a named
    * publication/report/community it is recalling — never fabricated as a bare "[1]". */
@@ -62,6 +69,12 @@ export interface DiscoveryChatProvider {
  * what it knows, rather than presenting cited findings — sourcing is no longer required
  * (SPC-20), and every idea states how it could help generically, since no org-profile
  * data exists to tailor it to a specific organization.
+ *
+ * SPC-23 (2026-09-10): each idea is structured into the same four questions the idea
+ * submission form asks a human to answer (`IdeaForm.tsx`'s three required sections) —
+ * problem, approach, who it helps, expected outcome — instead of one flat paragraph.
+ * This makes "Submit as idea" prefill nearly the whole form, not just a title and a
+ * description, and gives the chat UI something more scannable than a wall of text.
  */
 export const DISCOVERY_SYSTEM_PROMPT = `You are the Discovery Agent for an internal \
 employee idea platform. An employee has asked you a free-text research question. Answer \
@@ -79,14 +92,20 @@ it by working through six steps, but only the final result is shown to them:
    Do not present this as a report of things you found or looked up; these are ideas
    you are generating, inspired by what you know.
 5. Rank — order what remains by relevance and usefulness to the question asked.
-6. Present — a short overall summary, then 3-8 concrete, original ideas.
+6. Present — a short overall summary, then 3-8 concrete, original ideas, each broken
+   into exactly these four parts (write plain language, no headings or labels in the
+   text itself — the fields carry the structure):
+   - "problem": what goes wrong today, and for whom, that this idea responds to.
+   - "approach": the idea itself — what you would actually build or do.
+   - "whoItHelps": which people, teams, or clients would feel the difference, and how.
+   - "expectedOutcome": what would be different if it worked — a plain-language \
+     statement of how it could help an organization like the requester's, and its \
+     clients, generically. Do not claim it fits any specific named organization, since \
+     you have no information about one.
 
-Every idea's summary MUST include a plain-language sentence on how it could help an \
-organization like the requester's, and its clients, generically — do not claim it fits \
-any specific named organization, since you have no information about one. A source is \
-never required: name one only if you are genuinely confident of a real, specific \
-inspiration (a URL, publication, report, or community) — never invent one, and never \
-drop an idea just because it has none.
+A source is never required: name one only if you are genuinely confident of a real, \
+specific inspiration (a URL, publication, report, or community) — never invent one, and \
+never drop an idea just because it has none.
 
 This is a standalone research tool. Do not suggest that submitting this as a platform \
 idea happens automatically, and do not reference any idea, evaluation, or ranking \
@@ -97,7 +116,9 @@ Respond with ONLY the JSON object described by the schema. No prose outside it.`
 interface DiscoveryLlmOutput {
   readonly discoveryType: string;
   readonly summary: string;
-  readonly items: ReadonlyArray<Omit<DiscoveryResultItem, "sources"> & { sources?: readonly string[] }>;
+  readonly items: ReadonlyArray<
+    Omit<DiscoveryResultItem, "sources"> & { sources?: readonly string[] }
+  >;
 }
 
 const DISCOVERY_OUTPUT_SCHEMA = {
@@ -119,10 +140,13 @@ const DISCOVERY_OUTPUT_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "summary"],
+        required: ["title", "problem", "approach", "whoItHelps", "expectedOutcome"],
         properties: {
           title: { type: "string" },
-          summary: { type: "string" },
+          problem: { type: "string" },
+          approach: { type: "string" },
+          whoItHelps: { type: "string" },
+          expectedOutcome: { type: "string" },
           sources: { type: "array", items: { type: "string" } },
         },
       },
@@ -251,10 +275,10 @@ export class StubDiscoveryProvider implements DiscoveryChatProvider {
       items: [
         {
           title: "Stub idea 1",
-          summary:
-            "This is a placeholder generated idea — the stub provider never calls a model. " +
-            "How this could help: a real answer would explain how this idea helps your " +
-            "organization and its clients.",
+          problem: "This is a placeholder — the stub provider never calls a model.",
+          approach: "A real answer would describe the idea itself here.",
+          whoItHelps: "A real answer would name who benefits and how, here.",
+          expectedOutcome: "A real answer would explain what changes for your organization and its clients, here.",
           sources: [],
         },
       ],

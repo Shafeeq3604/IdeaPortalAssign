@@ -379,6 +379,18 @@
                 "summary": {
                   "type": "string"
                 },
+                "problem": {
+                  "type": "string"
+                },
+                "approach": {
+                  "type": "string"
+                },
+                "whoItHelps": {
+                  "type": "string"
+                },
+                "expectedOutcome": {
+                  "type": "string"
+                },
                 "sources": {
                   "type": "array",
                   "items": {
@@ -388,8 +400,7 @@
                 }
               },
               "required": [
-                "title",
-                "summary"
+                "title"
               ],
               "additionalProperties": false
             }
@@ -1088,6 +1099,18 @@
                 "summary": {
                   "type": "string"
                 },
+                "problem": {
+                  "type": "string"
+                },
+                "approach": {
+                  "type": "string"
+                },
+                "whoItHelps": {
+                  "type": "string"
+                },
+                "expectedOutcome": {
+                  "type": "string"
+                },
                 "sources": {
                   "type": "array",
                   "items": {
@@ -1097,8 +1120,7 @@
                 }
               },
               "required": [
-                "title",
-                "summary"
+                "title"
               ],
               "additionalProperties": false
             }

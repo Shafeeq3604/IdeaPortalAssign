@@ -10,10 +10,15 @@ import { useCreateIdea } from "./api";
 
 /** Handed off by the Discovery Agent's "Submit as idea" action (state, not the URL — this
  * is one-time initialization for a form the human still fills in and submits by hand,
- * not filter/tab state that Back should restore). */
+ * not filter/tab state that Back should restore). SPC-23: a structured discovery item
+ * fills the same three required sections a human would — deliberately never the
+ * optional "Anything else" fields, which stay blank for the human to add if they choose. */
 interface DiscoveryPrefill {
   readonly title?: string;
+  readonly problemStatement?: string;
   readonly description?: string;
+  readonly expectedUsers?: string;
+  readonly expectedOutcome?: string;
 }
 
 const ACCEPT = ATTACHMENT_TYPES.map((t) => `${t.extension},${t.mime}`).join(",");

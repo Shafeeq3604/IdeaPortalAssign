@@ -320,3 +320,64 @@ override, not a decision already made.
 this helps" framing is a prompt-wording judgment call, not something worth a hard
 contract bound for a single-sentence addition — ship it, revisit if real output quality
 says otherwise. **Verdict: `ready`.**
+
+---
+
+## 2026-09-10 (later) — structured item shape: problem / approach / who it helps
+
+Follow-up request after SPC-19..22 shipped: the generated ideas read as one dense
+paragraph each. The requester asked for the same three questions the human-facing idea
+form already asks (`IdeaForm.tsx`'s "What is it?" / "What would you do?" / "Who does it
+help?" sections) to structure the *output* too, so an answer is scannable and a "Submit
+as idea" click can prefill nearly the whole form — while leaving the form's optional
+"Anything else" section untouched, since the model has no real basis to fill it.
+
+**Approach taken:** split the single `summary` string into four fields per item —
+`problem`, `approach`, `whoItHelps`, `expectedOutcome` — named and worded to match the
+form's own three sections one-for-one. No change to SPC-001's architecture: still one
+model call, still no live search, still no per-organization tailoring (SPC-21 is
+unaffected — `expectedOutcome` is where the "how this could help, generically" framing
+now lives). `summary` stays on the contract, now optional, so a `discoveryReport` row
+persisted before this change still parses and renders — via a legacy flat-paragraph
+fallback in `DiscoveryChatPage.tsx` — rather than breaking on an older shape.
+
+**New/superseding requirements** (continuing from SPC-22):
+
+| Ref | Pattern | Requirement |
+|---|---|---|
+| SPC-23 | Ubiquitous | The system SHALL structure every discovery result item into four labeled parts — the problem it responds to, the approach (what to build or do), who it helps, and the expected outcome — instead of one undifferentiated paragraph. **Supersedes the single free-text `summary` field as the primary shape** (kept, optional, for backward compatibility only). |
+| SPC-24 | Event | WHEN a user chooses "Submit as idea" on a structured discovery result item, the system SHALL prefill the idea form's title, problem, description, "who would use it", and "what would change" fields from the item's four structured fields. |
+| SPC-25 | Ubiquitous | The system SHALL NOT prefill any of the idea form's optional ("Anything else") fields from a discovery result — those stay blank for the human to complete if they choose. |
+
+**Design constraints:**
+- `DiscoveryResultItem` (`packages/contracts/src/schemas/discovery.ts`): `summary` becomes
+  optional; `problem`, `approach`, `whoItHelps`, `expectedOutcome` added, all optional on
+  the *contract* (for legacy-row compatibility) but always populated by the provider on a
+  new result — see CONTRACT-LOG.
+- `DISCOVERY_OUTPUT_SCHEMA` (`packages/ai/src/discovery.ts`) requires all four new fields
+  per item in Anthropic's structured-output schema; the prompt names them by their exact
+  field name so the model's JSON keys line up directly with the contract.
+- `DiscoveryChatPage.tsx` renders the four labeled sections ("The problem" / "The idea" /
+  "Who it helps" / "What would change") when present, and falls back to the old flat
+  `summary` paragraph when they are not — the only place a pre-SPC-23 row is still read.
+- `SubmitIdeaPage.tsx`'s `DiscoveryPrefill` widens to carry `problemStatement`,
+  `expectedUsers`, `expectedOutcome` alongside the existing `title`/`description`; none of
+  the five optional fields (`existingProcess`, `existingSolutions`,
+  `suggestedTechnology`, `expectedBenefits`, `estimatedCostNote`) are ever populated from
+  a discovery item (SPC-25).
+- SPC-13 (no idea-pipeline side effects) is unaffected — the prefill is still a
+  client-only handoff to the ordinary, human-submitted `/ideas/new` form.
+
+**Acceptance criteria:**
+- **AC-11:** Given a new discovery report, when rendered, then each item shows four
+  labeled sections instead of one flat paragraph.
+- **AC-12:** Given "Submit as idea" on a structured item, when the submission form opens,
+  then title, "the problem", "your idea", "who would use it", and "what would change" are
+  all prefilled from the item, and every optional field is blank. Verified manually
+  end-to-end against a live model response.
+- **AC-13 (regression):** Given a `discoveryReport` row persisted before this change
+  (only `summary`, no structured fields), when rendered, then it still displays via the
+  legacy flat-paragraph layout without error.
+
+No new ambiguity findings — this is a narrower, mechanical follow-up to the already-`ready`
+SPC-19..22 change, reusing its brainstorm and design constraints. **Verdict: `ready`.**
