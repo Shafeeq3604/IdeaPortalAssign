@@ -384,13 +384,12 @@
                   "items": {
                     "type": "string"
                   },
-                  "minItems": 1
+                  "default": []
                 }
               },
               "required": [
                 "title",
-                "summary",
-                "sources"
+                "summary"
               ],
               "additionalProperties": false
             }
@@ -1094,13 +1093,12 @@
                   "items": {
                     "type": "string"
                   },
-                  "minItems": 1
+                  "default": []
                 }
               },
               "required": [
                 "title",
-                "summary",
-                "sources"
+                "summary"
               ],
               "additionalProperties": false
             }
