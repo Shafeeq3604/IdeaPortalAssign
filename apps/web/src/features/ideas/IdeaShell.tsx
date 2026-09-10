@@ -222,8 +222,10 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
                 setArchiveTouched(true);
                 if (archiveReasonMissing) return;
                 transition.mutate(
+                  // The default `/ideas` view excludes ARCHIVED — landing there right
+                  // after archiving made the idea look deleted rather than archived.
                   { to: "ARCHIVED", reason: archiveReason.trim() },
-                  { onSuccess: () => navigate("/ideas") },
+                  { onSuccess: () => navigate("/ideas?status=ARCHIVED") },
                 );
               }}
             >

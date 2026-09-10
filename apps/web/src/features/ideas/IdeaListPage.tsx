@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ChevronDown, Lightbulb, Search, X } from "lucide-react";
+import { Archive, ChevronDown, Lightbulb, Search, X } from "lucide-react";
 import { Button, EmptyState, ErrorState, Input, Skeleton, StatusPill } from "@iep/ui";
 import { IdeaStatus } from "@iep/contracts";
 import type { IdeaSummary } from "@iep/contracts";
@@ -18,9 +18,12 @@ const isStatus = (v: string): v is IdeaStatus => IdeaStatus.safeParse(v).success
 /**
  * The statuses worth a one-click filter, in lifecycle order.
  *
- * Not every value in the enum: ARCHIVED and REJECTED are rare and would take two of the
- * slots people actually reach for. They stay reachable through the URL, which is the
- * contract this filter is written against.
+ * Not every value in the enum: REJECTED is rare and would take a slot people actually
+ * reach for. It stays reachable through the URL, which is the contract this filter is
+ * written against. ARCHIVED gets its own dedicated toggle below instead of a slot here —
+ * common enough (anyone who has ever archived something needs a way back to it) to need
+ * a real control, but a distinct enough action that it reads better set apart from the
+ * lifecycle chips than blended into them.
  */
 const VISIBLE_STATUSES = [
   "DRAFT",
@@ -204,6 +207,30 @@ export function IdeaListPage({ scope }: Props) {
             </Button>
           );
         })}
+
+        <span aria-hidden className="mx-1 h-5 w-px bg-border" />
+
+        {/*
+          Archived ideas were reachable only by hand-editing the URL: no chip, and
+          archiving one navigated straight back to the active list, so it read as if the
+          idea had been deleted rather than archived. This toggle is the fix — set apart
+          from the lifecycle chips above (a divider, a muted tone, an icon) because
+          "archived" isn't a step in the pipeline the way the others are.
+        */}
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-pressed={status.includes(IdeaStatus.enum.ARCHIVED)}
+          onClick={() => toggleStatus(IdeaStatus.enum.ARCHIVED)}
+          className={
+            status.includes(IdeaStatus.enum.ARCHIVED)
+              ? "brand-pill rounded-full font-semibold text-grad-ink hover:text-grad-ink"
+              : "rounded-full font-medium text-muted-foreground hover:bg-muted"
+          }
+        >
+          <Archive aria-hidden className="size-3.5" />
+          Archived
+        </Button>
 
         {status.length > 0 || search ? (
           <Button variant="ghost" size="sm" className="rounded-full" onClick={() => setParams(new URLSearchParams())}>
