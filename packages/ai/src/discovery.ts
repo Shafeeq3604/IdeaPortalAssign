@@ -20,8 +20,9 @@ import { TIER_MODELS, TIER_RATES } from "./routing/routes.js";
 export interface DiscoveryResultItem {
   readonly title: string;
   readonly summary: string;
-  /** Named sources (a URL when the model is confident of one, otherwise a named
-   * publication/report/community it is recalling) — never fabricated as a bare "[1]". */
+  /** Optional (SPC-20): a generated idea is never dropped or required to carry one. When
+   * present it is a real URL only if the model is confident, otherwise a named
+   * publication/report/community it is recalling — never fabricated as a bare "[1]". */
   readonly sources: readonly string[];
 }
 
@@ -88,7 +89,11 @@ Respond with ONLY the JSON object described by the schema. No prose outside it.`
 interface DiscoveryLlmOutput {
   readonly discoveryType: string;
   readonly summary: string;
-  readonly items: readonly DiscoveryResultItem[];
+  readonly items: ReadonlyArray<{
+    readonly title: string;
+    readonly summary: string;
+    readonly sources?: readonly string[];
+  }>;
 }
 
 const DISCOVERY_OUTPUT_SCHEMA = {
@@ -110,7 +115,7 @@ const DISCOVERY_OUTPUT_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "summary", "sources"],
+        required: ["title", "summary"],
         properties: {
           title: { type: "string" },
           summary: { type: "string" },
@@ -174,10 +179,11 @@ export class AnthropicDiscoveryProvider implements DiscoveryChatProvider {
         return { ok: false, errorCode: "SCHEMA_INVALID" };
       }
 
-      // SPC-12: a candidate item with no source is dropped, not surfaced. The 8-item cap
-      // is enforced here, not in the JSON Schema (Anthropic's structured output rejects
-      // `maxItems`) — the prompt already asks for "3-8" findings, this just backstops it.
-      const items = data.items.filter((i) => i.sources.length > 0).slice(0, 8);
+      // SPC-20: a generated idea is never dropped for lacking a source (supersedes the
+      // old SPC-12 filter). The 8-item cap is enforced here, not in the JSON Schema
+      // (Anthropic's structured output rejects `maxItems`) — the prompt already asks for
+      // "3-8" ideas, this just backstops it.
+      const items = data.items.slice(0, 8).map((i) => ({ ...i, sources: i.sources ?? [] }));
       if (items.length === 0) return { ok: false, errorCode: "SCHEMA_INVALID" };
 
       const rate = TIER_RATES.B;

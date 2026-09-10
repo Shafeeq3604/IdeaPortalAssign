@@ -219,3 +219,98 @@ came from." Two frontend-only additions to `DiscoveryChatPage.tsx`, no contract 
   other submission. **SPC-13 is unaffected**: no `discovery_queries` row is read, written,
   or linked by this — it was already anticipated verbatim in `schema.prisma`'s SPC-13
   comment, "a user acting on a finding submits a real idea by hand."
+
+### 2026-09-10 — reframe: generated ideas, not cited findings
+
+**Origin:** User request, 2026-09-10. **Verdict: `not_ready`** — one finding open below.
+
+**Problem restated.** The shipped agent presents itself as reporting *findings it pulled
+from sources* (SPC-11's mandatory source URL, SPC-12's "no source → drop the item," the
+UI's "Sources:" line). But there is no live search behind it — SPC-001's 2026-09-09
+simplification already made this a single model call answering from trained knowledge,
+with a prompt that must "say so plainly and never claim to have browsed the web." The
+"Sources:" framing was therefore already somewhat fictional. The requester wants the
+agent to stop pretending to cite things and instead openly generate original ideas,
+inspired by trends the model knows about, framed for how they'd help the organization
+and its clients generically — no org-profile input exists to tailor beyond that.
+
+Two clarifying answers from the requester fix what would otherwise be open questions:
+sourcing is **dropped entirely** (no "inspired by X" attribution requirement either), and
+ideas stay **generic** (no new org-context input is being added in this change).
+
+**Brainstormed approaches:**
+
+1. **Prompt-only reframe + optional-source contract tweak (recommended).** Rewrite the
+   system prompt in `packages/ai/src/discovery.ts` to instruct the model to generate
+   original ideas rather than report findings, and add one line of framing per idea (how
+   it could help the org/its clients). Make `DiscoveryResultItem.sources` optional in the
+   contract (was required, min 1) and delete SPC-12's "drop items without a source"
+   filter. Everything else — route, single model call, persistence shape, redaction,
+   AI-provenance badge, submit-as-idea bridge — is untouched.
+   - *Why it wins:* smallest possible change; no new fields, no new endpoint, no new
+     queue, no breaking read of already-persisted `discoveryReport` JSON (old rows still
+     have `sources`, just no longer required going forward). Fully consistent with
+     SPC-001's design constraint of one model call and no external search infrastructure.
+   - *Trade-off:* the "why this helps the org" framing lives inside free-form `summary`
+     text rather than its own structured field, so it can't be filtered/sorted on later
+     without a further contract change.
+2. **Contract reshape** — replace `sources: string[]` with new fields
+   (`inspiredBy: string[]`, `whyItHelps: string`) on `DiscoveryResultItem`. Cleaner data
+   model, structured framing text separate from the idea description.
+   - *Trade-off:* touches `packages/contracts`, the worker, and every frontend render
+     site (including the just-shipped clickable-source-link logic), for a feature that
+     was deliberately kept minimal twice already. Renaming a shipped field also means any
+     already-persisted `discoveryReport` rows have a different shape than new ones,
+     forcing a read-time compatibility branch for no functional gain over Approach 1.
+3. **Two-pass generation** — one model call to name current trends, a second to generate
+   org-relevant ideas from them, for richer "inspired by" grounding.
+   - *Trade-off:* a second Anthropic call per query doubles cost and latency and
+     reintroduces exactly the "multi-call AI pipeline" shape SPC-001 was written to avoid
+     (REQUIREMENTS §32, "complex multi-agent AI systems" — not to be built initially).
+     Not justified by a framing-sentence improvement.
+
+**Recommendation: Approach 1.** It is the only option that changes nothing about
+SPC-001's architecture — same single call, same route, same persistence — while fully
+answering what was asked. This is a recommendation for the requester to confirm or
+override, not a decision already made.
+
+**New/superseding requirements** (continuing from SPC-18):
+
+| Ref | Pattern | Requirement |
+|---|---|---|
+| SPC-19 | Ubiquitous | The system SHALL present every discovery result item as an original, model-generated idea, not as a cited external finding. **Supersedes SPC-11's mandatory-source-URL framing.** |
+| SPC-20 | Ubiquitous | The system SHALL NOT require a source URL on a discovery result item, and SHALL NOT exclude an item for lacking one. **Supersedes and removes SPC-12.** |
+| SPC-21 | Ubiquitous | The system SHALL word every discovery result item to state, in plain language, how it could help the requesting organization and its clients generically — without asserting fit to any specific named organization, since no organization-profile data is collected or available to the system. |
+| SPC-22 | Event | WHEN generating a discovery report, the system SHALL instruct the model, via its system prompt, to draw on real-world trends and context from its training knowledge as inspiration, while continuing to state plainly (per the existing 2026-09-09 behavior) that it has not performed a live search. |
+
+**Design constraints:**
+- `DiscoveryResultItem.sources` (`packages/contracts/src/schemas/discovery.ts`) becomes
+  **optional**, default empty array — additive, backward-compatible with already-persisted
+  rows (CONTRACT-LOG entry required on merge).
+- `DiscoveryChatPage.tsx`'s "Sources:" line and clickable-link rendering only appears when
+  `sources` is non-empty; nothing renders an empty/required-looking source line when the
+  model doesn't name one.
+- SPC-13 (no idea-pipeline side effects) and the submit-as-idea bridge are unaffected —
+  neither reads nor depends on `sources`.
+
+**Acceptance criteria:**
+- **AC-8:** Given a discovery query, when a report is generated, then every item has a
+  title and an idea description that includes a plain-language "how this could help"
+  framing, and no item is ever dropped for lacking a source URL.
+- **AC-9:** Given a discovery query, when the report is generated, then no item's text
+  claims a live web search was performed or cites a URL as if retrieved from search
+  (verifiable via an eval fixture, mirroring the existing 2026-09-09 no-live-search check).
+- **AC-10 (regression):** Given the shipped PII redaction, AI-provenance badge, and
+  submit-as-idea bridge, when this change ships, then all three continue to work
+  unchanged (verifiable via the existing `discovery.test.ts` suite plus a manual pass).
+
+**Ambiguity Report:**
+
+| # | Requirement(s) | Problem | Proposed rewrite | Status |
+|---|---|---|---|---|
+| 9 | SPC-21 | "in plain language" and "how it could help" have no length or structural bound — two different model outputs could satisfy this at wildly different quality bars. | Add a soft instruction in the prompt (not a hard contract rule) that the framing be one to two sentences, appended to `summary` rather than the idea's core description. Not proposed as a strictly testable numeric bound — flagged here rather than silently omitted, per this skill's own rule against skipping acceptance criteria to move faster. | Open |
+
+**Waiver for Finding 9: Shafeeq, 2026-09-10.** Reason: the length/structure of the "how
+this helps" framing is a prompt-wording judgment call, not something worth a hard
+contract bound for a single-sentence addition — ship it, revisit if real output quality
+says otherwise. **Verdict: `ready`.**

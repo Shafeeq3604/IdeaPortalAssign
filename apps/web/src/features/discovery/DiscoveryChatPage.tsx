@@ -23,6 +23,7 @@ import { useCreateDiscoveryQuery, useDiscoveryHistory, useDiscoveryQuery } from 
 const URL_PATTERN = /^https?:\/\//i;
 
 function SourceList({ sources }: { sources: readonly string[] }) {
+  if (sources.length === 0) return null;
   return (
     <p className="mt-1 text-050 text-muted-foreground">
       Sources:{" "}
@@ -52,13 +53,12 @@ function FindingItem({ item }: { item: DiscoveryResultItem }) {
   const navigate = useNavigate();
 
   const submitAsIdea = () => {
+    const sourcesLine = item.sources.length > 0 ? ` Sources: ${item.sources.join(", ")}` : "";
     navigate("/ideas/new", {
       state: {
         prefill: {
           title: item.title.slice(0, 200),
-          description:
-            `${item.summary}\n\n— via the AI Discovery Agent. Sources: ${item.sources.join(", ")}`
-              .slice(0, 20_000),
+          description: `${item.summary}\n\n— via the AI Discovery Agent.${sourcesLine}`.slice(0, 20_000),
         },
       },
     });
