@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type Anthropic from "@anthropic-ai/sdk";
-import { AnthropicDiscoveryProvider, StubDiscoveryProvider } from "./discovery.js";
+import { AnthropicDiscoveryProvider, DISCOVERY_SYSTEM_PROMPT, StubDiscoveryProvider } from "./discovery.js";
 
 describe("StubDiscoveryProvider (SPC-001)", () => {
   it("returns a schema-shaped result without calling a model", async () => {
@@ -63,5 +63,27 @@ describe("AnthropicDiscoveryProvider (SPC-20)", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.items).toHaveLength(1);
+  });
+});
+
+describe("Discovery system prompt (SPC-19)", () => {
+  it("instructs generating original ideas rather than mandatory-cited findings", () => {
+    expect(DISCOVERY_SYSTEM_PROMPT).toMatch(/generate|original idea/i);
+    expect(DISCOVERY_SYSTEM_PROMPT).not.toMatch(/must cite at least one source/i);
+  });
+});
+
+describe("Discovery system prompt (SPC-21)", () => {
+  it("requires each idea to state how it could help the org and its clients, generically", () => {
+    expect(DISCOVERY_SYSTEM_PROMPT).toMatch(/how it could help/i);
+    expect(DISCOVERY_SYSTEM_PROMPT).toMatch(/clients/i);
+    expect(DISCOVERY_SYSTEM_PROMPT).toMatch(/generically|no information about one|any specific named/i);
+  });
+});
+
+describe("Discovery system prompt (SPC-22)", () => {
+  it("still forbids claiming a live web search was performed", () => {
+    expect(DISCOVERY_SYSTEM_PROMPT).toMatch(/never claim to have searched the web/i);
+    expect(DISCOVERY_SYSTEM_PROMPT).toMatch(/no web search tool/i);
   });
 });
