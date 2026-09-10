@@ -1,29 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { connectionFrom } from "./queue.js";
+import { makeQueueConnection } from "./redis-connection.js";
 
 /**
- * `connectionFrom` used to reconstruct {host, port, password} from the URL by hand. That
- * silently dropped a `username`, which Azure Cache for Redis's ACL-style auth can require —
- * the connection would then hang forever (BullMQ's `maxRetriesPerRequest: null` means it
- * never throws, just retries quietly), while a URL-string-based connection elsewhere in the
- * same codebase (the API's session store) worked fine against the identical REDIS_URL. Now
- * it hands the whole URL string to ioredis and lets it parse everything, same as that
- * working path — these tests check the resulting client's parsed `.options`, not a
- * hand-built object.
- *
- * No `lazyConnect`: BullMQ expects a client handed to it to already be connecting on its
- * own (see the comment in queue.ts). That means constructing one here does start a real
- * background connection attempt against these bogus test hosts/ports, which will fail —
- * harmlessly, since nothing awaits it and `conn()` below silences the resulting error
- * event before it can become an unhandled rejection.
+ * No `lazyConnect` (see the comment in redis-connection.ts): constructing a client here
+ * starts a real background connection attempt against these bogus test hosts/ports, which
+ * fails harmlessly since nothing awaits it — `conn()` silences the error event before it
+ * can become an unhandled rejection.
  */
 function conn(url: string) {
-  const client = connectionFrom(url);
+  const client = makeQueueConnection(url);
   client.on("error", () => undefined);
   return client;
 }
 
-describe("connectionFrom", () => {
+describe("makeQueueConnection", () => {
   it("parses host and an explicit port from a redis URL", () => {
     const c = conn("redis://localhost:6380");
     expect(c.options.host).toBe("localhost");

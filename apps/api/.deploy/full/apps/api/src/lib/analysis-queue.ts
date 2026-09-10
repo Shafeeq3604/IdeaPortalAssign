@@ -1,5 +1,6 @@
 import { Queue } from "bullmq";
 import type { AnalysisEnqueuer, RankingEnqueuer } from "../context.js";
+import { makeQueueConnection } from "./redis-connection.js";
 
 /**
  * The API's side of the analysis queue.
@@ -16,21 +17,8 @@ export function makeAnalysisEnqueuer(
   redisUrl: string,
   logger?: EnqueuerLogger,
 ): AnalysisEnqueuer & { close(): Promise<void> } {
-  const url = new URL(redisUrl);
   const queue = new Queue("iep.analysis", {
-    connection: {
-      host: url.hostname,
-      port: Number(url.port || 6379),
-      ...(url.password ? { password: url.password } : {}),
-      // `rediss:` (Azure Cache for Redis and most managed providers) refuses a plain
-      // connection on its TLS port — without this the client hangs or is rejected, and
-      // nothing about the REDIS_URL string itself would have said why.
-      ...(url.protocol === "rediss:" ? { tls: {} } : {}),
-      // BullMQ requires this to be null: it manages its own retry behaviour, and any
-      // other value makes commands throw instead of queueing. Setting it to 1 silently
-      // stopped every job from being added.
-      maxRetriesPerRequest: null,
-    },
+    connection: makeQueueConnection(redisUrl),
     defaultJobOptions: {
       attempts: 3,
       backoff: { type: "exponential", delay: 2_000 },
@@ -76,15 +64,8 @@ export function makeRankingEnqueuer(
   redisUrl: string,
   logger?: EnqueuerLogger,
 ): RankingEnqueuer & { close(): Promise<void> } {
-  const url = new URL(redisUrl);
   const queue = new Queue("iep.ranking", {
-    connection: {
-      host: url.hostname,
-      port: Number(url.port || 6379),
-      ...(url.password ? { password: url.password } : {}),
-      ...(url.protocol === "rediss:" ? { tls: {} } : {}),
-      maxRetriesPerRequest: null,
-    },
+    connection: makeQueueConnection(redisUrl),
     defaultJobOptions: {
       attempts: 2,
       backoff: { type: "exponential", delay: 2_000 },

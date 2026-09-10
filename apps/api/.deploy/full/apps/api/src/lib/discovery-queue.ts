@@ -1,6 +1,7 @@
 import { Queue } from "bullmq";
 import type { DiscoveryEnqueuer } from "../context.js";
 import type { EnqueuerLogger } from "./analysis-queue.js";
+import { makeQueueConnection } from "./redis-connection.js";
 
 /**
  * The API's side of the discovery queue (SPC-001).
@@ -16,15 +17,8 @@ export function makeDiscoveryEnqueuer(
   redisUrl: string,
   logger?: EnqueuerLogger,
 ): DiscoveryEnqueuer & { close(): Promise<void> } {
-  const url = new URL(redisUrl);
   const queue = new Queue("iep.discovery", {
-    connection: {
-      host: url.hostname,
-      port: Number(url.port || 6379),
-      ...(url.password ? { password: url.password } : {}),
-      ...(url.protocol === "rediss:" ? { tls: {} } : {}),
-      maxRetriesPerRequest: null,
-    },
+    connection: makeQueueConnection(redisUrl),
     defaultJobOptions: {
       attempts: 1, // SPC-8: no automatic retry — a failed query is cheap to resubmit by hand
       removeOnComplete: { age: 3600, count: 500 },

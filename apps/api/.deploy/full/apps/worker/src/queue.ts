@@ -1,4 +1,5 @@
-import { Queue, type ConnectionOptions } from "bullmq";
+import { Queue } from "bullmq";
+import IORedis from "ioredis";
 
 /**
  * The analysis queue (ADR-007).
@@ -16,17 +17,25 @@ export interface AnalysisJob {
   readonly contentHash: string;
 }
 
-export function connectionFrom(redisUrl: string): ConnectionOptions {
-  const url = new URL(redisUrl);
-  return {
-    host: url.hostname,
-    port: Number(url.port || 6379),
-    ...(url.password ? { password: url.password } : {}),
-    // `rediss:` (Azure Cache for Redis and most managed providers) refuses a plain
-    // connection on its TLS port — without this the client hangs or is rejected, and
-    // nothing about the REDIS_URL string itself would have said why.
-    ...(url.protocol === "rediss:" ? { tls: {} } : {}),
-  };
+/**
+ * Hands the whole URL to ioredis rather than reconstructing {host, port, password} by
+ * hand — the hand-built version silently dropped a `username`, which Azure Cache for
+ * Redis's ACL-style auth can require, leaving the connection to hang forever with no
+ * error (BullMQ's `maxRetriesPerRequest: null` below means it never throws, just retries
+ * quietly). ioredis's own URL parsing is also what the API's session store connection
+ * already uses successfully against the same REDIS_URL — this makes every Redis client in
+ * the codebase parse it the same way.
+ */
+export function connectionFrom(redisUrl: string): IORedis {
+  return new IORedis(redisUrl, {
+    // BullMQ requires this to be null: it manages its own retry behaviour, and any
+    // other value makes commands throw instead of queueing. Setting it to 1 silently
+    // stopped every job from being added.
+    maxRetriesPerRequest: null,
+    // NOT lazyConnect: BullMQ expects a client handed to `connection` to already be
+    // connecting on its own — it never calls `.connect()` for you. A lazy client just
+    // sits idle forever, and BullMQ's own readiness wait hangs with it.
+  });
 }
 
 export function makeAnalysisQueue(redisUrl: string): Queue<AnalysisJob> {
