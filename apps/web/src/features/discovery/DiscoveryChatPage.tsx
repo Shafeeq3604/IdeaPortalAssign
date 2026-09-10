@@ -49,7 +49,7 @@ function SourceList({ sources }: { sources: readonly string[] }) {
   );
 }
 
-function FindingItem({ item }: { item: DiscoveryResultItem }) {
+function IdeaItem({ item }: { item: DiscoveryResultItem }) {
   const navigate = useNavigate();
 
   const submitAsIdea = () => {
@@ -120,7 +120,7 @@ function TurnBubble({ discoveryQueryId, query }: { discoveryQueryId: string; que
             <p className="text-200">{data.summary}</p>
             <ol className="space-y-2">
               {data.items.map((item, i) => (
-                <FindingItem key={i} item={item} />
+                <IdeaItem key={i} item={item} />
               ))}
             </ol>
           </div>

@@ -300,6 +300,12 @@ override, not a decision already made.
 - **AC-9:** Given a discovery query, when the report is generated, then no item's text
   claims a live web search was performed or cites a URL as if retrieved from search
   (verifiable via an eval fixture, mirroring the existing 2026-09-09 no-live-search check).
+  **Partially covered as shipped:** `discovery.test.ts`'s SPC-22 test only asserts the
+  instruction is present in the system prompt text, not that a real model call actually
+  obeys it — there is no eval-fixture infrastructure for the Discovery Agent in this repo
+  (there wasn't one for the 2026-09-09 version either, despite this AC's wording implying
+  one existed to mirror). Full AC-9 coverage against real model output remains open until
+  such infrastructure is built.
 - **AC-10 (regression):** Given the shipped PII redaction, AI-provenance badge, and
   submit-as-idea bridge, when this change ships, then all three continue to work
   unchanged (verifiable via the existing `discovery.test.ts` suite plus a manual pass).
