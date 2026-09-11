@@ -3,6 +3,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { ErrorState } from "@iep/ui";
 import { ApiError, ApiUnreachableError } from "./api-client";
 import { useSession } from "./use-session";
+import { PRODUCT_SHORT } from "./product";
 
 /** Route guarding (FR-01). Hooks and role helpers live in ./use-session. */
 
@@ -15,10 +16,27 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
   if (isPending) {
+    // A bare, unstyled "loading" line here — even for the second or two this usually
+    // takes — is the very first thing anyone sees on every visit and every refresh, and a
+    // plain grey page with no branding reads as broken, not busy. Showing the same header
+    // bar the real app uses means the transition into the signed-in shell is seamless
+    // rather than a flash from "nothing" to "the product."
     return (
-      <main className="page" aria-busy="true">
-        <p className="muted">Checking your session…</p>
-      </main>
+      <div className="min-h-dvh">
+        <header className="brand-bar flex h-14 items-center gap-3 px-4 text-grad-ink shadow-e2">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-grad-highlight/20 text-100 font-bold text-grad-highlight ring-1 ring-grad-rule">
+            IP
+          </span>
+          <span className="truncate text-200 font-semibold text-grad-ink">{PRODUCT_SHORT}</span>
+        </header>
+        <main className="page" aria-busy="true" aria-live="polite">
+          <span className="sr-only">Checking your session…</span>
+          <div className="mx-auto mt-16 flex max-w-sm flex-col items-center gap-3 text-center" aria-hidden="true">
+            <span className="size-8 animate-spin rounded-full border-2 border-accent-200 border-t-accent-600" />
+            <p className="text-200 text-muted-foreground">Just a moment…</p>
+          </div>
+        </main>
+      </div>
     );
   }
 

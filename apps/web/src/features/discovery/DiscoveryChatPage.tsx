@@ -109,9 +109,12 @@ function IdeaItem({ item }: { item: DiscoveryResultItem }) {
   );
 }
 
-function TurnBubble({ discoveryQueryId, query }: { discoveryQueryId: string; query: string }) {
+function TurnBubble({ discoveryQueryId, query }: { discoveryQueryId: string | null; query: string }) {
+  // `discoveryQueryId` is null for the brief moment between the user hitting send and the
+  // server assigning a real id — rendering the "Thinking…" state immediately for that case
+  // (rather than waiting on the id) is what makes the click feel instant instead of dead.
   const { data, isPending } = useDiscoveryQuery(discoveryQueryId);
-  const status = data?.status ?? (isPending ? "PENDING" : "FAILED");
+  const status = discoveryQueryId === null ? "PENDING" : (data?.status ?? (isPending ? "PENDING" : "FAILED"));
 
   return (
     <div className="space-y-2">
@@ -164,7 +167,9 @@ function TurnBubble({ discoveryQueryId, query }: { discoveryQueryId: string; que
 
 export function DiscoveryChatPage() {
   const [input, setInput] = React.useState("");
-  const [turns, setTurns] = React.useState<readonly { id: string; query: string }[]>([]);
+  // `key` is a stable local identity for the turn, independent of the server's id — which
+  // does not exist yet the instant a turn is created (see `submit` below).
+  const [turns, setTurns] = React.useState<readonly { key: string; id: string | null; query: string }[]>([]);
   const create = useCreateDiscoveryQuery();
   const history = useDiscoveryHistory();
 
@@ -172,11 +177,26 @@ export function DiscoveryChatPage() {
     e.preventDefault();
     const query = input.trim();
     if (!query || create.isPending) return;
+    setInput("");
+
+    // Add the turn to the page THE INSTANT it's submitted, with no server id yet — not
+    // after the request round-trip completes. Waiting for the response before showing
+    // anything left the box looking dead for several seconds on every real (non-stub)
+    // query, which reads as "did that even work?" rather than "the agent is thinking."
+    const key = crypto.randomUUID();
+    setTurns((prev) => [...prev, { key, id: null, query }]);
+
     create.mutate(
       { query },
-      { onSuccess: (data) => setTurns((prev) => [...prev, { id: data.id, query: data.query }]) },
+      {
+        onSuccess: (data) =>
+          setTurns((prev) => prev.map((t) => (t.key === key ? { ...t, id: data.id } : t))),
+        onError: () =>
+          // The request never made it to the server — drop the optimistic turn rather
+          // than leaving a "Thinking…" bubble that can never resolve.
+          setTurns((prev) => prev.filter((t) => t.key !== key)),
+      },
     );
-    setInput("");
   };
 
   return (
@@ -211,7 +231,7 @@ export function DiscoveryChatPage() {
       ) : (
         <div className="space-y-4">
           {turns.map((t) => (
-            <TurnBubble key={t.id} discoveryQueryId={t.id} query={t.query} />
+            <TurnBubble key={t.key} discoveryQueryId={t.id} query={t.query} />
           ))}
         </div>
       )}
@@ -254,7 +274,7 @@ export function DiscoveryChatPage() {
                   <button
                     type="button"
                     className="rounded-md text-left text-200 text-accent-700 underline-offset-2 hover:underline"
-                    onClick={() => setTurns((prev) => [...prev, { id: h.id, query: h.query }])}
+                    onClick={() => setTurns((prev) => [...prev, { key: crypto.randomUUID(), id: h.id, query: h.query }])}
                   >
                     {h.query}
                   </button>

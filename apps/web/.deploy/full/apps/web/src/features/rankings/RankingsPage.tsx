@@ -11,6 +11,33 @@ const link = ({ to, children, className }: { to: string; children: React.ReactNo
   <Link to={to} className={className}>{children}</Link>
 );
 
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+/**
+ * `triggerReason` is an internal audit string written by the worker/API to explain a
+ * ranking run to whoever is debugging it (e.g. "analysis completed for idea <uuid>") —
+ * useful on an admin/audit screen, but a raw id and engineering phrasing on the board
+ * everyone sees reads as a leaked debug value, not an explanation. This rewrites the
+ * common shapes into a plain sentence; the raw string underneath is unchanged everywhere
+ * else (audit log, admin APIs).
+ */
+function describeTrigger(reason: string): string {
+  if (UUID_RE.test(reason)) {
+    if (reason.startsWith("analysis completed")) return "a new idea finished scoring";
+    if (reason.startsWith("score override")) return "a reviewer adjusted a score";
+    return "an idea on the board changed";
+  }
+  switch (reason) {
+    case "scheduled": return "it runs on a schedule";
+    case "manual": return "someone requested a refresh";
+    case "demo data prepared": return "demo data was prepared";
+    case "no ranking run has been computed for this profile yet":
+      return "no ranking has run yet for this profile";
+    default:
+      return reason;
+  }
+}
+
 /**
  * The ranked board (P7 — FR-26, SPEC §9.9).
  *
@@ -255,15 +282,25 @@ function PodiumCard({
         explanation is never the thing that got dropped to make a card look tidy.
       */}
       {first ? (
+        // Same units and the same full-sentence tooltip the non-podium `Factor` chips
+        // carry below — a bare "+9.0" with no "pts" and nothing to hover for context read
+        // as an unexplained internal number to anyone who hadn't already read the
+        // Evaluation tab.
         <div className="relative mt-3.5 flex flex-wrap gap-2">
           {row.topStrength ? (
-            <span className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-bold ring-1 ring-grad-rule">
-              {row.topStrength.criterionLabel} +{row.topStrength.contribution.toFixed(1)}
+            <span
+              className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-bold ring-1 ring-grad-rule"
+              title={row.topStrength.text}
+            >
+              {row.topStrength.criterionLabel} +{row.topStrength.contribution.toFixed(1)} pts
             </span>
           ) : null}
           {row.topConstraint?.headroom === undefined ? null : (
-            <span className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-bold ring-1 ring-grad-rule">
-              {row.topConstraint.criterionLabel} −{row.topConstraint.headroom.toFixed(1)}
+            <span
+              className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-bold ring-1 ring-grad-rule"
+              title={row.topConstraint.text}
+            >
+              {row.topConstraint.criterionLabel} − up to {row.topConstraint.headroom.toFixed(1)} pts
             </span>
           )}
         </div>
@@ -519,10 +556,9 @@ function Board({
       </ol>
 
       <p className="mt-4 text-100 text-muted-foreground">
-        {mode === "run" ? "This run was" : "Current board, "} computed{" "}
-        {new Date(data.run.computedAt).toLocaleString()} under the {data.run.profileName}{" "}
-        profile, engine {data.run.engineVersion}. Reason: {data.run.triggerReason}.
-        {" "}
+        {mode === "run" ? "This run was" : "This board was"} last updated{" "}
+        {new Date(data.run.computedAt).toLocaleString()}, under the {data.run.profileName}{" "}
+        profile, after {describeTrigger(data.run.triggerReason)}.{" "}
         <Link to="/config/profiles">See how this profile is weighted</Link>.
       </p>
 

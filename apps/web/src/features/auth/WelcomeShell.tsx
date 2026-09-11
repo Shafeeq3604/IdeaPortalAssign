@@ -65,7 +65,14 @@ export function WelcomeShell({
             {standfirst}
           </p>
 
-          <div className="mt-10">{aside}</div>
+          {/*
+            Hidden below `lg`, not the whole panel — the eyebrow, headline and standfirst
+            (the actual branding/trust case) still show on a phone. This numbered list is
+            supporting detail, and on a narrow screen it was the single biggest reason the
+            real task — the form — sat a screen and a half below the fold with nothing
+            visible to suggest scrolling would reveal it.
+          */}
+          <div className="mt-10 hidden lg:block">{aside}</div>
         </div>
 
         <p className="relative text-100 text-grad-ink-soft">

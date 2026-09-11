@@ -150,6 +150,10 @@ function AccountMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
+        // Explicit, rather than left to be computed from the visible name span (which is
+        // `hidden` below the `sm` breakpoint) — a button whose only accessible name comes
+        // from text that can be hidden by CSS is one layout change away from having none.
+        aria-label={`Account menu for ${data.user.displayName}`}
         className={`flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors duration-[var(--dur-fast)] ${ON_BAR}`}
       >
         <span className="flex size-7 items-center justify-center rounded-full bg-grad-highlight/20 text-100 font-bold text-grad-highlight ring-1 ring-grad-rule">
