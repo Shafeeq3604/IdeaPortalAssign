@@ -12,6 +12,6 @@ export * from "./clamp.js";
 export { StubProvider } from "./providers/stub.js";
 export { AnthropicProvider } from "./providers/anthropic.js";
 export {
-  StubDiscoveryProvider, AnthropicDiscoveryProvider,
+  StubDiscoveryProvider, AnthropicDiscoveryProvider, DISCOVERY_SYSTEM_PROMPT,
   type DiscoveryChatProvider, type DiscoveryChatResult, type DiscoveryResultItem,
 } from "./discovery.js";

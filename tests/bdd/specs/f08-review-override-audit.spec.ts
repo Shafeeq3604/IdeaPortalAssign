@@ -4,6 +4,7 @@ import { StubProvider } from "@iep/ai";
 import { can } from "@iep/contracts";
 import { makeIdeaRepo } from "@iep/api/src/modules/idea/repo.js";
 import { runPipeline } from "@iep/worker/src/pipeline.js";
+import { NOOP_OBSERVABILITY_CLIENT } from "@iep/worker/src/observability.js";
 import { evaluateVersion } from "@iep/evaluation";
 
 /**
@@ -38,7 +39,7 @@ async function givenAnEvaluatedIdea(label: string) {
   createdIdeas.push(ideaId);
   const version = await db.ideaVersion.findUniqueOrThrow({ where: { id: versionId } });
   await runPipeline(
-    { db, provider: new StubProvider(), budgetPerVersionUsd: 0.75, redactionEnabled: true },
+    { db, provider: new StubProvider(), budgetPerVersionUsd: 0.75, redactionEnabled: true, observability: NOOP_OBSERVABILITY_CLIENT },
     { ideaId, ideaVersionId: versionId, contentHash: version.contentHash },
   );
   await evaluateVersion(db, versionId);

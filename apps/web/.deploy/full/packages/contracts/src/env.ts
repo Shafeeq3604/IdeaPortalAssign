@@ -132,6 +132,29 @@ export const WorkerEnv = Base.extend({
    * Unset by default — nothing bootstraps unless someone opts in.
    */
   BOOTSTRAP_ADMIN_EMAIL: z.string().trim().email().optional(),
+
+  /**
+   * iManner LLM observability (opt-in). Off by default — nothing is reported unless
+   * every required field below is also set, since a half-configured endpoint should
+   * degrade to "not reporting", never crash the worker (apps/worker/src/observability.ts
+   * checks the same fields again and logs rather than throwing if they're incomplete).
+   * Deliberately no OBS_ORG_ID / OBS_PROJECT_ID (the API key carries those) and no
+   * OBS_AGENT_ID / OBS_AGENT_NAME (agent identity is resolved per call site, not config).
+   */
+  OBS_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  OBS_API_ENDPOINT: z.string().url().optional(),
+  OBS_API_KEY: nonEmpty.optional(),
+  OBS_APPLICATION_ID: nonEmpty.optional(),
+  OBS_APPLICATION_NAME: nonEmpty.optional(),
+  /** local | development | staging | production — see the iManner integration guide. */
+  OBS_ENVIRONMENT: z
+    .enum(["local", "development", "staging", "production"])
+    .default("development"),
+  OBS_SAMPLING_RATE: z.coerce.number().min(0).max(1).default(1),
+
   // Optional, not required: a missing key is a valid, supported state (the worker falls
   // back to the stub provider rather than refusing to boot — see apps/worker/src/main.ts).
   // Requiring it here would defeat that fallback before it ever runs.

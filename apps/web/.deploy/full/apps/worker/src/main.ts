@@ -13,6 +13,7 @@ import { runPipeline } from "./pipeline.js";
 import { runDiscoveryQuery } from "./discovery.js";
 import { evaluateVersion, recomputeRankings } from "@iep/evaluation";
 import { grantRole } from "@iep/db";
+import { makeObservabilityClient } from "./observability.js";
 
 /**
  * apps/worker — the AI pipeline consumer (P3).
@@ -69,6 +70,9 @@ function makeDiscoveryProvider(): DiscoveryChatProvider {
 
 const discoveryProvider = makeDiscoveryProvider();
 
+/** iManner LLM observability (opt-in, see packages/contracts/src/env.ts's OBS_* fields). */
+const observability = makeObservabilityClient(env);
+
 /**
  * The worker enqueues its own ranking recomputes rather than running one inline.
  *
@@ -88,6 +92,7 @@ const worker = new Worker<AnalysisJob>(
         provider,
         budgetPerVersionUsd: env.AI_BUDGET_PER_VERSION_USD,
         redactionEnabled: env.PII_REDACTION_ENABLED,
+        observability,
       },
       job.data,
     );
@@ -152,7 +157,7 @@ const discoveryWorker = new Worker<DiscoveryJob>(
   async (job) => {
     const started = Date.now();
     await runDiscoveryQuery(
-      { db, provider: discoveryProvider, redactionEnabled: env.PII_REDACTION_ENABLED },
+      { db, provider: discoveryProvider, redactionEnabled: env.PII_REDACTION_ENABLED, observability },
       job.data,
     );
     console.log(`[discovery] ${job.data.discoveryQueryId} done in ${Date.now() - started}ms`);
@@ -167,7 +172,8 @@ discoveryWorker.on("failed", (job, error) => {
 console.log(
   `iep-worker listening on ${ANALYSIS_QUEUE} + ${RANKING_QUEUE} + ${DISCOVERY_QUEUE} · ` +
     `provider=${provider.name} · discoveryProvider=${discoveryProvider.name} · ` +
-    `budget=$${env.AI_BUDGET_PER_VERSION_USD}/version · redaction=${env.PII_REDACTION_ENABLED}`,
+    `budget=$${env.AI_BUDGET_PER_VERSION_USD}/version · redaction=${env.PII_REDACTION_ENABLED} · ` +
+    `iManner observability=${env.OBS_ENABLED ? "enabled" : "disabled"}`,
 );
 
 /**

@@ -4,6 +4,7 @@ import { StubProvider, stepInputHash, type AiProvider } from "@iep/ai";
 import { PIPELINE_STEPS } from "@iep/contracts";
 import { makeIdeaRepo } from "@iep/api/src/modules/idea/repo.js";
 import { runPipeline } from "@iep/worker/src/pipeline.js";
+import { NOOP_OBSERVABILITY_CLIENT } from "@iep/worker/src/observability.js";
 import { evaluateVersion } from "@iep/evaluation";
 
 /**
@@ -31,7 +32,7 @@ const createdIdeas: string[] = [];
 
 const analyse = (provider: AiProvider, ideaId: string, ideaVersionId: string, contentHash: string) =>
   runPipeline(
-    { db, provider, budgetPerVersionUsd: 0.75, redactionEnabled: true },
+    { db, provider, budgetPerVersionUsd: 0.75, redactionEnabled: true, observability: NOOP_OBSERVABILITY_CLIENT },
     { ideaId, ideaVersionId, contentHash },
   );
 

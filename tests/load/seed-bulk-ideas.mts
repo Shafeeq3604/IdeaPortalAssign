@@ -14,6 +14,7 @@ import { PrismaClient } from "@iep/db";
 import { StubProvider } from "@iep/ai";
 import { evaluateVersion } from "@iep/evaluation";
 import { runPipeline } from "@iep/worker/src/pipeline.js";
+import { NOOP_OBSERVABILITY_CLIENT } from "@iep/worker/src/observability.js";
 import { makeIdeaRepo } from "@iep/api/src/modules/idea/repo.js";
 
 const TARGET = Number(process.argv[2] ?? 3000);
@@ -78,7 +79,7 @@ async function main(): Promise<void> {
     });
 
     await runPipeline(
-      { db, provider, budgetPerVersionUsd: 0.75, redactionEnabled: false },
+      { db, provider, budgetPerVersionUsd: 0.75, redactionEnabled: false, observability: NOOP_OBSERVABILITY_CLIENT },
       { ideaId, ideaVersionId: versionId, contentHash: version.contentHash },
     );
     await evaluateVersion(db, versionId);

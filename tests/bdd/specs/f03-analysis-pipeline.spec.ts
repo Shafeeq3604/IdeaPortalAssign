@@ -3,6 +3,7 @@ import { PrismaClient } from "@iep/db";
 import { PIPELINE_STEPS } from "@iep/contracts";
 import { StubProvider, type AiProvider } from "@iep/ai";
 import { runPipeline } from "@iep/worker/src/pipeline.js";
+import { NOOP_OBSERVABILITY_CLIENT } from "@iep/worker/src/observability.js";
 import { makeIdeaRepo } from "@iep/api/src/modules/idea/repo.js";
 
 /**
@@ -66,6 +67,7 @@ const deps = (provider: AiProvider) => ({
   provider,
   budgetPerVersionUsd: 0.75,
   redactionEnabled: true,
+  observability: NOOP_OBSERVABILITY_CLIENT,
 });
 
 beforeAll(async () => {

@@ -21,6 +21,7 @@ import { PrismaClient } from "@iep/db";
 import { AnthropicProvider, StubProvider, type AiProvider } from "@iep/ai";
 import { evaluateVersion, recomputeRankings } from "@iep/evaluation";
 import { runPipeline } from "@iep/worker/src/pipeline.js";
+import { NOOP_OBSERVABILITY_CLIENT } from "@iep/worker/src/observability.js";
 
 const argv = process.argv.slice(2);
 const fresh = argv.includes("--fresh");
@@ -76,7 +77,7 @@ async function main(): Promise<void> {
     const label = idea.currentVersion.title.slice(0, 52);
 
     const result = await runPipeline(
-      { db, provider, budgetPerVersionUsd: 0.75, redactionEnabled: true },
+      { db, provider, budgetPerVersionUsd: 0.75, redactionEnabled: true, observability: NOOP_OBSERVABILITY_CLIENT },
       {
         ideaId: idea.id,
         ideaVersionId: idea.currentVersion.id,

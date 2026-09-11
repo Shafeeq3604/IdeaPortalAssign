@@ -1,11 +1,38 @@
 import type { PrismaClient } from "@iep/db";
 import { PIPELINE_STEPS, type AnalysisStep } from "@iep/contracts";
 import {
-  analyseStep, stepInputHash, stepInputText,
+  analyseStep, stepInputHash, stepInputText, systemPromptFor,
   type AiProvider, type ModelRoute,
   type StructureOutput, type UseCaseOutput, type ValueOutput,
   type FeasibilityOutput, type RiskOutput, type EffortTimelineOutput,
 } from "@iep/ai";
+import type { ObservabilityClient } from "./observability.js";
+
+/** Display name per step, for the iManner agent list — mirrors PIPELINE_STEPS' own order. */
+const STEP_AGENT_NAMES: Record<AnalysisStep, string> = {
+  STRUCTURE: "Idea Structuring",
+  USE_CASES: "Use Case Generation",
+  VALUE: "Value Assessment",
+  FEASIBILITY: "Feasibility Assessment",
+  RISK: "Risk Assessment",
+  EFFORT_TIMELINE: "Effort & Timeline Estimation",
+  // Not a member of PIPELINE_STEPS (the Improvement feature was removed — CONTRACT-LOG
+  // 2026-08-28) but `AnalysisStep` itself still carries it, so `Record<AnalysisStep, _>`
+  // requires an entry. Unreachable in this file's loop, which only ever iterates
+  // PIPELINE_STEPS.
+  EXPLANATION: "Explanation",
+};
+
+/**
+ * `analyseStep`'s two fallback reasons that never reach the provider at all (no enabled
+ * route, or the per-version budget already exhausted) — see packages/ai/src/analyse.ts.
+ * Every other fallback reason means a real request was sent and failed, which IS a
+ * reportable LLM call for iManner.
+ */
+const NO_CALL_REASONS = new Set([
+  "no enabled route configured for this step",
+  "per-version AI budget exhausted",
+]);
 
 /**
  * The six-step analysis pipeline (SPEC §3.3).
@@ -25,6 +52,7 @@ export interface PipelineDeps {
   readonly provider: AiProvider;
   readonly budgetPerVersionUsd: number;
   readonly redactionEnabled: boolean;
+  readonly observability: ObservabilityClient;
 }
 
 export interface PipelineResult {
@@ -88,6 +116,15 @@ export async function runPipeline(
 
   const version = await db.ideaVersion.findUnique({ where: { id: input.ideaVersionId } });
   if (!version) throw new Error(`idea version ${input.ideaVersionId} no longer exists`);
+
+  // Submitter identity + the idea's own title, purely for iManner attribution — not used
+  // anywhere else in this function. A missing idea/submitter here would be a data
+  // integrity bug worth surfacing, but must never block analysis, so it's tolerated as
+  // null attribution rather than thrown (Hard Rule 3 of the iManner integration).
+  const idea = await db.idea.findUnique({
+    where: { id: input.ideaId },
+    include: { submitter: { select: { id: true, email: true, displayName: true } } },
+  });
 
   const fields = fieldsOf(version);
   const routes = await loadRoutes(db);
@@ -157,6 +194,7 @@ export async function runPipeline(
       },
     });
 
+    const stepStarted = Date.now();
     const outcome = await analyseStep(provider, {
       step,
       // Exactly the fields the hash above covered. If a step could see more than it
@@ -171,6 +209,37 @@ export async function runPipeline(
     ran += 1;
     spent += outcome.usage?.costUsd ?? 0;
     if (outcome.source === "FALLBACK") fallbacks += 1;
+
+    // iManner observability — one event per real model call, with full attribution
+    // (agent = this step, user = the idea's submitter, business record = the idea
+    // itself). A fallback still called nothing on Anthropic's side when no route was
+    // configured or the budget was exhausted before any request — that path stays
+    // unreported since there is no generation to attribute. Every other fallback DID
+    // reach the provider (a refusal, rate limit, timeout, or invalid output) and is
+    // reported as an error with the actual failure reason.
+    const noCallMade = outcome.failureReason !== null && NO_CALL_REASONS.has(outcome.failureReason);
+    if (!noCallMade) {
+      deps.observability.record({
+        agentId: `analysis.${step.toLowerCase()}`,
+        agentName: STEP_AGENT_NAMES[step],
+        userId: idea?.submitterId ?? null,
+        userName: idea?.submitter.displayName ?? null,
+        interactionType: "idea-analysis",
+        businessTransactionType: "idea",
+        businessTransactionId: input.ideaId,
+        businessTransactionName: version.title,
+        provider: provider.name,
+        modelId: outcome.model ?? "unknown",
+        inputTokens: outcome.usage?.inputTokens ?? null,
+        outputTokens: outcome.usage?.outputTokens ?? null,
+        latencyMs: Date.now() - stepStarted,
+        inputPayload: { systemPrompt: systemPromptFor(step), untrustedIdeaText: stepInputText(step, fields) },
+        outputPayload: outcome.source === "AI" ? outcome.data : null,
+        status: outcome.source === "AI" ? "success" : "error",
+        error: outcome.source === "FALLBACK" ? outcome.failureReason : null,
+        errorType: outcome.source === "FALLBACK" ? "AnalysisFallback" : null,
+      });
+    }
 
     await db.aiAnalysis.update({
       where: { id: analysis.id },
