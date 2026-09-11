@@ -91,4 +91,14 @@ catch { process.exit(1); }\
 # an idempotent, lock-safe no-op once the schema is current, and running it here too
 # (rather than only from the API) means the worker never depends on the API having
 # started first to get a schema it can query against.
-CMD ["sh", "-c", "cd /app && pnpm --filter @iep/db run migrate:deploy && cd /app/apps/worker && pnpm exec tsx src/main.ts"]
+#
+# `seed:config` (added 2026-09-11) upserts ONLY the evaluation criteria/profile/model-route
+# CONFIG rows `seed-config.ts` describes — no demo accounts, no demo ideas. A fresh or
+# partially-provisioned database can have every migration applied and still have no
+# default EvaluationProfile row, which makes `evaluateVersion` throw right after an
+# analysis finishes (idea stays stuck at "not evaluated yet") and the rankings endpoint
+# 400 for every idea — exactly the failure mode a schema/seed mismatch produces. Same
+# idempotent-on-every-boot reasoning as `migrate:deploy` above; each upsert targets a
+# single unique key so Postgres resolves a concurrent write from the API container the
+# same instant, same as any other upsert race.
+CMD ["sh", "-c", "cd /app && pnpm --filter @iep/db run migrate:deploy && pnpm --filter @iep/db run seed:config && cd /app/apps/worker && pnpm exec tsx src/main.ts"]

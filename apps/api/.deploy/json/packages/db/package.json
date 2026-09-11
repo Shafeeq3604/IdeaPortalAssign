@@ -17,6 +17,7 @@
     "migrate": "node --env-file-if-exists=../../.env ./node_modules/prisma/build/index.js migrate dev",
     "migrate:deploy": "node --env-file-if-exists=../../.env ./node_modules/prisma/build/index.js migrate deploy",
     "seed": "tsx --env-file-if-exists=../../.env prisma/seed.ts",
+    "seed:config": "tsx --env-file-if-exists=../../.env prisma/seed-config-cli.ts",
     "generate": "prisma generate",
     "db:reset": "node --env-file-if-exists=../../.env ./node_modules/prisma/build/index.js db push --force-reset --skip-generate && pnpm seed",
     "postinstall": "prisma generate"
