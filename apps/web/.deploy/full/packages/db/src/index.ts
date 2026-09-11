@@ -8,6 +8,7 @@ import { PrismaClient } from "@prisma/client";
  */
 
 export * from "@prisma/client";
+export { grantRole } from "./grant-role.js";
 
 let client: PrismaClient | undefined;
 

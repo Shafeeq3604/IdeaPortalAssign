@@ -12,6 +12,7 @@ import {
 import { runPipeline } from "./pipeline.js";
 import { runDiscoveryQuery } from "./discovery.js";
 import { evaluateVersion, recomputeRankings } from "@iep/evaluation";
+import { grantRole } from "@iep/db";
 
 /**
  * apps/worker — the AI pipeline consumer (P3).
@@ -168,6 +169,31 @@ console.log(
     `provider=${provider.name} · discoveryProvider=${discoveryProvider.name} · ` +
     `budget=$${env.AI_BUDGET_PER_VERSION_USD}/version · redaction=${env.PII_REDACTION_ENABLED}`,
 );
+
+/**
+ * Optional one-time admin bootstrap (BOOTSTRAP_ADMIN_EMAIL). Exists for an environment
+ * with no console/exec access to run `grant-role-cli.ts` by hand — setting this one env
+ * var is otherwise the only remaining path to create a first admin. Idempotent (grantRole
+ * no-ops once already granted), and failure here never blocks queue consumption: an
+ * unknown email or a transient DB error is logged, not thrown, since this account is not
+ * on the critical path the rest of the worker exists for.
+ */
+if (env.BOOTSTRAP_ADMIN_EMAIL) {
+  grantRole(db, env.BOOTSTRAP_ADMIN_EMAIL, "ADMIN")
+    .then((outcome) => {
+      console.log(
+        outcome.granted
+          ? `[bootstrap] granted ADMIN to ${env.BOOTSTRAP_ADMIN_EMAIL}. Roles now: ${outcome.roles.join(", ")}`
+          : `[bootstrap] ${env.BOOTSTRAP_ADMIN_EMAIL} already has ADMIN — nothing to do`,
+      );
+    })
+    .catch((error: unknown) => {
+      console.error(
+        `[bootstrap] could not grant ADMIN to ${env.BOOTSTRAP_ADMIN_EMAIL}:`,
+        error instanceof Error ? error.message : error,
+      );
+    });
+}
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {

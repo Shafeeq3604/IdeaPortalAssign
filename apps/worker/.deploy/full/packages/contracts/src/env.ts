@@ -124,6 +124,14 @@ export const ApiEnv = Base.extend({
 export type ApiEnv = z.infer<typeof ApiEnv>;
 
 export const WorkerEnv = Base.extend({
+  /**
+   * Optional. When set, the worker grants this email the ADMIN role on every boot
+   * (idempotent — a no-op once already granted). Exists for an environment with no
+   * console/exec access to run `grant-role-cli.ts` by hand: setting this one variable
+   * on the worker container is the only remaining path to create a first admin.
+   * Unset by default — nothing bootstraps unless someone opts in.
+   */
+  BOOTSTRAP_ADMIN_EMAIL: z.string().trim().email().optional(),
   // Optional, not required: a missing key is a valid, supported state (the worker falls
   // back to the stub provider rather than refusing to boot — see apps/worker/src/main.ts).
   // Requiring it here would defeat that fallback before it ever runs.
