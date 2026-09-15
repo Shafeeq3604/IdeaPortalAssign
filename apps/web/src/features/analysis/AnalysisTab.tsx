@@ -211,11 +211,14 @@ export function AnalysisTab() {
                 <CardHeader><CardTitle>Business value</CardTitle></CardHeader>
                 <CardContent>
                   <Provenance state="AI_UNVALIDATED">
-                    <ul className="divide-y divide-border">
+                    <ul className="divide-y divide-border md:grid md:grid-cols-2 md:gap-x-8 md:divide-y-0">
                       {ValueDimensionEnum.options.map((dim: ValueDimension) => {
                         const f = byDimension.get(dim);
                         return (
-                          <li key={dim} className="py-3 first:pt-0 last:pb-0">
+                          <li
+                            key={dim}
+                            className="border-border py-3 first:pt-0 last:pb-0 md:border-b md:py-3 md:first:pt-3 md:last:border-b-0 md:last:pb-3"
+                          >
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <h4 className="text-300 font-medium">
                                 {VALUE_DIMENSION_LABEL[dim]}
@@ -291,9 +294,12 @@ export function AnalysisTab() {
                         </div>
                       ) : null}
 
-                      <ul className="divide-y divide-border">
+                      <ul className="divide-y divide-border md:grid md:grid-cols-2 md:gap-x-8 md:divide-y-0">
                         {a.feasibility.findings.map((f) => (
-                          <li key={f.dimension} className="py-3 first:pt-0 last:pb-0">
+                          <li
+                            key={f.dimension}
+                            className="border-border py-3 first:pt-0 last:pb-0 md:border-b md:py-3 md:first:pt-3 md:last:border-b-0 md:last:pb-3"
+                          >
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <h4 className="text-300 font-medium">
                                 {FEASIBILITY_DIMENSION_LABEL[f.dimension]}

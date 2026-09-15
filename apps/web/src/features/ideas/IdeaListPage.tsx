@@ -226,7 +226,7 @@ export function IdeaListPage({ scope }: Props) {
           );
         })}
 
-        <span aria-hidden className="mx-1 h-5 w-px bg-border" />
+        <span aria-hidden className="mx-1 hidden h-5 w-px shrink-0 bg-border sm:inline-block" />
 
         {/*
           Archived ideas were reachable only by hand-editing the URL: no chip, and

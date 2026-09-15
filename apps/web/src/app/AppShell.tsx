@@ -339,6 +339,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <Plus aria-hidden className="size-4" />
             <span className="hidden sm:inline">New idea</span>
+            <span aria-hidden className="sm:hidden">New</span>
             <span className="sr-only sm:hidden">New idea</span>
           </Link>
           {/*
