@@ -119,10 +119,13 @@ export function EvaluationTab() {
                   is. It never affects the score.
                 </p>
 
+                {/* No raw engine version here — same reasoning as the Rankings board's
+                    footnote (docs/adr/CONTRACT-LOG.md): a version string like "1.0.0"
+                    reads as a leaked internal detail to anyone who isn't debugging it. */}
                 <p className="text-100 text-muted-foreground">
                   Scored under the{" "}
-                  <Link to="/config/profiles">{e.profile.name}</Link> profile, engine{" "}
-                  {e.engineVersion}, on {new Date(e.computedAt).toLocaleString()}.
+                  <Link to="/config/profiles">{e.profile.name}</Link> profile on{" "}
+                  {new Date(e.computedAt).toLocaleString()}.
                 </p>
               </CardContent>
             </Card>

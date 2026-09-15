@@ -156,7 +156,11 @@ export function ContributionBar({
         <div
           className={cn(
             "h-full origin-left rounded-full transition-transform duration-[var(--dur-tally)] ease-[var(--ease-out-quint)]",
-            overriddenBy ? "bg-factor-down" : "bg-primary",
+            // A human override is a state that must read as distinct (P-1) — flat colour,
+            // not decoration. Everything else gets the same two brand-gradient stops used
+            // on the header bar and the podium's winning card, so this bar — the one on
+            // the screen every idea's score actually lives on — reads as the same product.
+            overriddenBy ? "bg-factor-down" : "bg-gradient-to-r from-accent-600 to-grad-to",
           )}
           style={{ transform: `scaleX(${arriving ? 0 : Math.max(0, Math.min(1, normalized / 100))})` }}
         />
