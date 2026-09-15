@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ExternalLink, PenSquare, Send, Sparkles } from "lucide-react";
 import { Badge, Button, Skeleton, Textarea } from "@iep/ui";
 import type { DiscoveryResultItem } from "@iep/contracts";
+import { HeroStat, PageHero } from "../../app/PageHero";
 import { useCreateDiscoveryQuery, useDiscoveryHistory, useDiscoveryQuery } from "./api";
 
 /**
@@ -201,25 +202,35 @@ export function DiscoveryChatPage() {
 
   return (
     <main className="page mx-auto flex max-w-3xl flex-col gap-6">
-      <div className="flex items-start gap-3">
-        <span
-          aria-hidden
-          className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-accent-600 to-grad-to text-primary-foreground shadow-e1"
-        >
-          <Sparkles className="size-4.5" />
-        </span>
-        <div>
-          <h1 className="text-500 font-bold">Discover</h1>
-          <p className="text-200 text-muted-foreground">
-            Ask a research question — trends, opportunity ideas, or recurring problems people
-            discuss. It generates original ideas inspired by what the model already knows, not
-            a live web search, framed for how they could help your organization and its
-            clients. Nothing here creates or changes an idea on its own — if one is worth
-            pursuing, use "Submit as idea" to start a real submission that you write and send
-            yourself.
-          </p>
-        </div>
-      </div>
+      {/* Same `.dash-hero` shell the dashboard uses — this page previously opened with a
+          plain icon chip and a paragraph, the least visually distinguished entry point
+          in the product for a feature that is otherwise the most novel thing here. */}
+      <PageHero
+        eyebrow={
+          <>
+            <Sparkles aria-hidden className="size-3" />
+            AI Discovery Agent
+          </>
+        }
+        heading="Discover"
+        description={
+          <>
+            Ask a research question — trends, opportunity ideas, or recurring problems
+            people discuss. It generates original ideas inspired by what the model already
+            knows, not a live web search, framed for how they could help your organization
+            and its clients. Nothing here creates or changes an idea on its own — if one is
+            worth pursuing, use "Submit as idea" to start a real submission that you write
+            and send yourself.
+          </>
+        }
+        aside={
+          history.data && history.data.items.length > 0 ? (
+            <div className="rounded-2xl bg-grad-ink/8 p-4 ring-1 ring-grad-rule">
+              <HeroStat value={String(history.data.items.length)} label="questions asked so far" />
+            </div>
+          ) : undefined
+        }
+      />
 
       {turns.length === 0 ? (
         <div className="rounded-2xl bg-accent-050 p-6 text-center shadow-e1 ring-1 ring-inset ring-accent-100">

@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Trophy } from "lucide-react";
 import { Button, Checkbox, EmptyState, ErrorState, Skeleton, StatusPill } from "@iep/ui";
 import type { ExplanationItem, ListRankingsResponse, RankingEntry } from "@iep/contracts";
+import { HeroStat, PageHero } from "../../app/PageHero";
 import { FEASIBILITY_LABEL } from "../analysis/api";
 import { useProfiles, useRankingRun, useRankings } from "./api";
 import { RankDelta } from "./DashboardHero";
@@ -76,12 +77,36 @@ export function RankingsPage({ mode = "current" }: { mode?: "current" | "run" })
       for (const id of on ? [...kept, ideaId] : kept) next.append("compare", id);
     });
 
+  const leader = query.data?.items.find((e) => e.rank === 1);
+
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  {mode === "run" ? "A past ranking" : "Rankings"}
       </nav>
-      <h1>{mode === "run" ? "Ranking run" : "Rankings"}</h1>
+
+      {/* Same `.dash-hero` shell as the Management/Admin dashboard (DashboardHero.tsx) —
+          the board itself is already the richest screen most roles can reach; this
+          brings its own header up to the same standard rather than opening on a plain
+          h1 and dropping straight into a filter row. */}
+      <PageHero
+        heading={mode === "run" ? "Ranking run" : "Rankings"}
+        description={
+          mode === "run"
+            ? "A snapshot of the board as it stood at the moment this run was computed."
+            : "Every scored idea, ranked and explained — the same weights applied to every submission, published with the arithmetic shown."
+        }
+        aside={
+          query.data ? (
+            <div className="rounded-2xl bg-grad-ink/8 p-4 ring-1 ring-grad-rule">
+              <div className="flex gap-5">
+                <HeroStat value={String(query.data.run.cohortSize)} label="on the board" />
+                <HeroStat value={leader ? leader.compositeScore.toFixed(1) : "—"} label="top score" />
+              </div>
+            </div>
+          ) : undefined
+        }
+      />
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-96 w-full" aria-busy="true" />

@@ -80,7 +80,10 @@ describe("RankingsPage", () => {
     await screen.findByRole("heading", { name: "First place", level: 2 });
     // The podium crowns rank 1 specifically — a filtered page with no rank-1 row must not
     // promote whatever happens to be first in the array (the bug this shape invites).
-    expect(screen.getByText("88.4")).toBeInTheDocument();
+    // It appears twice: once on the podium card itself, once as the hero's "top score"
+    // stat (PageHero) — the same real number shown at two altitudes, same as the
+    // dashboard's own hero-plus-spotlight pattern (DashboardHero.tsx).
+    expect(screen.getAllByText("88.4").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("heading", { name: "Fourth place", level: 2 })).toBeInTheDocument();
   });
 

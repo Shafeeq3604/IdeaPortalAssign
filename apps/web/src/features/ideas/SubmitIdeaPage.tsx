@@ -5,6 +5,7 @@ import { Button } from "@iep/ui";
 import { ATTACHMENT_TYPES, MAX_ATTACHMENTS_PER_VERSION, MAX_ATTACHMENT_BYTES } from "@iep/contracts";
 import type { Attachment } from "@iep/contracts";
 import { ApiError, api } from "../../app/api-client";
+import { PageHero } from "../../app/PageHero";
 import { IdeaForm, type IdeaFormValues } from "./IdeaForm";
 import { useCreateIdea } from "./api";
 
@@ -138,21 +139,19 @@ export function SubmitIdeaPage() {
 
   return (
     <main className="page">
-      {/* The chip matches "Submit an idea" in the sidebar (Idea Platform Redesign) — the
-          destination and the page it lands on read as the same amber thing. */}
-      <h1 className="flex items-center gap-3">
-        <span
-          aria-hidden
-          className="grid size-10 shrink-0 place-items-center rounded-xl bg-state-warn-bg text-state-warn shadow-e1 ring-1 ring-inset ring-state-warn/20"
-        >
-          <PenSquare className="size-4.5" />
-        </span>
-        Submit an idea
-      </h1>
-      <p className="muted">
-        Describe it in your own words. Nothing here needs technical knowledge — the
-        platform structures it for you, and a person makes every decision.
-      </p>
+      {/* The same gradient shell as every other shared page now (PageHero) — the eyebrow
+          icon still matches "Submit an idea" in the sidebar and header (Idea Platform
+          Redesign), so the destination and the page it lands on read as the same thing. */}
+      <PageHero
+        eyebrow={
+          <>
+            <PenSquare aria-hidden className="size-3" />
+            New submission
+          </>
+        }
+        heading="Submit an idea"
+        description="Describe it in your own words. Nothing here needs technical knowledge — the platform structures it for you, and a person makes every decision."
+      />
 
       {prefill ? (
         <div className="flex items-start gap-3 rounded-2xl bg-accent-050 p-4 text-200 shadow-e1 ring-1 ring-inset ring-accent-100">

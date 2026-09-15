@@ -5,6 +5,7 @@ import { Button, EmptyState, ErrorState, Input, Skeleton, StatusPill } from "@ie
 import { IdeaStatus } from "@iep/contracts";
 import type { IdeaSummary } from "@iep/contracts";
 import { useSession } from "../../app/use-session";
+import { HERO_PRIMARY_ACTION, HeroStat, PageHero } from "../../app/PageHero";
 import { STATUS_LABEL, parseSort, useIdeaList } from "./api";
 import { VoteCount } from "../feedback/VoteButtons";
 import { ScoreRing } from "../rankings/DashboardHero";
@@ -155,23 +156,40 @@ export function IdeaListPage({ scope }: Props) {
 
   return (
     <main className="page">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          {/*
-            The h1 stays the nav map's own title ("Ideas"), not the canvas's "Explore
-            ideas". The map is a frozen P0 artifact and its title is what the route is
-            called everywhere else — the breadcrumbs, the sidebar and J-3 all read it. The
-            canvas's phrasing lands in the deck below, where it costs nothing.
-          */}
-          <h1>{scope === "mine" ? "My ideas" : "Ideas"}</h1>
-          <p className="muted">
-            {scope === "mine"
-              ? "Everything you have submitted, including drafts."
-              : "Explore what people have proposed. Back the ones you would use — votes are a demand signal reviewers actually read."}
-          </p>
-        </div>
-        <Button asChild>{link({ to: "/ideas/new", children: "Submit an idea" })}</Button>
-      </div>
+      {/*
+        The h1 stays the nav map's own title ("Ideas"), not the canvas's "Explore
+        ideas". The map is a frozen P0 artifact and its title is what the route is
+        called everywhere else — the breadcrumbs, the sidebar and J-3 all read it. The
+        canvas's phrasing lands in the description, where it costs nothing.
+
+        This is the same gradient shell the Management/Admin dashboard uses
+        (DashboardHero.tsx's `.dash-hero`) — every role reaches this page, so the
+        product's best-looking screen no longer belongs only to the fewest people who
+        can see the dashboard.
+      */}
+      <PageHero
+        heading={scope === "mine" ? "My ideas" : "Ideas"}
+        description={
+          scope === "mine"
+            ? "Everything you have submitted, including drafts."
+            : "Explore what people have proposed. Back the ones you would use — votes are a demand signal reviewers actually read."
+        }
+        actions={
+          <Link to="/ideas/new" className={HERO_PRIMARY_ACTION}>
+            Submit an idea
+          </Link>
+        }
+        aside={
+          list.data ? (
+            <div className="rounded-2xl bg-grad-ink/8 p-4 ring-1 ring-grad-rule">
+              <HeroStat
+                value={String(list.data.meta.total)}
+                label={scope === "mine" ? "your ideas" : "ideas on the board"}
+              />
+            </div>
+          ) : undefined
+        }
+      />
 
       {/*
         The nav map has declared these search params since P0 and nothing rendered a
