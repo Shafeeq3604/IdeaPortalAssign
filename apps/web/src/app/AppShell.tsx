@@ -290,7 +290,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Button
           variant="ghost"
           size="sm"
-          className="lg:hidden"
+          className="md:hidden"
           onClick={() => setNavOpen((v) => !v)}
           aria-expanded={navOpen}
           aria-label="Menu"
@@ -353,19 +353,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             to="/discovery"
             aria-label="Discover"
             title="Discover — ask the AI research agent"
-            className={`${ON_BAR} inline-flex size-8 items-center justify-center rounded-md`}
+            className={`${ON_BAR} inline-flex h-8 items-center gap-1.5 rounded-md px-2 sm:px-2.5`}
           >
-            <Sparkles aria-hidden className="size-4" />
+            <Sparkles aria-hidden className="size-4 shrink-0" />
+            <span className="hidden text-200 font-medium sm:inline">Discover</span>
           </Link>
           <ThemeToggle className={ON_BAR} />
           <AccountMenu />
         </div>
       </header>
 
-      <div className="lg:grid lg:grid-cols-[15rem_1fr]">
-        <aside className="brand-rail hidden border-r border-border bg-card lg:block">{nav}</aside>
+      <div className="md:grid md:grid-cols-[15rem_1fr]">
+        <aside className="brand-rail hidden border-r border-border bg-card md:block">{nav}</aside>
         {navOpen ? (
-          <div className="border-b border-border lg:hidden" onClick={() => setNavOpen(false)}>
+          <div className="border-b border-border md:hidden" onClick={() => setNavOpen(false)}>
             {nav}
           </div>
         ) : null}

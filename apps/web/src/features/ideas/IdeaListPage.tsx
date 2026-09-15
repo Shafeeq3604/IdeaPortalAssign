@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Archive, ChevronDown, Lightbulb, Search, X } from "lucide-react";
+import { Archive, ChevronDown, Compass, Lightbulb, Search, User, X } from "lucide-react";
 import { Button, EmptyState, ErrorState, Input, Skeleton, StatusPill } from "@iep/ui";
 import { IdeaStatus } from "@iep/contracts";
 import type { IdeaSummary } from "@iep/contracts";
@@ -168,6 +168,7 @@ export function IdeaListPage({ scope }: Props) {
         can see the dashboard.
       */}
       <PageHero
+        icon={scope === "mine" ? User : Compass}
         heading={scope === "mine" ? "My ideas" : "Ideas"}
         description={
           scope === "mine"

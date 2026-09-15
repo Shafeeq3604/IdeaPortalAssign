@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, Scale, ShieldAlert, SlidersHorizontal, Target, TrendingUp, Users, Wrench } from "lucide-react";
+import {
+  Clock, Scale, ShieldAlert, SlidersHorizontal, Target, TrendingUp, Users, Wrench,
+} from "lucide-react";
 import {
   Badge, Card, CardContent, CardHeader, CardTitle, ErrorState, Skeleton, Table, TableBody,
   TableCell, TableHead, TableHeader, TableRow,
@@ -9,6 +11,7 @@ import type { CriterionGroup, ListCriteriaResponse, ListProfilesResponse } from 
 import { api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
 import { GROUP_LABEL } from "../evaluation/api";
+import { PageHero } from "../../app/PageHero";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -63,19 +66,11 @@ export function CriteriaPage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  Evaluation criteria
       </nav>
-      <h1 className="flex items-center gap-3">
-        <span
-          aria-hidden
-          className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground"
-        >
-          <SlidersHorizontal className="size-4.5" />
-        </span>
-        Evaluation criteria
-      </h1>
-      <p className="muted">
-        Every score in the platform comes from these. Each one is scored 0–100 from the
-        analysis, then weighted by whichever profile is in use.
-      </p>
+      <PageHero
+        icon={SlidersHorizontal}
+        heading="Evaluation criteria"
+        description="Every score in the platform comes from these. Each one is scored 0–100 from the analysis, then weighted by whichever profile is in use."
+      />
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-96 w-full" aria-busy="true" />
@@ -159,19 +154,11 @@ export function ProfilesPage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  Evaluation profiles
       </nav>
-      <h1 className="flex items-center gap-3">
-        <span
-          aria-hidden
-          className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground"
-        >
-          <Scale className="size-4.5" />
-        </span>
-        Evaluation profiles
-      </h1>
-      <p className="muted">
-        A profile decides what matters. The same idea can rank differently under two of
-        them, and neither ranking is wrong — they are answers to different questions.
-      </p>
+      <PageHero
+        icon={Scale}
+        heading="Evaluation profiles"
+        description="A profile decides what matters. The same idea can rank differently under two of them, and neither ranking is wrong — they are answers to different questions."
+      />
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-96 w-full" aria-busy="true" />

@@ -82,14 +82,18 @@ export function ThemeToggle({ className }: { className?: string }) {
     <Button
       variant="ghost"
       size="sm"
-      className={className}
+      className={`${className ?? ""} gap-1.5 px-2 sm:px-2.5`}
       onClick={() => setTheme(NEXT[theme])}
       // The label says the CURRENT state, not the next one. "Switch to dark" on a button
       // showing a sun is ambiguous about which it is describing.
       aria-label={LABEL[theme]}
       title={LABEL[theme]}
     >
-      <Icon aria-hidden className="size-4" />
+      <Icon aria-hidden className="size-4 shrink-0" />
+      {/* A fixed word, not the current mode's name — the icon already carries which mode
+          this is, and swapping "Light"/"Dark"/"System" in and out of the header on every
+          click would shift the layout beside it on every toggle. */}
+      <span className="hidden text-200 font-medium sm:inline">Theme</span>
     </Button>
   );
 }

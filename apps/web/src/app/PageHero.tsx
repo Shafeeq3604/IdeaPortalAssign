@@ -19,12 +19,17 @@ import type * as React from "react";
  * inventing a number applies here exactly as it does on the dashboard itself.
  */
 export function PageHero({
+  icon: Icon,
   eyebrow,
   heading,
   description,
   actions,
   aside,
 }: {
+  /** A per-page identity mark, tinted amber to match the hero's own accent — so a page
+   * with nothing else to distinguish it from its neighbours still reads as itself at a
+   * glance, the same way each sidebar destination already carries its own icon. */
+  icon?: React.ComponentType<{ className?: string }>;
   eyebrow?: React.ReactNode;
   heading: React.ReactNode;
   description?: React.ReactNode;
@@ -43,8 +48,16 @@ export function PageHero({
           ) : null}
 
           <h1
-            className={`font-serif font-semibold leading-tight tracking-tight text-grad-ink text-600 sm:text-700 ${eyebrow ? "mt-3.5" : ""}`}
+            className={`flex items-center gap-3 font-serif font-semibold leading-tight tracking-tight text-grad-ink text-600 sm:text-700 ${eyebrow ? "mt-3.5" : ""}`}
           >
+            {Icon ? (
+              <span
+                aria-hidden
+                className="grid size-9 shrink-0 place-items-center rounded-xl bg-grad-highlight/20 text-grad-highlight ring-1 ring-grad-rule sm:size-10"
+              >
+                <Icon className="size-4.5 sm:size-5" />
+              </span>
+            ) : null}
             {heading}
           </h1>
 
