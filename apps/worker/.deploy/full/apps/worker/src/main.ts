@@ -11,7 +11,7 @@ import {
 } from "./queue.js";
 import { runPipeline } from "./pipeline.js";
 import { runDiscoveryQuery } from "./discovery.js";
-import { evaluateVersion, recomputeRankings } from "@iep/evaluation";
+import { backfillMissingEvaluations, evaluateVersion, recomputeRankings } from "@iep/evaluation";
 import { grantRole } from "@iep/db";
 import { makeObservabilityClient } from "./observability.js";
 
@@ -81,6 +81,30 @@ const observability = makeObservabilityClient(env);
  * is the one the board reads.
  */
 const rankingQueue = makeRankingQueue(env.REDIS_URL);
+
+/**
+ * One-time-per-boot self-heal: an idea whose analysis finished before an
+ * `EvaluationProfile` existed in this environment (see `seedEvaluationConfig`,
+ * apps/worker/Dockerfile) got its status committed but its `evaluateVersion` call threw,
+ * leaving it with no `Evaluation` row — invisible to Rankings forever, since nothing
+ * re-queues an analysis job that already "succeeded". `evaluateVersion` only reads
+ * already-persisted analysis data (no provider call), so backfilling it is cheap and
+ * idempotent: an idea already evaluated is never a candidate on a later boot.
+ */
+backfillMissingEvaluations(db)
+  .then((fixed) => {
+    if (fixed === 0) return null;
+    console.log(`[backfill] evaluated ${fixed} idea(s) that were missing an Evaluation row`);
+    return rankingQueue.add("recompute", {
+      triggerReason: `evaluation backfill on worker startup (${fixed} idea(s))`,
+    });
+  })
+  .catch((error: unknown) => {
+    console.error(
+      "[backfill] could not backfill missing evaluations:",
+      error instanceof Error ? error.message : error,
+    );
+  });
 
 const worker = new Worker<AnalysisJob>(
   ANALYSIS_QUEUE,
