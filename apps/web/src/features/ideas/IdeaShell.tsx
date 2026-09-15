@@ -81,7 +81,7 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
 
       <h1>{idea.title}</h1>
 
-      <div className="mb-6 flex flex-wrap items-center gap-3">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
         <Badge variant={idea.status === "DRAFT" ? "outline" : "secondary"}>
           {STATUS_LABEL[idea.status]}
         </Badge>
@@ -96,6 +96,60 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
             {idea.department.name}
           </Link>
         ) : null}
+      </div>
+
+      {/*
+        Reactions and actions share one compact row, so an idea's context (what it is,
+        what colleagues think, what you can do to it) reads as a single block above the
+        tab strip instead of three separately-margined ones pushing tab content further
+        down the page every time. Both still sit above the tabs and outside them —
+        reacting is something you do to the IDEA, not to its analysis, and an action like
+        "Create a new version" is a decision about the idea as a whole, not one tab's
+        concern — so neither belongs buried on a single tab where most people would never
+        find it.
+      */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2.5">
+        {idea.status === "DRAFT" ? (
+          <span />
+        ) : (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="text-100 font-medium uppercase tracking-widest text-muted-foreground">
+              Team feedback
+            </span>
+            <VoteButtons ideaId={ideaId} />
+            <span className="text-100 text-muted-foreground">
+              What colleagues think — separate from the platform's own evaluation.
+            </span>
+          </div>
+        )}
+
+        {/* Actions the API confirmed THIS actor may take — never guessed client-side. */}
+        <div className="flex flex-wrap gap-2.5">
+          {idea.permissions.canEdit ? (
+            <Button asChild size="sm" variant="outline">
+              {link({ to: `/ideas/${ideaId}/revise`, children: "Edit" })}
+            </Button>
+          ) : null}
+          {idea.permissions.canRevise ? (
+            <Button asChild size="sm">
+              {link({ to: `/ideas/${ideaId}/revise`, children: "Create a new version" })}
+            </Button>
+          ) : null}
+          {idea.permissions.allowedTransitions.includes("SUBMITTED") ? (
+            <Button
+              size="sm"
+              disabled={transition.isPending}
+              onClick={() => transition.mutate({ to: "SUBMITTED" })}
+            >
+              {transition.isPending ? "Submitting…" : "Submit for analysis"}
+            </Button>
+          ) : null}
+          {idea.permissions.allowedTransitions.includes("ARCHIVED") ? (
+            <Button size="sm" variant="destructive" onClick={() => setArchiveOpen(true)}>
+              Archive this idea
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2 border-b border-border pb-3">
@@ -117,53 +171,6 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
             </Link>
           );
         })}
-      </div>
-
-      {/*
-        Reactions sit at the top of every idea, next to its actions.
-
-        Deliberately above the tabs' content and outside them: reacting is something you do
-        to the IDEA, not to its analysis, and burying it on one tab would mean most people
-        never find it. A draft has nothing to react to yet.
-      */}
-      {idea.status === "DRAFT" ? null : (
-        <div className="mb-6 flex flex-wrap items-center gap-3">
-          <span className="text-100 font-medium uppercase tracking-widest text-muted-foreground">
-            Team feedback
-          </span>
-          <VoteButtons ideaId={ideaId} />
-          <span className="text-100 text-muted-foreground">
-            What colleagues think. Separate from the platform's own evaluation, and it does
-            not affect the score.
-          </span>
-        </div>
-      )}
-
-      {/* Actions the API confirmed THIS actor may take — never guessed client-side. */}
-      <div className="mb-8 flex flex-wrap gap-3">
-        {idea.permissions.canEdit ? (
-          <Button asChild variant="outline">
-            {link({ to: `/ideas/${ideaId}/revise`, children: "Edit" })}
-          </Button>
-        ) : null}
-        {idea.permissions.canRevise ? (
-          <Button asChild>
-            {link({ to: `/ideas/${ideaId}/revise`, children: "Create a new version" })}
-          </Button>
-        ) : null}
-        {idea.permissions.allowedTransitions.includes("SUBMITTED") ? (
-          <Button
-            disabled={transition.isPending}
-            onClick={() => transition.mutate({ to: "SUBMITTED" })}
-          >
-            {transition.isPending ? "Submitting…" : "Submit for analysis"}
-          </Button>
-        ) : null}
-        {idea.permissions.allowedTransitions.includes("ARCHIVED") ? (
-          <Button variant="destructive" onClick={() => setArchiveOpen(true)}>
-            Archive this idea
-          </Button>
-        ) : null}
       </div>
 
       <Dialog

@@ -163,6 +163,15 @@ function PipelineTiles({
 }) {
   const byKey = new Map(tiles.map((t) => [t.key, t]));
 
+  /**
+   * Each tile's own count, scaled against the loudest one on the board — a real
+   * magnitude, not an invented trend or a share of a whole. These five counts overlap
+   * (an idea can be both "top ranked" and "needs you"), so a stacked "% of total" bar
+   * would imply a partition that does not exist; this reads each bar on its own, the
+   * same rule `Flourish` above already applies to what it will and will not draw.
+   */
+  const maxCount = Math.max(1, ...PIPELINE.map((s) => byKey.get(s.key)?.count ?? 0));
+
   return (
     <section className="mt-8 first:mt-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -221,6 +230,21 @@ function PipelineTiles({
                 }`}
               >
                 {tile.label}
+              </span>
+
+              {/* This tile's count against the loudest one on the board — a magnitude,
+                  not a percentage of anything, since these five counts overlap and do
+                  not add up to a whole. */}
+              <span
+                aria-hidden
+                className={`mt-2 block h-1 overflow-hidden rounded-full ${
+                  stage.key === "top_ranked" && live ? "bg-grad-ink/20" : "bg-border"
+                }`}
+              >
+                <span
+                  className={`block h-full rounded-full ${live ? stage.rule : "bg-transparent"}`}
+                  style={{ width: `${Math.max(live ? 6 : 0, (tile.count / maxCount) * 100)}%` }}
+                />
               </span>
 
               {live ? <Flourish stageKey={stage.key} board={board} /> : null}
