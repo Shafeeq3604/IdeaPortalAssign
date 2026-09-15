@@ -10,6 +10,7 @@ import type { AdminUser, AdminUsersResponse, AuditResponse } from "@iep/contract
 import { AddUserDialog, EditUserDialog, RoleBadges, RoleLegend } from "./UserForms";
 import { api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
+import { PageHero } from "../../app/PageHero";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -102,20 +103,12 @@ export function AuditPage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  Audit log
       </nav>
+      <PageHero
+        icon={ScrollText}
+        heading="Audit log"
+        description="Append-only. Every decision a person made, in the same transaction as the change itself — the database refuses updates and deletes on this table."
+      />
       <AdminSubNav />
-      <h1 className="flex items-center gap-3">
-        <span
-          aria-hidden
-          className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"
-        >
-          <ScrollText className="size-4.5" />
-        </span>
-        Audit log
-      </h1>
-      <p className="muted">
-        Append-only. Every decision a person made, in the same transaction as the change
-        itself — the database refuses updates and deletes on this table.
-      </p>
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-96 w-full" aria-busy="true" />
@@ -244,24 +237,14 @@ export function UsersPage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  People &amp; access
       </nav>
+      <PageHero
+        icon={Users}
+        heading="People & access"
+        description="Every person who can reach this platform, and exactly what you have trusted them to do inside it."
+      />
       <AdminSubNav />
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-3">
-            <span
-              aria-hidden
-              className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"
-            >
-              <Users className="size-4.5" />
-            </span>
-            People &amp; access
-          </h1>
-          <p className="muted">
-            Every person who can reach this platform, and exactly what you have trusted
-            them to do inside it.
-          </p>
-        </div>
+      <div className="mb-4 flex justify-end">
         <AddUserDialog />
       </div>
 
