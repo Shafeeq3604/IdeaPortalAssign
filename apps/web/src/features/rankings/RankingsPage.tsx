@@ -15,27 +15,6 @@ const link = ({ to, children, className }: { to: string; children: React.ReactNo
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 /**
- * A low/mid/high tint on the composite score itself, so its meaning reads at a glance
- * instead of only after finding the explanation below it. Presentational only — the
- * number and its arithmetic are unchanged; this never substitutes for reading why.
- */
-function scoreBand(score: number): "danger" | "warn" | "ok" {
-  if (score < 40) return "danger";
-  if (score < 70) return "warn";
-  return "ok";
-}
-const SCORE_BAR_TONE: Record<ReturnType<typeof scoreBand>, string> = {
-  danger: "bg-state-danger",
-  warn: "bg-state-warn",
-  ok: "bg-state-ok",
-};
-const SCORE_TEXT_TONE: Record<ReturnType<typeof scoreBand>, string> = {
-  danger: "text-state-danger",
-  warn: "text-state-warn",
-  ok: "text-state-ok",
-};
-
-/**
  * `triggerReason` is an internal audit string written by the worker/API to explain a
  * ranking run to whoever is debugging it (e.g. "analysis completed for idea <uuid>") —
  * useful on an admin/audit screen, but a raw id and engineering phrasing on the board
@@ -317,7 +296,7 @@ function PodiumCard({
       >
         <div
           className={`h-full rounded-full transition-[width] duration-[var(--dur-settle)] ease-[var(--ease-out-quint)] ${
-            first ? "bg-grad-highlight" : SCORE_BAR_TONE[scoreBand(row.compositeScore)]
+            first ? "bg-grad-highlight" : row.rank === 2 ? "bg-ramp-4" : "bg-ramp-3"
           }`}
           style={{ width }}
         />
@@ -577,9 +556,7 @@ function Board({
 
               <div className="col-start-2 flex items-center justify-between gap-4 lg:col-start-3 lg:flex-col lg:items-end lg:gap-2">
                 <div className="text-right">
-                  <p
-                    className={`font-serif text-500 font-bold leading-none tabular-nums ${SCORE_TEXT_TONE[scoreBand(row.compositeScore)]}`}
-                  >
+                  <p className="font-serif text-500 font-bold leading-none tabular-nums text-accent-700">
                     {row.compositeScore.toFixed(1)}
                   </p>
                   <span className="sr-only">
