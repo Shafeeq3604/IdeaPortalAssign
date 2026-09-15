@@ -50,6 +50,7 @@ const PAGES: readonly { name: string; path: string; public?: boolean }[] = [
   { name: "sign-up", path: "/signup", public: true },
   { name: "idea list", path: "/ideas" },
   { name: "submission form", path: "/ideas/new" },
+  { name: "discovery agent", path: "/discovery" },
   { name: "rankings", path: "/rankings" },
   { name: "dashboard", path: "/dashboard" },
   { name: "review queue", path: "/review" },

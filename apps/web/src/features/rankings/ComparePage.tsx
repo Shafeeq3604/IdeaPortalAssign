@@ -1,10 +1,12 @@
 import { Link, useSearchParams } from "react-router-dom";
+import { GitCompare } from "lucide-react";
 import {
   Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, ScoreDisplay, Skeleton,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@iep/ui";
 import { MATURITY_LABEL } from "../evaluation/api";
 import { useCompare } from "./api";
+import { PageHero } from "../../app/PageHero";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -27,7 +29,7 @@ export function ComparePage() {
   if (ids.length < 2 || ids.length > 4) {
     return (
       <main className="page">
-        <h1>Compare ideas</h1>
+        <PageHero icon={GitCompare} heading="Compare ideas" />
         <EmptyState
           title="Pick two to four ideas"
           description="Two is the minimum for a comparison to say anything; above four the table stops being readable."
@@ -43,7 +45,11 @@ export function ComparePage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/rankings">Rankings</Link>  ›  Compare
       </nav>
-      <h1>Comparing {ids.length} ideas</h1>
+      <PageHero
+        icon={GitCompare}
+        heading={`Comparing ${ids.length} ideas`}
+        description="The table below leads with where they disagree — that's what a decision actually turns on."
+      />
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-96 w-full" aria-busy="true" />
