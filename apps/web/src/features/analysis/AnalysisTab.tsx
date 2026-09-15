@@ -156,26 +156,37 @@ export function AnalysisTab() {
                     validatedBy={validatedByOf(a.proposal.provenance)}
                   >
                     <div className="space-y-4">
-                      <Field label="Problem" value={a.proposal.problemStatement} />
-                      <Field label="Proposed solution" value={a.proposal.proposedSolution} />
+                      {/* Problem and solution read as one pair — the situation and the fix —
+                          so they sit side by side at md+ instead of each claiming a full-width
+                          row before the other appears. */}
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Field label="Problem" value={a.proposal.problemStatement} />
+                        <Field label="Proposed solution" value={a.proposal.proposedSolution} />
+                      </div>
                       <Field label="Who it is for" value={a.proposal.targetUsers} />
-                      <Bullets label="Assumptions it rests on" items={a.proposal.assumptions} />
-                      <Bullets
-                        label="What is missing"
-                        items={a.proposal.missingInformation}
-                        // The most actionable part of the whole page (SPEC §12.3 AI-01).
-                        footer={
-                          idea.permissions.canEdit || idea.permissions.canRevise ? (
-                            <Link to={`/ideas/${ideaId}/revise`} className="text-200">
-                              Fill these in
-                            </Link>
-                          ) : null
-                        }
-                      />
-                      <Bullets
-                        label="Questions worth answering"
-                        items={a.proposal.clarificationQuestions}
-                      />
+
+                      {/* Three parallel, independent categories — not a narrative sequence —
+                          so a wide screen shows them side by side rather than one long scroll
+                          of stacked bullet lists. */}
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        <Bullets label="Assumptions it rests on" items={a.proposal.assumptions} />
+                        <Bullets
+                          label="What is missing"
+                          items={a.proposal.missingInformation}
+                          // The most actionable part of the whole page (SPEC §12.3 AI-01).
+                          footer={
+                            idea.permissions.canEdit || idea.permissions.canRevise ? (
+                              <Link to={`/ideas/${ideaId}/revise`} className="text-200">
+                                Fill these in
+                              </Link>
+                            ) : null
+                          }
+                        />
+                        <Bullets
+                          label="Questions worth answering"
+                          items={a.proposal.clarificationQuestions}
+                        />
+                      </div>
                     </div>
                   </Provenance>
                 </CardContent>
@@ -188,7 +199,10 @@ export function AnalysisTab() {
                 <CardHeader><CardTitle>Where it applies</CardTitle></CardHeader>
                 <CardContent>
                   <Provenance state="AI_UNVALIDATED">
-                    <div className="space-y-6">
+                    {/* Direct and indirect are mutually exclusive groups, not a sequence —
+                        side by side at md+ for the same reason the dimension lists below are:
+                        two parallel categories read faster next to each other than stacked. */}
+                    <div className="grid gap-6 md:grid-cols-2">
                       <UseCaseGroup
                         heading="Directly proposed"
                         blurb="What the idea explicitly asks for."
