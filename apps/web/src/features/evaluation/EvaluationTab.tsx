@@ -80,12 +80,20 @@ export function EvaluationTab() {
           <div className="space-y-6">
             {/* ── the headline numbers ── */}
             <Card>
-              <CardHeader><CardTitle>Score</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-serif">Score</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
-                  <div>
+                  {/*
+                    The composite is the single most-looked-at figure on this tab — the
+                    thing every other section on the page explains — so it gets a frame,
+                    not just larger type: the same ring-on-tint language the Dashboard's
+                    Spotlight card uses for its own headline number (visual-richness pass).
+                  */}
+                  <div className="text-center">
                     <p className="text-100 text-muted-foreground">Composite</p>
-                    <ScoreDisplay value={e.compositeScore} size="lg" />
+                    <div className="mt-1 flex size-28 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent-050 to-accent-100 ring-4 ring-accent-050/60">
+                      <ScoreDisplay value={e.compositeScore} size="lg" />
+                    </div>
                   </div>
 
                   {e.ranking ? (
@@ -172,7 +180,7 @@ export function EvaluationTab() {
 
             {/* ── every criterion, grouped, each with its evidence ── */}
             <Card>
-              <CardHeader><CardTitle>Every criterion</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-serif">Every criterion</CardTitle></CardHeader>
               <CardContent className="space-y-6">
                 <p className="text-100 text-muted-foreground">
                   Each row shows the score, the weight it carries in this profile, and what

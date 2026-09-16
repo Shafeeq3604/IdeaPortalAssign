@@ -63,7 +63,7 @@ export function VersionPage() {
   const previous = useVersion(ideaId, n > 1 ? n - 1 : 0);
 
   return (
-    <main className="page">
+    <main className="page page--narrow">
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›{" "}
         <Link to={`/ideas/${ideaId}/history`}>History</Link>  ›  Version {n}

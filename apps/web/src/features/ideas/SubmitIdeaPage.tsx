@@ -124,7 +124,7 @@ export function SubmitIdeaPage() {
 
   if (attachError) {
     return (
-      <main className="page">
+      <main className="page page--narrow">
         <h1>The idea was saved</h1>
         <p className="muted">
           {attachError.message} The draft itself is safe — you can add the rest of the files,
@@ -138,7 +138,7 @@ export function SubmitIdeaPage() {
   }
 
   return (
-    <main className="page">
+    <main className="page page--narrow">
       {/*
         A plain heading, not the gradient hero every page used to open with. Submitting is
         a working action someone lands on to get something specific done, the same as

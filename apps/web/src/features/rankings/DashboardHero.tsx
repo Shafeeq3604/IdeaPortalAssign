@@ -396,7 +396,13 @@ export function Spotlight({ board }: { board: ListRankingsResponse | undefined }
 
   return (
     <section className="mt-8">
-      <div className="relative overflow-hidden rounded-2xl bg-card p-5 shadow-e2 ring-1 ring-inset ring-border">
+      {/*
+        `card-texture` + `shadow-e4` (visual-richness pass — hero-card depth): this is the
+        one card on the dashboard that answers "what's the single most important thing
+        happening on the board," so it gets more depth than the KPI tiles above it and
+        the outcome track below it, not just a coloured edge.
+      */}
+      <div className="card-texture relative overflow-hidden rounded-2xl bg-card p-5 shadow-e4 ring-1 ring-inset ring-border transition-transform duration-[var(--dur-base)] hover:-translate-y-1">
         {/* The amber-to-violet edge the canvas runs down the spotlight, and the only thing
             marking this card out from the ones below it. */}
         <span

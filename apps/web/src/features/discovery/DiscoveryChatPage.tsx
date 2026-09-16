@@ -1,7 +1,9 @@
 import * as React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ExternalLink, PenSquare, Send, Sparkles } from "lucide-react";
-import { Badge, Button, Skeleton, Textarea } from "@iep/ui";
+import {
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Button, Skeleton, Textarea,
+} from "@iep/ui";
 import type { DiscoveryResultItem } from "@iep/contracts";
 import { HeroStat, PageHero } from "../../app/PageHero";
 import { useCreateDiscoveryQuery, useDiscoveryHistory, useDiscoveryQuery } from "./api";
@@ -68,7 +70,7 @@ const URL_PATTERN = /^https?:\/\//i;
 function SourceList({ sources }: { sources: readonly string[] }) {
   if (sources.length === 0) return null;
   return (
-    <p className="mt-1 text-050 text-muted-foreground">
+    <p className="mt-1 text-100 text-muted-foreground">
       Sources:{" "}
       {sources.map((source, i) => (
         <React.Fragment key={source}>
@@ -106,13 +108,19 @@ function SourceList({ sources }: { sources: readonly string[] }) {
 function Field({ label, text }: { label: string; text: string }) {
   return (
     <div>
-      <dt className="text-050 font-semibold uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dt className="text-100 font-semibold uppercase tracking-wide text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-100">{text}</dd>
     </div>
   );
 }
 
-function IdeaItem({ item, index }: { item: DiscoveryResultItem; index: number }) {
+function IdeaItem({
+  item, index, className,
+}: {
+  item: DiscoveryResultItem;
+  index: number;
+  className?: string;
+}) {
   const navigate = useNavigate();
   // SPC-23: a discoveryReport row persisted before the structured shape shipped has
   // `summary` and none of the four fields below — rendered as the old flat paragraph
@@ -146,27 +154,49 @@ function IdeaItem({ item, index }: { item: DiscoveryResultItem; index: number })
     // marker (there can be up to seven of these in one answer — a real sequence worth
     // counting, not decoration), and a rule before the field list are what actually make
     // this scannable as "seven distinct ideas" rather than "one long answer."
-    <li className="rounded-xl bg-muted p-4 shadow-e1 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e2">
+    <li
+      className={`rounded-xl bg-muted p-4 shadow-e1 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e2 ${className ?? ""}`}
+    >
       <div className="flex items-start gap-2.5">
         <span
           aria-hidden
-          className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-accent-100 text-050 font-bold text-accent-700"
+          className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-accent-100 text-100 font-bold text-accent-700"
         >
           {index + 1}
         </span>
         <p className="text-200 font-semibold leading-snug">{item.title}</p>
       </div>
       {structured ? (
-        <dl className="mt-3 space-y-2.5 border-t border-border pt-3">
-          <Field label="The problem" text={item.problem ?? ""} />
-          <Field label="The idea" text={item.approach ?? ""} />
-          <Field label="Who it helps" text={item.whoItHelps ?? ""} />
-          {item.expectedOutcome ? <Field label="What would change" text={item.expectedOutcome} /> : null}
-        </dl>
+        <>
+          {/*
+            Scannable by default: the problem and who it helps are the two facts that let
+            someone decide "is this worth a second look" without reading further
+            (visual-richness pass — "substantially more scannable... not long paragraphs
+            as the primary presentation"). "The idea" (usually the longest field, the HOW)
+            and sources move behind a single disclosure — real detail, not lost, just not
+            competing with the scan line.
+          */}
+          <dl className="mt-3 space-y-2.5 border-t border-border pt-3">
+            <Field label="The problem" text={item.problem ?? ""} />
+            <Field label="Who it helps" text={item.whoItHelps ?? ""} />
+            {item.expectedOutcome ? <Field label="What would change" text={item.expectedOutcome} /> : null}
+          </dl>
+          <Accordion type="single" collapsible>
+            <AccordionItem value="details" className="border-none">
+              <AccordionTrigger className="py-2 text-100 font-semibold uppercase tracking-wide text-muted-foreground hover:no-underline hover:text-foreground">
+                Show details
+              </AccordionTrigger>
+              <AccordionContent>
+                <Field label="The idea" text={item.approach ?? ""} />
+                <SourceList sources={item.sources} />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </>
       ) : (
         <p className="mt-1.5 text-100 text-muted-foreground">{item.summary}</p>
       )}
-      <SourceList sources={item.sources} />
+      {!structured ? <SourceList sources={item.sources} /> : null}
       <Button type="button" variant="outline" size="sm" className="mt-3 bg-card" onClick={submitAsIdea}>
         <PenSquare aria-hidden className="size-3.5" />
         Submit as idea
@@ -198,7 +228,7 @@ function TurnBubble({ discoveryQueryId, query }: { discoveryQueryId: string | nu
           </span>
           <span>Discovery Agent</span>
           {/* SPC-17: every result is marked AI-generated, plainly. */}
-          <Badge variant="secondary" className="text-050">AI-generated</Badge>
+          <Badge variant="secondary" className="text-100">AI-generated</Badge>
         </div>
 
         {(status === "PENDING" || status === "RUNNING") ? (
@@ -218,10 +248,23 @@ function TurnBubble({ discoveryQueryId, query }: { discoveryQueryId: string | nu
 
         {status === "SUCCEEDED" && data ? (
           <div className="space-y-3">
-            <p className="text-200">{data.summary}</p>
-            <ol className="space-y-3">
+            {/*
+              This is the model's own framing of the question — useful context, but raw
+              first-person reasoning prose read as a chatbot talking to itself when it had
+              the exact same visual weight as the structured ideas below (production audit:
+              "must not feel like a chatbot printing paragraphs"). A small caption demotes
+              it to what it actually is — one line of framing before the real content,
+              not the first thing meant to be read closely.
+            */}
+            <p className="text-100 font-semibold uppercase tracking-wide text-muted-foreground">
+              In short
+            </p>
+            <p className="text-200 text-muted-foreground italic">{data.summary}</p>
+            {/* `.motion-reveal` (visual-richness pass — moderate motion on Discover):
+                plays once as a fresh answer's ideas mount, one after another. */}
+            <ol className="motion-reveal space-y-3">
               {data.items.map((item, i) => (
-                <IdeaItem key={i} item={item} index={i} />
+                <IdeaItem key={i} item={item} index={i} className="motion-reveal" />
               ))}
             </ol>
           </div>
@@ -326,7 +369,7 @@ export function DiscoveryChatPage() {
                 disabled={create.isPending}
                 className="flex flex-col gap-1 rounded-xl bg-card p-3 text-left shadow-e1 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e2 disabled:pointer-events-none disabled:opacity-50"
               >
-                <span className="text-050 font-semibold uppercase tracking-wide text-accent-700">
+                <span className="text-100 font-semibold uppercase tracking-wide text-accent-700">
                   {example.mode}
                 </span>
                 <span className="text-100 text-foreground">{example.query}</span>

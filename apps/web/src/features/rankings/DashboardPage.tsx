@@ -7,6 +7,14 @@ import { Button, Card, CardContent, ErrorState, Input, Label, Skeleton } from "@
 import type { DashboardResponse, ListRankingsResponse } from "@iep/contracts";
 import { useDashboard, useProfiles, useRankings, useRecompute } from "./api";
 import { DashboardHero, Spotlight } from "./DashboardHero";
+import { useCountUp } from "../../app/use-count-up";
+
+/** A KPI tile's own count, ticking up to its value (visual-richness pass) — reserved for
+ * these five headline figures, not every score on the board (that would animate 20-30
+ * numbers in a grid at once, the exact "looks like a demo" effect to avoid). */
+function TileCount({ value }: { value: number }) {
+  return <>{Math.round(useCountUp(value))}</>;
+}
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -150,8 +158,17 @@ const PIPELINE: readonly {
     ink: "text-accent-700", rule: "bg-ramp-4" },
   { key: "requiring_review", eyebrow: "Needs you", icon: Flag, surface: "bg-state-warn-bg ring-1 ring-inset ring-state-warn/25",
     ink: "text-state-warn", rule: "bg-state-warn" },
-  { key: "top_ranked", eyebrow: "Top ranked", icon: Trophy, surface: "board-crown text-grad-ink shadow-e3",
-    ink: "text-grad-highlight", rule: "bg-grad-highlight" },
+  /*
+   * NOT `.board-crown` (the full brand-gradient block RankingsPage's own podium uses for
+   * rank 1) — this is one of five equal-sized KPI tiles, not a hero. A second full-gradient
+   * surface on the same screen as `DashboardHero` competes with it rather than supporting
+   * it, and turns "the board has a leader" into "purple is the whole dashboard" (enterprise
+   * polish pass, §3/§19: brand colour is an accent, not a surface). A light accent tint,
+   * same family as `total`, keeps the tile calm while the trophy icon and label still say
+   * what it is.
+   */
+  { key: "top_ranked", eyebrow: "Top ranked", icon: Trophy, surface: "bg-accent-050 ring-1 ring-inset ring-ramp-3",
+    ink: "text-accent-700", rule: "bg-gradient-to-r from-ramp-4 to-ramp-5" },
 ];
 
 function PipelineTiles({
@@ -171,6 +188,7 @@ function PipelineTiles({
    * same rule `Flourish` above already applies to what it will and will not draw.
    */
   const maxCount = Math.max(1, ...PIPELINE.map((s) => byKey.get(s.key)?.count ?? 0));
+  const totalCount = byKey.get("total")?.count ?? 0;
 
   return (
     <section className="mt-8 first:mt-6">
@@ -183,7 +201,14 @@ function PipelineTiles({
         </div>
       </div>
 
-      <div className="mt-3.5 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {/*
+        `.motion-reveal` (visual-richness pass — moderate motion on Dashboard): a stagger
+        fade+rise that plays once when these tiles first mount. It does NOT replay on an
+        ordinary re-render (a CSS keyframe animation only (re)starts when its element is
+        newly inserted into the DOM, not on a prop-only update), so filtering, a recompute,
+        or any other state change here stays instant, not re-choreographed.
+      */}
+      <div className="motion-reveal mt-3.5 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {PIPELINE.map((stage) => {
           const tile = byKey.get(stage.key);
           if (!tile) return null;
@@ -195,7 +220,7 @@ function PipelineTiles({
               to={tile.href}
               /* The whole tile is the link — a count you cannot click is a dead end
                  wearing a number (SPEC §6.3). */
-              className={`relative block overflow-hidden rounded-2xl p-4 no-underline transition-all duration-[var(--dur-base)] hover:-translate-y-0.5 hover:shadow-e3 ${
+              className={`motion-reveal relative block overflow-hidden rounded-2xl p-4 no-underline transition-all duration-[var(--dur-base)] hover:-translate-y-0.5 hover:shadow-e3 ${
                 live ? `${stage.surface} shadow-e2` : "bg-card ring-1 ring-inset ring-border"
               }`}
             >
@@ -221,25 +246,32 @@ function PipelineTiles({
                     : "mt-1.5 block font-serif text-700 font-semibold leading-none tabular-nums text-muted-foreground"
                 }
               >
-                {tile.count}
+                <TileCount value={tile.count} />
               </span>
 
-              <span
-                className={`mt-1.5 block text-200 ${
-                  stage.key === "top_ranked" && live ? "text-grad-ink-soft" : "text-muted-foreground"
-                }`}
-              >
+              <span className="mt-1.5 block text-200 text-muted-foreground">
                 {tile.label}
               </span>
+
+              {/*
+                One real number derived from another, not an invented trend — the "+12%
+                vs previous period" the canvas asked for has nothing behind it (no run
+                history is stored), but a share of TODAY's own total is arithmetic over
+                data already on the page. Only on the tile someone should act on; the
+                other four are already self-explanatory from their eyebrow and label.
+              */}
+              {stage.key === "requiring_review" && live && totalCount > 0 ? (
+                <span className="mt-0.5 block text-100 text-muted-foreground">
+                  {Math.round((tile.count / totalCount) * 100)}% of the board
+                </span>
+              ) : null}
 
               {/* This tile's count against the loudest one on the board — a magnitude,
                   not a percentage of anything, since these five counts overlap and do
                   not add up to a whole. */}
               <span
                 aria-hidden
-                className={`mt-2 block h-1 overflow-hidden rounded-full ${
-                  stage.key === "top_ranked" && live ? "bg-grad-ink/20" : "bg-border"
-                }`}
+                className="mt-2 block h-1 overflow-hidden rounded-full bg-border"
               >
                 <span
                   className={`block h-full rounded-full ${live ? stage.rule : "bg-transparent"}`}
@@ -316,7 +348,7 @@ function Flourish({
         {faces.map((name, i) => (
           <span
             key={name}
-            className={`grid size-6.5 place-items-center rounded-full bg-grad-ink/25 text-100 font-extrabold text-grad-ink ring-2 ring-grad-via ${
+            className={`grid size-6.5 place-items-center rounded-full bg-accent text-100 font-extrabold text-accent-foreground ring-2 ring-card ${
               i === 0 ? "" : "-ml-2"
             }`}
           >

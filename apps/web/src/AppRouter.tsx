@@ -87,7 +87,7 @@ function Unreachable({ roles }: { roles: readonly Role[] }) {
 
   if (known && !canSee(roles, known.roles)) {
     return (
-      <main className="page">
+      <main className="page page--narrow">
         <h1>Not available for your role</h1>
         <p className="muted">
           {known.title} is restricted to {known.roles.map(roleLabel).join(", ")}. You
@@ -99,7 +99,7 @@ function Unreachable({ roles }: { roles: readonly Role[] }) {
   }
 
   return (
-    <main className="page">
+    <main className="page page--narrow">
       <h1>Not found</h1>
       <p className="muted">No page matches this address.</p>
       <Link to="/ideas">Back to ideas</Link>

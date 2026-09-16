@@ -154,7 +154,7 @@ export function ReviewQueuePage() {
                 </TableHeader>
                 <TableBody>
                   {query.data.items.map((item) => (
-                    <TableRow key={item.ideaId} className={waitingBorder(item.waitingDays)}>
+                    <TableRow key={item.ideaId} className={`group ${waitingBorder(item.waitingDays)}`}>
                       <TableCell>
                         <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-100 font-bold text-foreground">
                           {item.rank === null ? "—" : `#${item.rank}`}
@@ -212,11 +212,20 @@ export function ReviewQueuePage() {
                         {item.waitingDays === 0 ? "today" : `${item.waitingDays}d`}
                       </TableCell>
                       <TableCell className="text-right">
+                        {/*
+                          A named action, not a bare icon (§16 — "quick 'Open analysis'
+                          action") and a bigger hit area (px-3 py-2, was p-1.5) — an arrow
+                          alone at the far right of a nine-column row is easy to miss and
+                          small enough to be a fussy target on a laptop trackpad.
+                          `group-hover` lets the whole row announce it's clickable, not
+                          just the last few pixels of it.
+                        */}
                         <Link
                           to={`/ideas/${item.ideaId}/review`}
                           aria-label={`Open review for ${item.title}`}
-                          className="inline-flex rounded-md p-1.5 text-muted-foreground no-underline transition-colors duration-[var(--dur-fast)] hover:bg-muted hover:text-foreground"
+                          className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-100 font-semibold text-muted-foreground no-underline transition-colors duration-[var(--dur-fast)] group-hover:text-accent-700 hover:bg-accent-050 hover:text-accent-700"
                         >
+                          <span className="hidden sm:inline">Open</span>
                           <ArrowRight aria-hidden className="size-4" />
                         </Link>
                       </TableCell>

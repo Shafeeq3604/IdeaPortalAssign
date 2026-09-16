@@ -40,15 +40,25 @@
   --ink-400: #64748b;   /* slate-500 — 4.8:1 on white, the floor for body text */
   --ink-300: #cbd5e1;
   --ink-200: #e2e8f0;   /* slate-200 — the card border */
-  --ink-100: #f1f5f9;
-  --ink-050: #f8fafc;   /* slate-50 — the page canvas */
+  /*
+   * Not exact Tailwind stops, unlike the rest of this ramp — a deliberate, requested
+   * departure from "slate-50 canvas, slate-100 secondary" (below). Slate-50 (#f8fafc) sat
+   * only five luminance points from a white card, which read as washed out rather than
+   * layered; slate-100 (#f1f5f9) was one step too dark to still read as a "hint" of tint
+   * once it became the FLOOR (the canvas) rather than a middle step. These two values are
+   * picked to sit between the old pair: closer together than card/secondary, but with the
+   * canvas clearly a step below both, so three surfaces (canvas, secondary, card) read as
+   * three real steps instead of two.
+   */
+  --ink-100: #f8f9fc;   /* secondary surfaces — filter rows, input groups, muted panels */
+  --ink-050: #f2f4f8;   /* the page canvas */
   --ink-000: #ffffff;
 
   /* ── Semantic surfaces ── */
   /*
-   * Canvas slate-50, cards pure white — five points of luminance apart, which is almost
-   * nothing. The separation is therefore NOT doing the work: the border and the shadow
-   * are, and both were tuned for a canvas this close.
+   * Canvas → secondary → card is now three visible steps of luminance, not one big jump
+   * from card to an almost-identical canvas. Border and shadow still carry real edges on
+   * top of that, same as before — the layering does more of the work now, not less.
    */
   --canvas: var(--ink-050);
   --surface: var(--ink-000);
@@ -203,6 +213,7 @@
 
   /* ── Layout ── */
   --container: 1280px;
+  --container-wide: 1500px; /* page ceiling on the 1fr workspace beside the 15rem sidebar */
   --content: 960px;
   --prose: 68ch;
 

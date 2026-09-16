@@ -15,10 +15,10 @@ export function ReviseIdeaPage() {
   const idea = useIdea(ideaId);
   const revise = useCreateVersion(ideaId);
 
-  if (idea.isPending) return <main className="page"><p className="muted">Loading…</p></main>;
+  if (idea.isPending) return <main className="page page--narrow"><p className="muted">Loading…</p></main>;
   if (idea.isError) {
     return (
-      <main className="page">
+      <main className="page page--narrow">
         <ErrorState
           title="Could not load this idea"
           description="It may have been removed, or you may not have access to it."
@@ -32,7 +32,7 @@ export function ReviseIdeaPage() {
 
   if (!idea.data.permissions.canRevise) {
     return (
-      <main className="page">
+      <main className="page page--narrow">
         <EmptyState
           title="This idea cannot be revised yet"
           description="Drafts are edited directly. Revision creates a new version once an idea has been submitted."
@@ -56,7 +56,7 @@ export function ReviseIdeaPage() {
   };
 
   return (
-    <main className="page">
+    <main className="page page--narrow">
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to={`/ideas/${ideaId}/overview`}>{v.title}</Link>  ›  Revise
       </nav>

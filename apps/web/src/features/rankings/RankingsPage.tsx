@@ -256,16 +256,16 @@ function FactorPair({
 }
 
 /**
- * The top three (Idea Platform Redesign — "podium").
+ * The top three (Idea Platform Redesign — "podium"), rebalanced by the enterprise-polish
+ * pass (§11/§17: "here is how this opportunity was assessed," not a trophy plaque).
  *
- * Rank 1 gets the brand gradient and grows; 2 and 3 stay on the surface. That is a real
- * hierarchy rather than three identical cards with different numerals on them, and it is
- * the single change that makes this screen read as a BOARD.
- *
- * P-2 survives the promotion: the leader still shows its strongest and weakest criteria
- * as chips, so the biggest, most persuasive card on the page is still the one that most
- * clearly says why. A podium without that is exactly the "bare ordered list" the product
- * principle forbids, dressed up.
+ * Rank 1 used to get the full brand gradient plus a Trophy badge — a genuine "leaderboard
+ * winner" treatment that competed with the very thing P-2 exists to keep central: WHY an
+ * idea is where it is. It still stands out — larger type, a stronger top rule, a two-tone
+ * ring — but on the same calm card surface every other row uses, and with the same
+ * strongest/weakest explanation shape, not a special chip layout reserved for a winner's
+ * podium. The distinction left is "the assessment that came out highest," not "the idea
+ * that beat the others."
  */
 function PodiumCard({
   row,
@@ -287,55 +287,45 @@ function PodiumCard({
     <div
       className={
         first
-          ? "board-crown motion-defer relative overflow-hidden rounded-2xl p-6 text-grad-ink shadow-e4"
+          // `card-texture` + `shadow-e4` (visual-richness pass — hero-card depth): the
+          // top-ranked card should read as more elevated than 2nd/3rd, not just bigger.
+          ? "card-texture relative overflow-hidden rounded-2xl bg-card p-6 shadow-e4 ring-2 ring-inset ring-accent-100 transition-transform duration-[var(--dur-base)] hover:-translate-y-1"
           : "relative overflow-hidden rounded-2xl bg-card p-5 shadow-e2 ring-1 ring-inset ring-border"
       }
     >
-      {first ? null : (
-        <span
-          aria-hidden
-          className={`absolute inset-x-0 top-0 h-1.5 ${row.rank === 2 ? "bg-ramp-3" : "bg-ramp-2"}`}
-        />
-      )}
+      <span
+        aria-hidden
+        className={`absolute inset-x-0 top-0 ${
+          first
+            ? "h-2 bg-gradient-to-r from-ramp-4 via-ramp-5 to-accent-700"
+            : `h-1.5 ${row.rank === 2 ? "bg-ramp-3" : "bg-ramp-2"}`
+        }`}
+      />
 
       <div className="relative flex items-center justify-between gap-3">
         {first ? (
-          <span className="inline-flex items-center gap-2">
-            <span className="grid size-9 place-items-center rounded-xl bg-grad-highlight/20 text-grad-highlight">
-              <Trophy aria-hidden className="size-4.5" />
-            </span>
-            <span className="font-serif text-600 font-bold leading-none">1</span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-accent-050 px-2.5 py-1 text-100 font-bold uppercase tracking-wide text-accent-700">
+            <Trophy aria-hidden className="size-3.5" />
+            Top opportunity
           </span>
         ) : (
           <span className="font-serif text-600 font-bold leading-none text-ramp-4">{row.rank}</span>
         )}
-        <RankDelta rank={row.rank} previousRank={row.previousRank} onBrand={first} />
+        <RankDelta rank={row.rank} previousRank={row.previousRank} />
       </div>
 
-      <h2
-        className={`relative mt-3.5 font-semibold leading-snug ${first ? "text-400" : "text-300"}`}
-      >
-        <Link
-          to={`/ideas/${row.ideaId}/evaluation`}
-          className={first ? "text-grad-ink no-underline hover:underline" : ""}
-        >
-          {row.title}
-        </Link>
+      <h2 className={`relative mt-3.5 font-semibold leading-snug ${first ? "text-400" : "text-300"}`}>
+        <Link to={`/ideas/${row.ideaId}/evaluation`}>{row.title}</Link>
       </h2>
 
-      <p className={`relative mt-1.5 text-100 ${first ? "text-grad-ink-soft" : "text-muted-foreground"}`}>
-        <Link
-          to={`/people/${row.submitter.id}`}
-          className={first ? "text-grad-ink-soft no-underline hover:underline" : ""}
-        >
-          {row.submitter.displayName}
-        </Link>
+      <p className="relative mt-1.5 text-200 text-muted-foreground">
+        <Link to={`/people/${row.submitter.id}`}>{row.submitter.displayName}</Link>
         {row.department ? ` · ${row.department}` : ""}
       </p>
 
       <p
-        className={`relative mt-3.5 font-serif font-bold leading-none tabular-nums ${
-          first ? "text-800 text-grad-highlight" : "text-600 text-accent-700"
+        className={`relative mt-3.5 bg-gradient-to-br from-accent-700 to-grad-to bg-clip-text font-serif font-bold leading-none tabular-nums text-transparent ${
+          first ? "text-700" : "text-600"
         }`}
       >
         {row.compositeScore.toFixed(1)}
@@ -345,95 +335,42 @@ function PodiumCard({
         </span>
       </p>
 
-      <div
-        aria-hidden
-        className={`relative mt-2.5 h-1.5 overflow-hidden rounded-full ${first ? "bg-grad-ink/20" : "bg-ramp-1"}`}
-      >
+      <div aria-hidden className="relative mt-2.5 h-1.5 overflow-hidden rounded-full bg-ramp-1">
         <div
           className={`h-full rounded-full transition-[width] duration-[var(--dur-settle)] ease-[var(--ease-out-quint)] ${
-            first ? "bg-grad-highlight" : row.rank === 2 ? "bg-ramp-4" : "bg-ramp-3"
+            first ? "bg-gradient-to-r from-ramp-4 to-accent-700" : row.rank === 2 ? "bg-ramp-4" : "bg-ramp-3"
           }`}
           style={{ width }}
         />
       </div>
 
-      {/*
-        P-2 on the podium. The leader wears its two figures as chips because it has the
-        room; 2 and 3 keep the same `Factor` treatment as every row below them, so the
-        explanation is never the thing that got dropped to make a card look tidy.
-      */}
-      {first ? (
-        // Same units and the same full-sentence tooltip the non-podium `Factor` chips
-        // carry below — a bare "+9.0" with no "pts" and nothing to hover for context read
-        // as an unexplained internal number to anyone who hadn't already read the
-        // Evaluation tab.
-        <div className="relative mt-3.5 flex flex-wrap gap-2">
-          {sameCriterion(row.topStrength, row.topConstraint) ? (
-            <span
-              className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-bold ring-1 ring-grad-rule"
-              title={row.topStrength!.text}
-            >
-              {row.topStrength!.criterionLabel} — only criterion scored so far
-            </span>
-          ) : (
-            <>
-              {row.topStrength ? (
-                <span
-                  className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-bold ring-1 ring-grad-rule"
-                  title={row.topStrength.text}
-                >
-                  {row.topStrength.criterionLabel} +{row.topStrength.contribution.toFixed(1)} pts
-                </span>
-              ) : null}
-              {row.topConstraint?.headroom === undefined ? null : (
-                <span
-                  className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-bold ring-1 ring-grad-rule"
-                  title={row.topConstraint.text}
-                >
-                  {row.topConstraint.criterionLabel} − up to {row.topConstraint.headroom.toFixed(1)} pts
-                </span>
-              )}
-            </>
-          )}
-        </div>
-      ) : (
-        <dl className="mt-3 grid gap-1">
-          <FactorPair strength={row.topStrength} constraint={row.topConstraint} />
-        </dl>
-      )}
+      {/* Same explanation shape every row on the board uses — the leader does not get a
+          bespoke chip layout just for having the highest score (P-2: the explanation is
+          the point, not the rank). */}
+      <dl className="mt-3 grid gap-1">
+        <FactorPair strength={row.topStrength} constraint={row.topConstraint} />
+      </dl>
 
       {row.feasibilityStatus ? (
         <div className="relative mt-3">
-          {first ? (
-            <span className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-semibold ring-1 ring-grad-rule">
-              {FEASIBILITY_LABEL[row.feasibilityStatus as keyof typeof FEASIBILITY_LABEL] ??
-                row.feasibilityStatus}
-            </span>
-          ) : (
-            <StatusPill
-              kind="FEASIBILITY"
-              feasibility={row.feasibilityStatus as never}
-              label={
-                FEASIBILITY_LABEL[row.feasibilityStatus as keyof typeof FEASIBILITY_LABEL] ??
-                row.feasibilityStatus
-              }
-            />
-          )}
+          <StatusPill
+            kind="FEASIBILITY"
+            feasibility={row.feasibilityStatus as never}
+            label={
+              FEASIBILITY_LABEL[row.feasibilityStatus as keyof typeof FEASIBILITY_LABEL] ??
+              row.feasibilityStatus
+            }
+          />
         </div>
       ) : null}
 
       {/* Compare has to reach the top three too — a comparison that cannot include the
           leader is not a comparison anybody wanted (J-3 selects the top of the board). */}
-      <label
-        className={`relative mt-3.5 flex items-center gap-2 text-100 ${
-          first ? "text-grad-ink-soft" : "text-muted-foreground"
-        }`}
-      >
+      <label className="relative mt-3.5 flex items-center gap-2 text-100 text-muted-foreground">
         <Checkbox
           checked={selected}
           onCheckedChange={(on) => onToggleCompare(row.ideaId, on === true)}
           aria-label={`Select ${row.title} for comparison`}
-          className={first ? "border-grad-rule data-[state=checked]:bg-grad-highlight" : ""}
         />
         Compare
       </label>
@@ -578,7 +515,7 @@ function Board({
             {/* settle-rank's FLIP reorder is not implemented; the delta chip and the
                 afterglow it pairs with are. Called out rather than faked — SPEC §8.3
                 describes a motion this board does not yet perform. */}
-            <div className="grid grid-cols-[3.25rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-2xl bg-card p-4 shadow-e1 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e2 lg:grid-cols-[3.25rem_minmax(0,1fr)_auto]">
+            <div className="grid grid-cols-[3.25rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-2xl bg-card p-4 shadow-e2 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e3 lg:grid-cols-[3.25rem_minmax(0,1fr)_auto]">
               <span className="grid size-11 place-items-center rounded-xl bg-accent-050 font-serif text-400 font-bold tabular-nums text-accent-700 ring-1 ring-inset ring-ramp-2">
                 {row.rank}
               </span>
@@ -587,7 +524,7 @@ function Board({
                 <h2 className="text-300 font-semibold leading-snug">
                   <Link to={`/ideas/${row.ideaId}/evaluation`}>{row.title}</Link>
                 </h2>
-                <p className="mt-0.5 text-100 text-muted-foreground">
+                <p className="mt-0.5 text-200 text-muted-foreground">
                   <Link to={`/people/${row.submitter.id}`}>{row.submitter.displayName}</Link>
                   {row.department ? ` · ${row.department}` : ""}
                   {row.feasibilityStatus ? (

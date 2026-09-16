@@ -29,7 +29,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
           </span>
           <span className="truncate text-200 font-semibold text-grad-ink">{PRODUCT_SHORT}</span>
         </header>
-        <main className="page" aria-busy="true" aria-live="polite">
+        <main className="page page--narrow" aria-busy="true" aria-live="polite">
           <span className="sr-only">Checking your session…</span>
           <div className="mx-auto mt-16 flex max-w-sm flex-col items-center gap-3 text-center" aria-hidden="true">
             <span className="size-8 animate-spin rounded-full border-2 border-accent-200 border-t-accent-600" />
@@ -44,7 +44,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   // cause behind a login page that also cannot load.
   if (error instanceof ApiUnreachableError) {
     return (
-      <main className="page">
+      <main className="page page--narrow">
         <ErrorState
           title="The API server is not running"
           description="The web app is up, but nothing is answering on port 3001. Start both processes with: corepack pnpm dev"

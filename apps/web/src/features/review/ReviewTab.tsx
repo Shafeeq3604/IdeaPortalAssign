@@ -51,7 +51,7 @@ export function ReviewTab() {
             {idea.permissions.canOverrideScores ? <OverrideForm ideaId={ideaId} /> : null}
 
             <Card>
-              <CardHeader><CardTitle>Review history</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-serif">Review history</CardTitle></CardHeader>
               <CardContent>
                 {reviews.data.items.length === 0 ? (
                   <p className="text-200 text-muted-foreground">
@@ -110,7 +110,7 @@ function DecisionForm({ ideaId }: { ideaId: string }) {
 
   return (
     <Card>
-      <CardHeader><CardTitle>Record a decision</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="font-serif">Record a decision</CardTitle></CardHeader>
       <CardContent>
         <form
           className="space-y-4"
@@ -198,7 +198,7 @@ function OverrideForm({ ideaId }: { ideaId: string }) {
   if (evaluation.isError || !evaluation.data) {
     return (
       <Card>
-        <CardHeader><CardTitle>Adjust a score</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="font-serif">Adjust a score</CardTitle></CardHeader>
         <CardContent>
           <p className="text-200 text-muted-foreground">
             There is nothing to adjust until this idea has been evaluated.
@@ -214,7 +214,7 @@ function OverrideForm({ ideaId }: { ideaId: string }) {
 
   return (
     <Card>
-      <CardHeader><CardTitle>Adjust a score</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="font-serif">Adjust a score</CardTitle></CardHeader>
       <CardContent>
         <form
           className="space-y-4"

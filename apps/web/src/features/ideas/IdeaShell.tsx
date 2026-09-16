@@ -2,8 +2,8 @@ import * as React from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
-  DialogTitle, ErrorState, Label, Skeleton, Textarea,
+  Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
+  DialogTitle, ErrorState, Label, Skeleton, StatusPill, Textarea,
 } from "@iep/ui";
 import { ROUTES } from "@iep/contracts";
 import { STATUS_LABEL, useIdea, useTransition } from "./api";
@@ -80,23 +80,32 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
         <Link to="/ideas">Ideas</Link>  ›  {idea.title}
       </nav>
 
-      <h1>{idea.title}</h1>
+      {/*
+        Idea Details is the one screen every role lands on to make a decision — the
+        flagship of the enterprise-polish pass (§12). The title is the primary fact
+        (large, serif, on its own line); status + version are secondary (a real
+        `StatusPill`, the same one every card and table on the product uses, not a plain
+        `Badge` guessing at a variant); submitter/department recede to tertiary metadata.
+        Three tiers instead of one flat row of equally-weighted text.
+      */}
+      <h1 className="font-serif text-700 font-semibold leading-tight tracking-tight">
+        {idea.title}
+      </h1>
 
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <Badge variant={idea.status === "DRAFT" ? "outline" : "secondary"}>
-          {STATUS_LABEL[idea.status]}
-        </Badge>
-        <span className="text-200 text-muted-foreground tabular">
+      <div className="mt-2 mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <StatusPill kind="LIFECYCLE" status={idea.status} label={STATUS_LABEL[idea.status]} />
+        <span className="text-100 text-muted-foreground tabular">
           Version {idea.currentVersionNo} of {idea.versionCount}
         </span>
-        <Link to={`/people/${idea.submitter.id}`} className="text-200">
-          {idea.submitter.displayName}
-        </Link>
-        {idea.department ? (
-          <Link to={`/departments/${idea.department.id}`} className="text-200">
-            {idea.department.name}
-          </Link>
-        ) : null}
+        <span className="text-100 text-muted-foreground">
+          <Link to={`/people/${idea.submitter.id}`}>{idea.submitter.displayName}</Link>
+          {idea.department ? (
+            <>
+              {" · "}
+              <Link to={`/departments/${idea.department.id}`}>{idea.department.name}</Link>
+            </>
+          ) : null}
+        </span>
       </div>
 
       {/*
@@ -173,7 +182,13 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
         </div>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2 border-b border-border pb-3">
+      {/*
+        An underline tab strip, not filled buttons — five destinations sharing one report
+        (Overview / Analysis / Evaluation / History / Review) read as SECTIONS of the same
+        document, not five separate places to navigate to. The active underline is the
+        one thing carrying weight; everything else stays quiet until it's current.
+      */}
+      <div className="mb-6 flex flex-wrap gap-1 border-b border-border">
         {TABS.filter((t) => canSee(t.id)).map((tab) => {
           const to = `/ideas/${ideaId}/${tab.seg}`;
           const active = pathname === to;
@@ -184,8 +199,8 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
               aria-current={active ? "page" : undefined}
               className={
                 active
-                  ? "rounded-md bg-accent px-3 py-2 text-200 font-medium text-accent-foreground"
-                  : "rounded-md px-3 py-2 text-200 text-muted-foreground hover:bg-muted"
+                  ? "-mb-px border-b-2 border-accent-600 px-3 py-2.5 text-200 font-semibold text-foreground"
+                  : "-mb-px border-b-2 border-transparent px-3 py-2.5 text-200 font-medium text-muted-foreground transition-colors duration-[var(--dur-fast)] hover:text-foreground"
               }
             >
               {tab.label}
@@ -271,7 +286,14 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
         </DialogContent>
       </Dialog>
 
-      {children(idea)}
+      {/* `.motion-defer` (visual-richness pass — subtle motion on Idea Details): a plain
+          fade and a slight rise, no stagger, no lift — this page's richness is meant to
+          read as analytical calm, so every tab's content gets one quiet arrival, not a
+          choreographed reveal. Keyed on the route so switching tabs re-triggers it,
+          the same way a page navigation would. */}
+      <div key={pathname} className="motion-defer">
+        {children(idea)}
+      </div>
     </main>
   );
 }

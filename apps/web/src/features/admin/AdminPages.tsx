@@ -1,16 +1,17 @@
 import * as React from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { MoreHorizontal, ScrollText, Users } from "lucide-react";
+import { MoreHorizontal, ScrollText, Search, Users, X } from "lucide-react";
 import {
-  Badge, Button, Card, CardContent, EmptyState, ErrorState, Skeleton, Table, TableBody,
+  Badge, Button, Card, CardContent, EmptyState, ErrorState, Input, Skeleton, Table, TableBody,
   TableCell, TableHead, TableHeader, TableRow,
 } from "@iep/ui";
+import { Role } from "@iep/contracts";
 import type { AdminUser, AdminUsersResponse, AuditResponse } from "@iep/contracts";
 import { AddUserDialog, EditUserDialog, RoleBadges, RoleLegend } from "./UserForms";
 import { api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
-import { PageHeading } from "../../app/PageHero";
+import { InlineStat, PageHeading } from "../../app/PageHero";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -50,29 +51,43 @@ const ADMIN_PAGES = [
   { to: "/admin/audit", label: "Audit log", icon: ScrollText },
 ] as const;
 
-function AdminSubNav() {
+/**
+ * An eyebrow marking these two pages as one hub, and a real "at a glance" figure per
+ * page (people counted / entries logged) — Administration was the one section of the
+ * product with no summary layer at all, straight sub-nav into a raw table, while every
+ * other major section now opens with some framing (visual-richness pass).
+ */
+function AdminSubNav({ stat }: { stat?: { value: string; label: string } }) {
   const { pathname } = useLocation();
   return (
-    <nav aria-label="Administration" className="mb-6 flex flex-wrap gap-2">
-      {ADMIN_PAGES.map((page) => {
-        const active = pathname === page.to;
-        return (
-          <Link
-            key={page.to}
-            to={page.to}
-            aria-current={active ? "page" : undefined}
-            className={
-              active
-                ? "brand-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-100 font-semibold text-grad-ink no-underline"
-                : "inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 text-100 font-medium text-muted-foreground no-underline ring-1 ring-inset ring-border transition-colors duration-[var(--dur-fast)] hover:text-foreground"
-            }
-          >
-            <page.icon aria-hidden className="size-3.5" />
-            {page.label}
-          </Link>
-        );
-      })}
-    </nav>
+    <div className="mb-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <span className="text-100 font-semibold uppercase tracking-widest text-muted-foreground">
+          Administration
+        </span>
+        {stat ? <InlineStat value={stat.value} label={stat.label} /> : null}
+      </div>
+      <nav aria-label="Administration" className="mt-2 flex flex-wrap gap-2">
+        {ADMIN_PAGES.map((page) => {
+          const active = pathname === page.to;
+          return (
+            <Link
+              key={page.to}
+              to={page.to}
+              aria-current={active ? "page" : undefined}
+              className={
+                active
+                  ? "brand-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-100 font-semibold text-grad-ink no-underline"
+                  : "inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 text-100 font-medium text-muted-foreground no-underline ring-1 ring-inset ring-border transition-colors duration-[var(--dur-fast)] hover:text-foreground"
+              }
+            >
+              <page.icon aria-hidden className="size-3.5" />
+              {page.label}
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
   );
 }
 
@@ -82,6 +97,35 @@ const ACTION_LABEL: Record<string, string> = {
   "score.override": "Score adjusted",
   "ranking.recompute": "Rankings recomputed",
 };
+
+/** "Today" / "Yesterday" / a real date — the log's own timestamps stay exact in the row
+ * itself (just the time, once the date is the group's own heading); this is what makes a
+ * page of otherwise-identical rows scannable as "what happened, and when, at a glance"
+ * (visual-richness pass — Audit log was a dense undifferentiated table). */
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (sameDay(d, today)) return "Today";
+  if (sameDay(d, yesterday)) return "Yesterday";
+  return d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+}
+
+/** Consecutive entries sharing a day label, grouped without re-sorting — the API already
+ * returns these newest-first, and grouping must not silently reorder what it grouped. */
+function groupByDay<T extends { at: string }>(items: readonly T[]): [string, T[]][] {
+  const groups: [string, T[]][] = [];
+  for (const item of items) {
+    const label = dayLabel(item.at);
+    const last = groups.at(-1);
+    if (last && last[0] === label) last[1].push(item);
+    else groups.push([label, [item]]);
+  }
+  return groups;
+}
 
 export function AuditPage() {
   const [params, setParams] = useSearchParams();
@@ -108,7 +152,9 @@ export function AuditPage() {
         heading="Audit log"
         description="Append-only. Every decision a person made, in the same transaction as the change itself — the database refuses updates and deletes on this table."
       />
-      <AdminSubNav />
+      <AdminSubNav
+        stat={query.data ? { value: String(query.data.meta.total), label: "entries logged" } : undefined}
+      />
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-96 w-full" aria-busy="true" />
@@ -165,35 +211,58 @@ export function AuditPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {query.data.items.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="whitespace-nowrap text-100">
-                        {new Date(entry.at).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        {entry.actor ? (
-                          <Link to={`/people/${entry.actor.id}`}>{entry.actor.displayName}</Link>
-                        ) : (
-                          <span className="text-muted-foreground">the system</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {ACTION_LABEL[entry.action] ?? entry.action}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {/* §6.2 row 44: every row links to what it is about. */}
-                        {entry.entityHref ? (
-                          <Link to={entry.entityHref}>{entry.entityType}</Link>
-                        ) : (
-                          <span className="text-muted-foreground">{entry.entityType}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-xs text-200">
-                        {entry.reason ?? <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                    </TableRow>
+                  {groupByDay(query.data.items).map(([day, entries]) => (
+                    <React.Fragment key={day}>
+                      {/* A day divider, not a repeated full timestamp on every row — the
+                          date only has to be said once per group; the row itself only
+                          needs to add the time (visual-richness pass). */}
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell
+                          colSpan={5}
+                          className="border-t-0 bg-muted/60 py-2 text-100 font-semibold uppercase tracking-wide text-muted-foreground"
+                        >
+                          {day}
+                        </TableCell>
+                      </TableRow>
+                      {entries.map((entry) => (
+                        <TableRow key={entry.id} className="relative">
+                          <TableCell className="whitespace-nowrap text-100">
+                            {/* A small timeline dot, the same rail idea `Timeline` uses
+                                for version history, rather than a new visual language. */}
+                            <span className="inline-flex items-center gap-2">
+                              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-accent-600" />
+                              {new Date(entry.at).toLocaleTimeString(undefined, {
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {entry.actor ? (
+                              <Link to={`/people/${entry.actor.id}`}>{entry.actor.displayName}</Link>
+                            ) : (
+                              <span className="text-muted-foreground">the system</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {ACTION_LABEL[entry.action] ?? entry.action}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {/* §6.2 row 44: every row links to what it is about. */}
+                            {entry.entityHref ? (
+                              <Link to={entry.entityHref}>{entry.entityType}</Link>
+                            ) : (
+                              <span className="text-muted-foreground">{entry.entityType}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="max-w-xs text-200">
+                            {entry.reason ?? <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </React.Fragment>
                   ))}
                 </TableBody>
               </Table>
@@ -222,15 +291,34 @@ export function AuditPage() {
   );
 }
 
+/** "REVIEWER" → "Reviewer" — the same humanising `UserForms.tsx`'s own role chips use. */
+const roleLabel = (role: (typeof Role.options)[number]): string =>
+  role.charAt(0) + role.slice(1).toLowerCase();
+
 export function UsersPage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const page = Math.max(1, Number(params.get("page") ?? 1));
+  const search = params.get("q") ?? "";
+  const role = params.get("role") ?? undefined;
   const [editing, setEditing] = React.useState<AdminUser | null>(null);
 
   const query = useQuery({
-    queryKey: queryKeys.admin.users({ page }),
-    queryFn: () => api<AdminUsersResponse>(`/admin/users?page=${page}`),
+    queryKey: queryKeys.admin.users({ page, q: search || undefined, role }),
+    queryFn: () => {
+      const s = new URLSearchParams();
+      s.set("page", String(page));
+      if (search) s.set("q", search);
+      if (role) s.set("role", role);
+      return api<AdminUsersResponse>(`/admin/users?${s.toString()}`);
+    },
   });
+
+  const update = (mutate: (next: URLSearchParams) => void) => {
+    const next = new URLSearchParams(params);
+    mutate(next);
+    next.delete("page");
+    setParams(next);
+  };
 
   return (
     <main className="page">
@@ -242,10 +330,69 @@ export function UsersPage() {
         heading="People & access"
         description="Every person who can reach this platform, and exactly what you have trusted them to do inside it."
       />
-      <AdminSubNav />
+      <AdminSubNav
+        stat={query.data ? { value: String(query.data.meta.total), label: "people" } : undefined}
+      />
 
-      <div className="mb-4 flex justify-end">
-        <AddUserDialog />
+      {/*
+        Search and a role filter — the API (`AdminUsersQuery`) has carried `q`/`role`
+        since P9, but nothing on this page rendered a control for either (enterprise-
+        polish pass §18: "provide search, filters"). Same URL-is-the-source-of-truth
+        pattern as every other filtered list (§7.8).
+      */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <form
+          className="relative"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const value = new FormData(event.currentTarget).get("q");
+            update((next) => (value ? next.set("q", String(value)) : next.delete("q")));
+          }}
+        >
+          <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            key={search}
+            name="q"
+            type="search"
+            defaultValue={search}
+            placeholder="Search people"
+            aria-label="Search people"
+            className="h-9 w-56 pl-9"
+          />
+        </form>
+
+        {Role.options.map((value) => (
+          <Button
+            key={value}
+            variant="ghost"
+            size="sm"
+            aria-pressed={role === value}
+            onClick={() => update((next) => (role === value ? next.delete("role") : next.set("role", value)))}
+            className={
+              role === value
+                ? "brand-pill rounded-full font-semibold text-grad-ink hover:text-grad-ink"
+                : "rounded-full font-medium text-muted-foreground"
+            }
+          >
+            {roleLabel(value)}
+          </Button>
+        ))}
+
+        {search || role ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-full"
+            onClick={() => setParams(new URLSearchParams())}
+          >
+            <X aria-hidden className="size-4" />
+            Clear
+          </Button>
+        ) : null}
+
+        <div className="ml-auto">
+          <AddUserDialog />
+        </div>
       </div>
 
       {query.isPending ? (
@@ -296,7 +443,7 @@ export function UsersPage() {
                               <Badge variant="outline" className="ml-2 align-middle">Inactive</Badge>
                             ) : null}
                           </span>
-                          <span className="block text-100 text-muted-foreground">{user.email}</span>
+                          <span className="block text-200 text-muted-foreground">{user.email}</span>
                         </div>
                       </div>
                     </TableCell>

@@ -210,7 +210,7 @@ export function ProfilesPage() {
               <Card key={profile.key}>
                 <CardHeader>
                   <div className="flex flex-wrap items-center gap-2">
-                    <CardTitle>{profile.name}</CardTitle>
+                    <CardTitle className="font-serif">{profile.name}</CardTitle>
                     {profile.isDefault ? <Badge>Default</Badge> : null}
                     {!profile.isActive ? <Badge variant="outline">Not in use</Badge> : null}
                   </div>
@@ -223,22 +223,40 @@ export function ProfilesPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Criterion</TableHead>
-                          <TableHead className="text-right">Weight</TableHead>
+                          {/* A weight IS a proportion of the whole, so it gets a bar, not
+                              only a number (visual-richness pass — a real, meaningful
+                              data visualization instead of a column of percentages). */}
+                          <TableHead className="w-56">Weight</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {profile.weights.map((w) => (
-                          <TableRow key={w.criterionKey}>
-                            <TableCell>
-                              <Link to={`/config/criteria#${w.criterionKey}`}>
-                                {w.criterionLabel}
-                              </Link>
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {(w.weight * 100).toFixed(1)}%
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {[...profile.weights]
+                          .sort((a, b) => b.weight - a.weight)
+                          .map((w) => (
+                            <TableRow key={w.criterionKey}>
+                              <TableCell>
+                                <Link to={`/config/criteria#${w.criterionKey}`}>
+                                  {w.criterionLabel}
+                                </Link>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2.5">
+                                  <span className="w-12 shrink-0 text-right tabular-nums">
+                                    {(w.weight * 100).toFixed(1)}%
+                                  </span>
+                                  <span
+                                    aria-hidden
+                                    className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-ramp-1"
+                                  >
+                                    <span
+                                      className="block h-full rounded-full bg-gradient-to-r from-ramp-4 to-accent-700"
+                                      style={{ width: `${Math.max(2, w.weight * 100)}%` }}
+                                    />
+                                  </span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
                       </TableBody>
                     </Table>
                   </div>

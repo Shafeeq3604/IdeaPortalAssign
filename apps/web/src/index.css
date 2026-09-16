@@ -171,8 +171,14 @@
 /* ── page ── */
 
 .page {
-  max-width: var(--content);
+  max-width: var(--container-wide);
   padding: var(--sp-10) var(--sp-8);
+}
+
+/* Prose-heavy pages (forms, single-idea narrative reading) opt back into the narrower
+   measure instead of stretching body copy across the full 1500px workspace. */
+.page--narrow {
+  max-width: var(--content);
 }
 
 .page h1 {
@@ -319,11 +325,17 @@
 /* Two stops, not one: the violet hands off to the accent tint before it fades out, which
    is what stops the top of the sidebar reading as a bruise on a white column. */
 .brand-rail {
+  /*
+   * A hint, not a wash — the sidebar should read as a calm neutral surface with the brand
+   * colour concentrated in the active pill, not tinted from top to bottom. Toned down from
+   * 14%/50% (Idea Platform Redesign — sidebar) per the enterprise-polish pass: purple is
+   * the accent on top of the surface, not the surface itself (SPEC/REQUIREMENTS §3, §19).
+   */
   background-image: linear-gradient(
     to bottom,
-    color-mix(in oklab, var(--grad-to) 14%, transparent) 0%,
-    color-mix(in oklab, var(--accent-100) 50%, transparent) 26%,
-    transparent 62%
+    color-mix(in oklab, var(--grad-to) 8%, transparent) 0%,
+    color-mix(in oklab, var(--accent-100) 30%, transparent) 20%,
+    transparent 42%
   );
 }
 
@@ -364,6 +376,23 @@
   background-image: radial-gradient(var(--grad-rule) 1px, transparent 1px);
   background-size: 26px 26px;
   mask-image: linear-gradient(200deg, #000, transparent 80%);
+}
+
+/*
+ * The same dot-grid idea as `.dash-hero`, tuned for a light `bg-card` surface instead of
+ * the dark gradient (visual-richness pass — hero-card depth). Reserved for the ONE card
+ * per screen that should read as more important than an ordinary card (the dashboard's
+ * `Spotlight`, the rankings podium's rank-1 card) — texture this subtle stops reading as
+ * a signal the moment it is on every card, so it stays rare on purpose.
+ */
+.card-texture::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(200deg, #000, transparent 65%);
+  opacity: 0.5;
 }
 
 .dash-pulse { animation: dash-pulse var(--dur-pulse) var(--ease-in-out) infinite; }

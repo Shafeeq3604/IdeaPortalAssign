@@ -138,7 +138,7 @@ export function InlineStat({ value, label }: { value: string; label: string }) {
       <b className="block font-serif text-400 font-semibold leading-none tabular-nums text-accent-700">
         {value}
       </b>
-      <span className="mt-1 block text-050 text-muted-foreground">{label}</span>
+      <span className="mt-1 block text-100 text-muted-foreground">{label}</span>
     </span>
   );
 }

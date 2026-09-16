@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import {
-  Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, EvidenceList,
-  Provenance, Skeleton, StatusPill,
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Card, CardContent,
+  CardHeader, CardTitle, EmptyState, ErrorState, EvidenceList, Provenance, Skeleton, StatusPill,
 } from "@iep/ui";
 import type { Band, ScoreSource, ValueDimension, ValueFinding } from "@iep/contracts";
 import { ValueDimension as ValueDimensionEnum } from "@iep/contracts";
@@ -148,10 +148,53 @@ export function AnalysisTab() {
               <Link to="/help/data-and-ai">how this works</Link>.
             </p>
 
+            {/*
+              A real count the contract already carries (`IdeaDetail.openRecommendationCount`),
+              not fabricated "how to improve" prose — there is no recommendation CONTENT
+              anywhere in the API to render responsibly, only this count. Points at the one
+              place a person can act on it (a new version) rather than asserting content
+              that doesn't exist.
+            */}
+            {idea.openRecommendationCount > 0 ? (
+              <p className="text-100 text-accent-700">
+                {idea.openRecommendationCount} open recommendation
+                {idea.openRecommendationCount === 1 ? "" : "s"} from past reviews, not yet
+                addressed by a new version
+                {idea.permissions.canRevise ? (
+                  <>
+                    {" — "}
+                    <Link to={`/ideas/${ideaId}/revise`}>create one</Link>
+                  </>
+                ) : null}
+                .
+              </p>
+            ) : null}
+
+            {/*
+              At a glance (enterprise-polish pass §12 — "understandable within 5 seconds").
+              Four figures the engine already computed, surfaced before the detail cards
+              rather than buried inside them — every value here is repeated, not invented,
+              from the Feasibility/Use-cases/Risks/Plan cards below.
+            */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {a.feasibility ? (
+                <GlanceStat label="Feasibility" value={FEASIBILITY_LABEL[a.feasibility.status]} />
+              ) : null}
+              {a.plan ? (
+                <GlanceStat label="Estimated effort" value={EFFORT_LABEL[a.plan.effortClass]} />
+              ) : null}
+              {a.useCases.length > 0 ? (
+                <GlanceStat label="Potential use cases" value={String(a.useCases.length)} />
+              ) : null}
+              {a.risks.length > 0 ? (
+                <GlanceStat label="Risks identified" value={String(a.risks.length)} />
+              ) : null}
+            </div>
+
             {/* ── Structured proposal (FR-03) ── */}
             {a.proposal ? (
               <Card>
-                <CardHeader><CardTitle>The idea, restated</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="font-serif">The idea, restated</CardTitle></CardHeader>
                 <CardContent>
                   <Provenance
                     state={provenanceState(a.proposal.provenance)}
@@ -198,7 +241,7 @@ export function AnalysisTab() {
             {/* ── Use cases (FR-04) ── */}
             {a.useCases.length > 0 ? (
               <Card>
-                <CardHeader><CardTitle>Where it applies</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="font-serif">Where it applies</CardTitle></CardHeader>
                 <CardContent>
                   <Provenance state="AI_UNVALIDATED">
                     {/* Direct and indirect are mutually exclusive groups, not a sequence —
@@ -224,29 +267,34 @@ export function AnalysisTab() {
             {/* ── Value across all nine dimensions (FR-05) ── */}
             {a.valueFindings.length > 0 ? (
               <Card>
-                <CardHeader><CardTitle>Business value</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="font-serif">Business value</CardTitle></CardHeader>
                 <CardContent>
                   <Provenance state="AI_UNVALIDATED">
-                    <ul className="divide-y divide-border md:grid md:grid-cols-2 md:gap-x-8 md:divide-y-0">
+                    {/*
+                      A composed 3×3 grid of tiles, not a divided two-column list
+                      (enterprise-polish visual-richness pass — "meaningful data
+                      visualization" over "a scroll of rows"). Every field that was in
+                      the list is still here — this changes the composition, not the
+                      information: label, meter, and whatever rationale/evidence is
+                      specific to this one dimension once the shared reasoning below has
+                      been hoisted out.
+                    */}
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {ValueDimensionEnum.options.map((dim: ValueDimension) => {
                         const f = byDimension.get(dim);
                         return (
-                          <li
-                            key={dim}
-                            className="border-border py-3 first:pt-0 last:pb-0 md:border-b md:py-3 md:first:pt-3 md:last:border-b-0 md:last:pb-3"
-                          >
+                          <div key={dim} className="rounded-xl border border-border bg-card p-3.5">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                              <h4 className="text-300 font-medium">
+                              <h4 className="text-200 font-medium">
                                 {VALUE_DIMENSION_LABEL[dim]}
                               </h4>
-                              {f ? (
-                                <BandMeter band={f.band} />
-                              ) : (
+                              {!f ? (
                                 <span className="text-100 text-muted-foreground">
                                   Not assessed
                                 </span>
-                              )}
+                              ) : null}
                             </div>
+                            {f ? <div className="mt-1.5"><BandMeter band={f.band} /></div> : null}
                             {/*
                               Only what is SPECIFIC to this dimension. When the model
                               reasoned from the same sentence for all nine — which is
@@ -254,15 +302,15 @@ export function AnalysisTab() {
                               reasoning is hoisted below instead of repeated nine times.
                             */}
                             {f && !shared.rationale ? (
-                              <p className="mt-1 text-200">{f.rationale}</p>
+                              <p className="mt-1.5 text-100 text-muted-foreground">{f.rationale}</p>
                             ) : null}
                             {f && !shared.evidence ? (
                               <EvidenceList evidence={f.evidence} source={source} />
                             ) : null}
-                          </li>
+                          </div>
                         );
                       })}
-                    </ul>
+                    </div>
 
                     {shared.rationale ? (
                       <p className="mt-4 border-t border-border pt-3 text-200">
@@ -283,7 +331,7 @@ export function AnalysisTab() {
             {/* ── Feasibility (FR-06) ── */}
             {a.feasibility ? (
               <Card>
-                <CardHeader><CardTitle>Feasibility</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="font-serif">Feasibility</CardTitle></CardHeader>
                 <CardContent>
                   <Provenance
                     state={provenanceState(a.feasibility.provenance)}
@@ -352,68 +400,98 @@ export function AnalysisTab() {
 
             {/* ── Risks and dependencies (FR-10) ── */}
             {a.risks.length > 0 || a.dependencies.length > 0 ? (
-              <Card>
-                <CardHeader><CardTitle>Risks and dependencies</CardTitle></CardHeader>
-                <CardContent>
-                  <Provenance state="AI_UNVALIDATED">
-                    <div className="space-y-6">
-                      {a.risks.length > 0 ? (
-                        <ul className="space-y-4">
-                          {a.risks.map((r) => (
-                            <li key={r.id}>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Badge variant="outline">{RISK_CATEGORY_LABEL[r.category]}</Badge>
-                                <span className="text-100 text-muted-foreground">
-                                  {RISK_LEVEL_LABEL[r.level]} risk
-                                </span>
-                              </div>
-                              <p className="mt-1 text-200">{r.description}</p>
-                              <p className="mt-1 text-200 text-muted-foreground">
-                                If it happens: {r.potentialImpact}
-                              </p>
-                              {/* FR-10: never null — a risk without a mitigation is an
-                                  obstacle, not analysis. */}
-                              <p className="mt-1 text-200">
-                                <span className="font-medium">What to do about it: </span>
-                                {r.mitigation}
-                              </p>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
+              <Card className="py-0">
+                <Provenance state="AI_UNVALIDATED">
+                  {/*
+                    Collapsed by default (enterprise-polish pass §12 — "do not present a
+                    huge wall of AI-generated text"). Each risk carries its own mitigation
+                    paragraph, which made this the single longest card on the tab; a
+                    reviewer scanning the page needs to know a risk EXISTS before they
+                    need the full mitigation write-up. The blocking-dependency count stays
+                    in the trigger's own summary line so it is visible closed or open.
+                  */}
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="risks" className="border-none">
+                      <AccordionTrigger className="px-6 py-5 hover:no-underline [&>svg]:size-5">
+                        <span className="flex flex-wrap items-baseline gap-x-2">
+                          <CardTitle className="font-serif">Risks and dependencies</CardTitle>
+                          <span className="text-100 font-normal text-muted-foreground">
+                            {a.risks.length > 0
+                              ? `${a.risks.length} risk${a.risks.length === 1 ? "" : "s"}`
+                              : null}
+                            {a.risks.length > 0 && a.dependencies.length > 0 ? " · " : null}
+                            {a.dependencies.length > 0
+                              ? `${a.dependencies.length} dependenc${a.dependencies.length === 1 ? "y" : "ies"}`
+                              : null}
+                          </span>
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-6">
+                        <div className="space-y-6">
+                          {a.risks.length > 0 ? (
+                            <ul className="space-y-4">
+                              {a.risks.map((r) => (
+                                <li key={r.id}>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="outline">{RISK_CATEGORY_LABEL[r.category]}</Badge>
+                                    <span className="text-100 text-muted-foreground">
+                                      {RISK_LEVEL_LABEL[r.level]} risk
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-200">{r.description}</p>
+                                  <p className="mt-1 text-200 text-muted-foreground">
+                                    If it happens: {r.potentialImpact}
+                                  </p>
+                                  {/* FR-10: never null — a risk without a mitigation is an
+                                      obstacle, not analysis. */}
+                                  <p className="mt-1 text-200">
+                                    <span className="font-medium">What to do about it: </span>
+                                    {r.mitigation}
+                                  </p>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
 
-                      {a.dependencies.length > 0 ? (
-                        <div>
-                          <h4 className="text-300 font-medium">Depends on</h4>
-                          <ul className="mt-2 space-y-2">
-                            {a.dependencies.map((d) => (
-                              <li key={d.id} className="text-200">
-                                <Badge variant="outline">{DEPENDENCY_KIND_LABEL[d.kind]}</Badge>{" "}
-                                {d.description}
-                                {d.blocking ? (
-                                  <span className="text-muted-foreground"> · blocking</span>
-                                ) : null}
-                              </li>
-                            ))}
-                          </ul>
+                          {a.dependencies.length > 0 ? (
+                            <div>
+                              <h4 className="text-300 font-medium">Depends on</h4>
+                              <ul className="mt-2 space-y-2">
+                                {a.dependencies.map((d) => (
+                                  <li key={d.id} className="text-200">
+                                    <Badge variant="outline">{DEPENDENCY_KIND_LABEL[d.kind]}</Badge>{" "}
+                                    {d.description}
+                                    {d.blocking ? (
+                                      <span className="text-muted-foreground"> · blocking</span>
+                                    ) : null}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
                         </div>
-                      ) : null}
-                    </div>
-                  </Provenance>
-                </CardContent>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </Provenance>
               </Card>
             ) : null}
 
             {/* ── Effort, cost and timeline (FR-07, FR-08, FR-09) ── */}
             {a.plan ? (
-              <Card>
-                <CardHeader><CardTitle>What it would take</CardTitle></CardHeader>
+              <Card className="pb-0">
+                <CardHeader><CardTitle className="font-serif">What it would take</CardTitle></CardHeader>
                 <CardContent>
                   <Provenance
                     state={provenanceState(a.plan.provenance)}
                     validatedBy={validatedByOf(a.plan.provenance)}
                   >
                     <div className="space-y-5">
+                      {/* The three headline figures stay visible closed or open — they
+                          are the one-glance answer to "how big a lift is this," which
+                          §12 wants readable without a click. Only the itemised
+                          requirements and timeline (the detail behind those figures)
+                          collapse. */}
                       <dl className="grid gap-4 sm:grid-cols-3">
                         <Stat label="Effort" value={EFFORT_LABEL[a.plan.effortClass]} />
                         <Stat label="Cost" value={EFFORT_LABEL[a.plan.costClass]} />
@@ -424,55 +502,73 @@ export function AnalysisTab() {
                       </dl>
 
                       {a.plan.notes ? <p className="text-200">{a.plan.notes}</p> : null}
-
-                      {a.plan.requirements.length > 0 ? (
-                        <div>
-                          <h4 className="text-300 font-medium">What is needed</h4>
-                          <ul className="mt-2 space-y-2">
-                            {a.plan.requirements.map((r) => (
-                              <li key={r.id} className="text-200">
-                                <Badge variant="outline">{REQUIREMENT_KIND_LABEL[r.kind]}</Badge>{" "}
-                                {r.item}
-                                {r.isMandatory ? (
-                                  <span className="text-muted-foreground"> · required</span>
-                                ) : null}
-                                {r.detail ? (
-                                  <span className="block text-muted-foreground">{r.detail}</span>
-                                ) : null}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-
-                      {a.plan.timeline.length > 0 ? (
-                        <div>
-                          <h4 className="text-300 font-medium">Rough timeline</h4>
-                          {/* FR-08: the caveat is not decoration. `isPreliminary` is a
-                              literal `true` in the contract precisely so this line cannot
-                              be rendered without it. */}
-                          <p className="text-100 text-muted-foreground">
-                            Preliminary estimates, not commitments.
-                          </p>
-                          <ul className="mt-2 space-y-1">
-                            {a.plan.timeline.map((t) => (
-                              <li
-                                key={t.phase}
-                                className="flex items-baseline justify-between gap-3 text-200"
-                              >
-                                <span>{TIMELINE_PHASE_LABEL[t.phase]}</span>
-                                <span className="tabular-nums text-muted-foreground">
-                                  {t.minWeeks}–{t.maxWeeks} weeks
-                                  {t.isPreliminary ? " (preliminary)" : ""}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
                     </div>
                   </Provenance>
                 </CardContent>
+
+                {a.plan.requirements.length > 0 || a.plan.timeline.length > 0 ? (
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="plan-detail" className="border-none">
+                      <AccordionTrigger className="px-6 py-4 text-200 font-medium text-muted-foreground hover:no-underline hover:text-foreground">
+                        Requirements and timeline
+                      </AccordionTrigger>
+                      <AccordionContent className="px-6">
+                        <Provenance
+                          state={provenanceState(a.plan.provenance)}
+                          validatedBy={validatedByOf(a.plan.provenance)}
+                        >
+                          <div className="space-y-5">
+                            {a.plan.requirements.length > 0 ? (
+                              <div>
+                                <h4 className="text-300 font-medium">What is needed</h4>
+                                <ul className="mt-2 space-y-2">
+                                  {a.plan.requirements.map((r) => (
+                                    <li key={r.id} className="text-200">
+                                      <Badge variant="outline">{REQUIREMENT_KIND_LABEL[r.kind]}</Badge>{" "}
+                                      {r.item}
+                                      {r.isMandatory ? (
+                                        <span className="text-muted-foreground"> · required</span>
+                                      ) : null}
+                                      {r.detail ? (
+                                        <span className="block text-muted-foreground">{r.detail}</span>
+                                      ) : null}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
+
+                            {a.plan.timeline.length > 0 ? (
+                              <div>
+                                <h4 className="text-300 font-medium">Rough timeline</h4>
+                                {/* FR-08: the caveat is not decoration. `isPreliminary` is a
+                                    literal `true` in the contract precisely so this line
+                                    cannot be rendered without it. */}
+                                <p className="text-100 text-muted-foreground">
+                                  Preliminary estimates, not commitments.
+                                </p>
+                                <ul className="mt-2 space-y-1">
+                                  {a.plan.timeline.map((t) => (
+                                    <li
+                                      key={t.phase}
+                                      className="flex items-baseline justify-between gap-3 text-200"
+                                    >
+                                      <span>{TIMELINE_PHASE_LABEL[t.phase]}</span>
+                                      <span className="tabular-nums text-muted-foreground">
+                                        {t.minWeeks}–{t.maxWeeks} weeks
+                                        {t.isPreliminary ? " (preliminary)" : ""}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
+                          </div>
+                        </Provenance>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                ) : null}
               </Card>
             ) : null}
           </div>
@@ -483,6 +579,17 @@ export function AnalysisTab() {
 }
 
 /* ── Small presentational helpers, local to this page by design ── */
+
+/** One "at a glance" tile — a quiet card, not a KPI dashboard; this page's whole argument
+ * is the detail underneath, so these four figures stay understated. */
+function GlanceStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-3.5">
+      <p className="text-100 text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-300 font-semibold text-foreground">{value}</p>
+    </div>
+  );
+}
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -539,9 +646,12 @@ function UseCaseGroup({
     <div>
       <h4 className="text-300 font-medium">{heading}</h4>
       <p className="text-100 text-muted-foreground">{blurb}</p>
-      <ul className="mt-2 space-y-4">
+      {/* Each use case as its own small card (enterprise-polish pass §12), not a bullet in
+          a shared list — "[Use case] [Use case] [Use case]" reads as distinct, scannable
+          items rather than one run-on list two categories deep. */}
+      <ul className="mt-2 space-y-2.5">
         {cases.map((u) => (
-          <li key={u.id}>
+          <li key={u.id} className="rounded-lg border border-border bg-card p-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-200 font-medium">{u.title}</span>
               {/* FR-04: realistic-now and potential-future must stay distinguishable. */}

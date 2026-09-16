@@ -56,7 +56,10 @@ export function EmptyState({
         reads as something failing to load.
       */}
       {icon ? (
-        <div className="grid size-14 place-items-center rounded-2xl bg-accent text-primary shadow-e1">
+        // A soft two-stop tile with an outer glow ring, not a flat chip (visual-richness
+        // pass): an empty state is often the very first thing a new person or a client
+        // demo sees, and a flat solid tile reads as decoration nobody thought about twice.
+        <div className="grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-accent-100 to-accent-050 text-primary shadow-e1 ring-8 ring-accent-050/60">
           {icon}
         </div>
       ) : null}

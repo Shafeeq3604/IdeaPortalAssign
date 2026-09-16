@@ -43,6 +43,42 @@ function useFirstPaint(enabled: boolean): boolean {
   return first;
 }
 
+/**
+ * The digits themselves count 0 → value over `--dur-tally`, on first paint only — the
+ * opacity fade alone (the previous implementation) hid the number while it was invisible
+ * and then simply revealed the final figure, which is not a tally, just a fade. Skips
+ * straight to `value` when `enabled` is false or the viewer prefers reduced motion.
+ */
+function useTally(value: number, enabled: boolean): number {
+  const reduced =
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const [display, setDisplay] = React.useState(enabled && !reduced ? 0 : value);
+  const tallied = React.useRef(!enabled || reduced);
+
+  React.useEffect(() => {
+    // First paint only (SPEC §8.3): once the initial tally has run, a later change to
+    // `value` (a re-evaluated score) updates the figure directly rather than re-tallying
+    // it as though it were arriving for the first time again.
+    if (tallied.current) {
+      setDisplay(value);
+      return;
+    }
+    tallied.current = true;
+    const durationMs = 600; // matches --dur-tally
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs);
+      setDisplay(value * t);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+
+  return display;
+}
+
 /* ══════════════════════════════════════════════════════════════════
  * ScoreDisplay — numbers arrive, they do not pop (SPEC §8.1).
  * ══════════════════════════════════════════════════════════════════ */
@@ -54,7 +90,7 @@ const SIZE: Record<NonNullable<ScoreDisplayProps["size"]>, string> = {
 };
 
 export function ScoreDisplay({ value, max = 100, size = "md", animate = true }: ScoreDisplayProps) {
-  const arriving = useFirstPaint(animate);
+  const tallied = useTally(value, animate);
 
   return (
     <span className={cn("inline-flex items-baseline gap-1 tabular-nums", SIZE[size])}>
@@ -63,15 +99,11 @@ export function ScoreDisplay({ value, max = 100, size = "md", animate = true }: 
         number on the Evaluation tab (the composite score everything else on the page
         explains), and it read exactly as important as the "/ 100" beside it. Reserved for
         this one figure, not applied to body text generally, so it stays a signal rather
-        than a decoration repeated everywhere.
+        than a decoration repeated everywhere. The digits themselves count up to it
+        (`useTally`, first paint only) rather than merely fading in at their final value.
       */}
-      <span
-        className={cn(
-          "bg-gradient-to-br from-accent-700 to-grad-to bg-clip-text font-serif font-bold text-transparent transition-opacity duration-[var(--dur-tally)]",
-          arriving && "opacity-0",
-        )}
-      >
-        {value.toFixed(1)}
+      <span className="bg-gradient-to-br from-accent-700 to-grad-to bg-clip-text font-serif font-bold text-transparent">
+        {tallied.toFixed(1)}
       </span>
       <span className="text-200 text-muted-foreground">/ {max}</span>
     </span>
@@ -246,18 +278,29 @@ export function ExplanationPanel({
 }: ExplanationPanelProps) {
   return (
     <div className="space-y-5">
-      <ExplanationGroup
-        heading="What lifted this idea"
-        items={strengths}
-        emptyNote="Nothing scored strongly enough to single out."
-        tone="up"
-      />
-      <ExplanationGroup
-        heading="What held it back"
-        items={constraints}
-        emptyNote="Nothing scored low enough to single out."
-        tone="down"
-      />
+      {/*
+        Two tiles side by side, not two sections stacked — "what lifted this idea" and
+        "what held it back" are the two halves of one answer (visual-richness pass:
+        stronger visual grouping for the platform's actual argument for a rank), so they
+        read as a pairing rather than a scroll of two lists one after another. Each tile
+        keeps its own tinted ground (the same `factor-up`/`factor-down` direction tones
+        used everywhere else a criterion's direction is shown — P-1: colour, never
+        quality) so the eye separates "helped" from "held back" before reading a word.
+      */}
+      <div className="grid gap-3 md:grid-cols-2">
+        <ExplanationGroup
+          heading="What lifted this idea"
+          items={strengths}
+          emptyNote="Nothing scored strongly enough to single out."
+          tone="up"
+        />
+        <ExplanationGroup
+          heading="What held it back"
+          items={constraints}
+          emptyNote="Nothing scored low enough to single out."
+          tone="down"
+        />
+      </div>
 
       {peerComparisons.length > 0 ? (
         <div>
@@ -307,9 +350,26 @@ function ExplanationGroup({
   emptyNote: string;
   tone: "up" | "down";
 }) {
+  const up = tone === "up";
   return (
-    <div>
-      <h4 className="font-serif text-300 font-semibold">{heading}</h4>
+    <div
+      className={cn(
+        "rounded-xl border p-4",
+        up ? "border-factor-up/20 bg-factor-up-bg/40" : "border-factor-down/20 bg-factor-down-bg/40",
+      )}
+    >
+      <h4 className="flex items-center gap-2 font-serif text-300 font-semibold">
+        <span
+          aria-hidden
+          className={cn(
+            "grid size-6 shrink-0 place-items-center rounded-full",
+            up ? "bg-factor-up-bg text-factor-up" : "bg-factor-down-bg text-factor-down",
+          )}
+        >
+          {up ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />}
+        </span>
+        {heading}
+      </h4>
       {items.length === 0 ? (
         <p className="mt-1 text-200 text-muted-foreground">{emptyNote}</p>
       ) : (

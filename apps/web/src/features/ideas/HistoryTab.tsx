@@ -67,7 +67,7 @@ export function HistoryTab() {
         return (
           <div className="space-y-6">
             <Card>
-              <CardHeader><CardTitle>Versions</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-serif">Versions</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 {!anyEvaluated ? (
                   <p className="text-200 text-muted-foreground">
@@ -94,7 +94,7 @@ export function HistoryTab() {
             </Card>
 
             <Card>
-              <CardHeader><CardTitle>Status changes</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-serif">Status changes</CardTitle></CardHeader>
               <CardContent>
                 {history.data.statusHistory.length === 0 ? (
                   <p className="text-200 text-muted-foreground">

@@ -2,10 +2,10 @@ import * as React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronDown, Compass, LayoutDashboard, ListChecks, LogOut, PenSquare, Plus, Settings,
+  ChevronDown, Compass, LayoutDashboard, ListChecks, LogOut, PenSquare, Plus, Search, Settings,
   ShieldCheck, Sparkles, Trophy, User,
 } from "lucide-react";
-import { Button } from "@iep/ui";
+import { Button, Input } from "@iep/ui";
 import type { Role } from "@iep/contracts";
 import { api } from "./api-client";
 import { canSee, useSession } from "./use-session";
@@ -105,6 +105,43 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
 
 /** How a ghost control has to look sitting on the dark gradient bar. */
 const ON_BAR = "text-grad-ink hover:bg-grad-ink/15 hover:text-grad-ink";
+
+/**
+ * Global search — reuses `IdeaListPage`'s own `q` filter (SPEC §6.2) rather than a new
+ * endpoint: submitting here is exactly the same request a manual visit to
+ * `/ideas?q=...` would make, so the "search ideas, departments, keywords" ask from the
+ * enterprise-polish pass costs nothing on the backend. Uncontrolled — the header isn't
+ * the URL's source of truth for `q`, `IdeaListPage`'s own `SearchBox` is, once landed.
+ */
+function HeaderSearch() {
+  const navigate = useNavigate();
+  const [term, setTerm] = React.useState("");
+
+  return (
+    <form
+      role="search"
+      className="relative hidden w-full max-w-80 md:block"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const q = term.trim();
+        navigate(q ? `/ideas?q=${encodeURIComponent(q)}` : "/ideas");
+      }}
+    >
+      <Search
+        aria-hidden
+        className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-grad-ink-soft"
+      />
+      <Input
+        type="search"
+        value={term}
+        onChange={(e) => setTerm(e.target.value)}
+        placeholder="Search ideas, departments…"
+        aria-label="Search ideas, departments, or keywords"
+        className="h-8 w-full border-grad-rule bg-grad-ink/10 pl-9 text-200 text-grad-ink placeholder:text-grad-ink-soft focus-visible:bg-card focus-visible:text-foreground focus-visible:placeholder:text-muted-foreground"
+      />
+    </form>
+  );
+}
 
 function AccountMenu() {
   const { data } = useSession();
@@ -318,6 +355,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {PRODUCT_SHORT}
           </span>
         </Link>
+
+        <div className="mx-2 flex-1 md:max-w-80">
+          <HeaderSearch />
+        </div>
 
         {/*
           Each control is told how to look on a dark bar. Explicitly, one at a time.
