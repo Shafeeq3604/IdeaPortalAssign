@@ -247,8 +247,12 @@ export function ScoreRing({
       <span
         className={`flex ${inner} flex-col items-center justify-center rounded-full bg-card`}
       >
+        {/* Gradient-filled, like `ScoreDisplay`'s own composite figure (evaluation.tsx) —
+            the number inside this ring IS the reason the ring exists, so it gets the same
+            treatment reserved for a page's single most important figure, everywhere this
+            ring appears (idea cards, the dashboard leader, Compare). */}
         <b
-          className={`font-serif ${size === "md" ? "text-600" : "text-400"} font-bold leading-none tabular-nums text-accent-700`}
+          className={`bg-gradient-to-br from-accent-700 to-grad-to bg-clip-text font-serif ${size === "md" ? "text-600" : "text-400"} font-bold leading-none tabular-nums text-transparent`}
         >
           {value.toFixed(1)}
         </b>

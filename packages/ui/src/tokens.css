@@ -395,8 +395,20 @@
 }
 
 /* ── Base ── */
+/*
+ * Two faint, fixed radial washes instead of a flat fill — the ground every page sits on
+ * had zero depth of its own, so every shadow and elevation elsewhere had to do its work
+ * against a completely inert backdrop. `color-mix` derives both from tokens already
+ * defined above (the accent and gradient scales), so this stays correct in dark mode
+ * without a second set of values, and at 5-6% it reads as atmosphere, not a visible
+ * gradient — it should not be nameable as "a gradient" at a glance.
+ */
 body {
-  background: var(--canvas);
+  background:
+    radial-gradient(ellipse 80% 50% at 15% -10%, color-mix(in oklab, var(--accent-600) 6%, transparent), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, color-mix(in oklab, var(--grad-to) 5%, transparent), transparent),
+    var(--canvas);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-sans);
   font-size: var(--fs-300);

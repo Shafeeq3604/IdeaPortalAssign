@@ -5,7 +5,16 @@ import { Slot } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  /*
+   * `transition-all` alone (the previous value) only ever animated a background-colour
+   * darken — correct, but the only feedback a click produced anywhere in the app was a
+   * flat colour swap. `--dur-fast`/`--ease-out-quint` are the same tokens the score ring
+   * and card hovers use, so a press feels like it belongs to the same system rather than
+   * inventing its own timing; `active:scale` is the tactile "this registered" cue a colour
+   * change alone doesn't give, and `hover:shadow-e2` lifts a button off the page the same
+   * way a Card now does, instead of being the one interactive surface with no elevation.
+   */
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all duration-[var(--dur-fast)] ease-[var(--ease-out-quint)] outline-none hover:shadow-e2 active:scale-[0.97] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

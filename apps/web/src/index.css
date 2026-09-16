@@ -26,8 +26,15 @@
     margin: 0;
   }
 
+  /*
+   * The actual background rule lives in packages/ui/src/tokens.css instead of here —
+   * that file's `body {}` is UNLAYERED, and unlayered CSS always wins over anything in
+   * `@layer base`, regardless of source order (the exact bug this file's own opening
+   * comment already documents, from the other direction: a bare rule beating a layered
+   * Tailwind utility). A `background` declared here would be correctly written and
+   * silently have zero effect.
+   */
   body {
-    background: var(--canvas);
     color: var(--text);
     font-family: var(--font-sans);
     font-size: var(--fs-300);

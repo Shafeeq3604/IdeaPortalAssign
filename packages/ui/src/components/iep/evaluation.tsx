@@ -58,8 +58,18 @@ export function ScoreDisplay({ value, max = 100, size = "md", animate = true }: 
 
   return (
     <span className={cn("inline-flex items-baseline gap-1 tabular-nums", SIZE[size])}>
+      {/*
+        A gradient fill, not a flat foreground colour — this is the single most-looked-at
+        number on the Evaluation tab (the composite score everything else on the page
+        explains), and it read exactly as important as the "/ 100" beside it. Reserved for
+        this one figure, not applied to body text generally, so it stays a signal rather
+        than a decoration repeated everywhere.
+      */}
       <span
-        className={cn("font-semibold transition-opacity duration-[var(--dur-tally)]", arriving && "opacity-0")}
+        className={cn(
+          "bg-gradient-to-br from-accent-700 to-grad-to bg-clip-text font-serif font-bold text-transparent transition-opacity duration-[var(--dur-tally)]",
+          arriving && "opacity-0",
+        )}
       >
         {value.toFixed(1)}
       </span>
