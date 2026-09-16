@@ -130,11 +130,20 @@ export function EvaluationTab() {
               </CardContent>
             </Card>
 
-            {/* ── the explanation, inline (P-2) ── */}
+            {/*
+              ── the explanation, inline (P-2) ──
+
+              Not another `<Card>`. Score and Every-criterion either side of this ARE
+              cards, deliberately, and the sameness was the problem: the one section
+              that's actually this product's argument for why anyone should trust a rank
+              looked exactly as important as a page footnote. A left rule in the brand
+              accent and a serif heading — the same face `PageHero` uses for a page's own
+              name — mark it as the section that gets read first, not last.
+            */}
             {e.ranking ? (
-              <Card>
-                <CardHeader><CardTitle>Why it ranks here</CardTitle></CardHeader>
-                <CardContent>
+              <section className="rounded-xl border-l-4 border-accent-600 bg-accent-050/50 p-6">
+                <h2 className="font-serif text-500 font-semibold">Why it ranks here</h2>
+                <div className="mt-4">
                   <ExplanationPanel
                     strengths={e.ranking.explanation.strengths}
                     constraints={e.ranking.explanation.constraints}
@@ -149,18 +158,16 @@ export function EvaluationTab() {
                     </Link>
                     .
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </section>
             ) : (
-              <Card>
-                <CardHeader><CardTitle>Why it ranks here</CardTitle></CardHeader>
-                <CardContent>
-                  <p className="text-200 text-muted-foreground">
-                    This idea has a score but has not been included in a ranking run yet.
-                    The scores below already explain how that number was reached.
-                  </p>
-                </CardContent>
-              </Card>
+              <section className="rounded-xl border-l-4 border-border bg-muted/40 p-6">
+                <h2 className="font-serif text-500 font-semibold">Why it ranks here</h2>
+                <p className="mt-2 text-200 text-muted-foreground">
+                  This idea has a score but has not been included in a ranking run yet.
+                  The scores below already explain how that number was reached.
+                </p>
+              </section>
             )}
 
             {/* ── every criterion, grouped, each with its evidence ── */}

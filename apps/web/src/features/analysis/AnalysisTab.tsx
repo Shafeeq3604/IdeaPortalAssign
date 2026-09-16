@@ -143,7 +143,9 @@ export function AnalysisTab() {
             <p className="text-100 text-muted-foreground">
               Analysis of version {a.versionNo}. Everything below describes the idea — none
               of it scores or ranks it. The numbers are on the{" "}
-              <Link to={`/ideas/${ideaId}/evaluation`}>Evaluation tab</Link>.
+              <Link to={`/ideas/${ideaId}/evaluation`}>Evaluation tab</Link>. Every AI-written
+              block below is marked as such until a person checks it —{" "}
+              <Link to="/help/data-and-ai">how this works</Link>.
             </p>
 
             {/* ── Structured proposal (FR-03) ── */}

@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Trophy } from "lucide-react";
 import { Button, Checkbox, EmptyState, ErrorState, Skeleton, StatusPill } from "@iep/ui";
 import type { ExplanationItem, ListRankingsResponse, RankingEntry } from "@iep/contracts";
-import { HeroStat, PageHero } from "../../app/PageHero";
+import { InlineStat, PageHeading } from "../../app/PageHero";
 import { FEASIBILITY_LABEL } from "../analysis/api";
 import { useProfiles, useRankingRun, useRankings } from "./api";
 import { RankDelta } from "./DashboardHero";
@@ -85,11 +85,15 @@ export function RankingsPage({ mode = "current" }: { mode?: "current" | "run" })
         <Link to="/ideas">Ideas</Link>  ›  {mode === "run" ? "A past ranking" : "Rankings"}
       </nav>
 
-      {/* Same `.dash-hero` shell as the Management/Admin dashboard (DashboardHero.tsx) —
-          the board itself is already the richest screen most roles can reach; this
-          brings its own header up to the same standard rather than opening on a plain
-          h1 and dropping straight into a filter row. */}
-      <PageHero
+      {/*
+        A plain heading, not the `.dash-hero` gradient shell. The board itself — the
+        podium, every row's own explanation — is already the richest content most roles
+        can reach; a page people open dozens of times a day to check where things stand
+        doesn't need ceremony on top of that, it needs to get out of the way. The two
+        figures that used to sit in the hero's aside card move inline next to the
+        heading instead of disappearing.
+      */}
+      <PageHeading
         icon={Trophy}
         heading={mode === "run" ? "Ranking run" : "Rankings"}
         description={
@@ -97,14 +101,12 @@ export function RankingsPage({ mode = "current" }: { mode?: "current" | "run" })
             ? "A snapshot of the board as it stood at the moment this run was computed."
             : "Every scored idea, ranked and explained — the same weights applied to every submission, published with the arithmetic shown."
         }
-        aside={
+        stats={
           query.data ? (
-            <div className="rounded-2xl bg-grad-ink/8 p-4 ring-1 ring-grad-rule">
-              <div className="flex gap-5">
-                <HeroStat value={String(query.data.run.cohortSize)} label="on the board" />
-                <HeroStat value={leader ? leader.compositeScore.toFixed(1) : "—"} label="top score" />
-              </div>
-            </div>
+            <>
+              <InlineStat value={String(query.data.run.cohortSize)} label="on the board" />
+              <InlineStat value={leader ? leader.compositeScore.toFixed(1) : "—"} label="top score" />
+            </>
           ) : undefined
         }
       />
@@ -150,6 +152,22 @@ export function RankingsPage({ mode = "current" }: { mode?: "current" | "run" })
  * accessible name and the tooltip, and still appears in full on the Evaluation tab,
  * which is the surface with room for it.
  */
+/**
+ * True when the engine's top strength and top constraint are literally the same
+ * criterion (matched on `criterionKey`, not the label — labels are not guaranteed
+ * unique, keys are).
+ *
+ * This happens whenever only one criterion has actually been scored: that criterion
+ * is simultaneously the best thing about the idea and the only thing holding it back,
+ * so both "top" picks resolve to it. Shown as two separate chips, that reads as the
+ * board contradicting itself ("Strongest: Business impact 50/100" right beside
+ * "Weakest: Business impact 50/100") — exactly the kind of unexplained number P-2
+ * exists to prevent. `FactorPair` below collapses that case into one honest line.
+ */
+function sameCriterion(a: ExplanationItem | null, b: ExplanationItem | null): boolean {
+  return a !== null && b !== null && a.criterionKey === b.criterionKey;
+}
+
 function Factor({ kind, item }: { kind: "up" | "down"; item: ExplanationItem | null }) {
   const up = kind === "up";
   const tone = up ? "text-factor-up" : "text-factor-down";
@@ -197,6 +215,43 @@ function Factor({ kind, item }: { kind: "up" | "down"; item: ExplanationItem | n
         </dd>
       )}
     </div>
+  );
+}
+
+/**
+ * Renders both `Factor` chips, unless they name the same criterion — see
+ * `sameCriterion` above. In the collapsed case there is one figure, not two opposing
+ * ones, so it gets one line instead of a strongest/weakest pair that would otherwise
+ * disagree with itself while pointing at the same number.
+ */
+function FactorPair({
+  strength,
+  constraint,
+}: {
+  strength: ExplanationItem | null;
+  constraint: ExplanationItem | null;
+}) {
+  if (sameCriterion(strength, constraint)) {
+    // `sameCriterion` guarantees both are non-null here.
+    const only = strength as ExplanationItem;
+    return (
+      <div className="sm:col-span-2">
+        <dt className="text-100 font-medium uppercase tracking-wider text-muted-foreground">
+          Only criterion scored so far
+        </dt>
+        <dd className="text-200" title={only.text}>
+          <span className="font-medium">{only.criterionLabel}</span> is the whole story on this
+          idea right now — nothing else has been scored yet.
+        </dd>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Factor kind="up" item={strength} />
+      <Factor kind="down" item={constraint} />
+    </>
   );
 }
 
@@ -313,27 +368,37 @@ function PodiumCard({
         // as an unexplained internal number to anyone who hadn't already read the
         // Evaluation tab.
         <div className="relative mt-3.5 flex flex-wrap gap-2">
-          {row.topStrength ? (
+          {sameCriterion(row.topStrength, row.topConstraint) ? (
             <span
               className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-bold ring-1 ring-grad-rule"
-              title={row.topStrength.text}
+              title={row.topStrength!.text}
             >
-              {row.topStrength.criterionLabel} +{row.topStrength.contribution.toFixed(1)} pts
+              {row.topStrength!.criterionLabel} — only criterion scored so far
             </span>
-          ) : null}
-          {row.topConstraint?.headroom === undefined ? null : (
-            <span
-              className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-bold ring-1 ring-grad-rule"
-              title={row.topConstraint.text}
-            >
-              {row.topConstraint.criterionLabel} − up to {row.topConstraint.headroom.toFixed(1)} pts
-            </span>
+          ) : (
+            <>
+              {row.topStrength ? (
+                <span
+                  className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-bold ring-1 ring-grad-rule"
+                  title={row.topStrength.text}
+                >
+                  {row.topStrength.criterionLabel} +{row.topStrength.contribution.toFixed(1)} pts
+                </span>
+              ) : null}
+              {row.topConstraint?.headroom === undefined ? null : (
+                <span
+                  className="inline-flex items-center rounded-full bg-grad-ink/15 px-2.5 py-1 text-100 font-bold ring-1 ring-grad-rule"
+                  title={row.topConstraint.text}
+                >
+                  {row.topConstraint.criterionLabel} − up to {row.topConstraint.headroom.toFixed(1)} pts
+                </span>
+              )}
+            </>
           )}
         </div>
       ) : (
         <dl className="mt-3 grid gap-1">
-          <Factor kind="up" item={row.topStrength} />
-          <Factor kind="down" item={row.topConstraint} />
+          <FactorPair strength={row.topStrength} constraint={row.topConstraint} />
         </dl>
       )}
 
@@ -549,8 +614,7 @@ function Board({
                   one to make silently here.
                 */}
                 <dl className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
-                  <Factor kind="up" item={row.topStrength} />
-                  <Factor kind="down" item={row.topConstraint} />
+                  <FactorPair strength={row.topStrength} constraint={row.topConstraint} />
                 </dl>
               </div>
 

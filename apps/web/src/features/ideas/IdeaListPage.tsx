@@ -1,12 +1,15 @@
 import * as React from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Archive, ChevronDown, Compass, Lightbulb, Search, User, X } from "lucide-react";
-import { Button, EmptyState, ErrorState, Input, Skeleton, StatusPill } from "@iep/ui";
+import { Archive, ArrowDownUp, ChevronDown, Compass, Lightbulb, Search, User, X } from "lucide-react";
+import {
+  Button, EmptyState, ErrorState, Input, Select, SelectContent, SelectItem, SelectTrigger,
+  SelectValue, Skeleton, StatusPill,
+} from "@iep/ui";
 import { IdeaStatus } from "@iep/contracts";
 import type { IdeaSummary } from "@iep/contracts";
 import { useSession } from "../../app/use-session";
 import { HERO_PRIMARY_ACTION, HeroStat, PageHero } from "../../app/PageHero";
-import { STATUS_LABEL, parseSort, useIdeaList } from "./api";
+import { STATUS_LABEL, parseSort, useIdeaList, type IdeaSort } from "./api";
 import { VoteCount } from "../feedback/VoteButtons";
 import { ScoreRing } from "../rankings/DashboardHero";
 
@@ -43,6 +46,46 @@ const FILTER_TONE: Record<(typeof VISIBLE_STATUSES)[number], string> = {
   UNDER_REVIEW: "bg-state-warn-bg text-state-warn hover:bg-state-warn-bg",
   RANKED: "bg-accent text-accent-foreground hover:bg-accent",
 };
+
+/** Every value `parseSort` accepts, in the order offered — same closed set as the API's
+ * own `ListIdeasQuery["sort"]`, so a new sort added to the contract is a compile error
+ * here rather than a silently missing menu item. */
+const SORT_LABEL: Record<IdeaSort, string> = {
+  recent: "Newest first",
+  oldest: "Oldest first",
+  rank: "Rank",
+  title: "Title (A–Z)",
+  status: "Status",
+};
+
+/**
+ * The one control this list was missing (Idea Platform Redesign — "Explore ideas").
+ *
+ * Filtering by status was the only way to narrow 20+ ideas down to something scannable;
+ * there was no way to say HOW to order what's left. Same URL-is-the-source-of-truth
+ * contract as everything else on this page (§7.8) — picking an option is a `sort` write,
+ * so a shared or reloaded link keeps whatever order was chosen.
+ */
+function SortSelect({ value, onChange }: { value: IdeaSort; onChange: (next: IdeaSort) => void }) {
+  return (
+    <Select value={value} onValueChange={(next) => onChange(next as IdeaSort)}>
+      <SelectTrigger
+        aria-label="Sort ideas"
+        className="h-9 w-auto gap-1.5 rounded-full border-none bg-transparent font-medium text-muted-foreground shadow-none hover:bg-muted"
+      >
+        <ArrowDownUp aria-hidden className="size-3.5" />
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent align="end">
+        {(Object.keys(SORT_LABEL) as IdeaSort[]).map((key) => (
+          <SelectItem key={key} value={key}>
+            {SORT_LABEL[key]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 /**
  * Search submits rather than filtering as you type.
@@ -154,6 +197,11 @@ export function IdeaListPage({ scope }: Props) {
       }
     });
 
+  /** An explicit choice always wins over the "rank once Ranked is filtered for" default
+   * above — picking "Newest first" while looking at Ranked ideas is a real, sortable
+   * decision, not a state that default should silently override. */
+  const setSort = (value: IdeaSort) => update((next) => next.set("sort", value));
+
   return (
     <main className="page">
       {/*
@@ -257,11 +305,19 @@ export function IdeaListPage({ scope }: Props) {
             Clear
           </Button>
         ) : null}
+
+        {/* The one control this list was missing: a way to say HOW to order what the
+            filters above narrowed it down to, not just what to narrow it to. `ml-auto`
+            keeps it apart from the filter pills rather than reading as one more of them —
+            it changes ORDER, not WHAT'S INCLUDED. */}
+        <div className="ml-auto">
+          <SortSelect value={sort} onChange={setSort} />
+        </div>
       </div>
 
       {list.isPending ? (
-        <div className="grid gap-4 lg:grid-cols-2" aria-busy="true">
-          {Array.from({ length: 4 }, (_, i) => (
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3" aria-busy="true">
+          {Array.from({ length: 6 }, (_, i) => (
             <Skeleton key={i} className="h-44 w-full rounded-2xl" />
           ))}
         </div>
@@ -301,8 +357,14 @@ export function IdeaListPage({ scope }: Props) {
 
             The controls are still one per card and still outside the link: a vote count
             nested inside a navigation target is a control you cannot reach without leaving.
+
+            A third column at `xl` (a card this dense — a title, a pill, a score ring, one
+            row of metadata — has no reason to sit alone in a wide single column on a
+            large monitor): two columns was the whole grid on anything short of an
+            ultrawide, which is most of the unused width the "explore" surface was leaving
+            on the table.
           */}
-          <ul className="grid list-none gap-4 p-0 lg:grid-cols-2">
+          <ul className="grid list-none gap-4 p-0 lg:grid-cols-2 xl:grid-cols-3">
             {list.data.items.map((idea) => (
               <li key={idea.id}>
                 <IdeaCard idea={idea} />

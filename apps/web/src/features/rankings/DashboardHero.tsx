@@ -1,4 +1,4 @@
-import type * as React from "react";
+import * as React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, ListChecks, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import { matchRouteId } from "@iep/contracts";
@@ -220,12 +220,29 @@ export function ScoreRing({
   const outer = size === "md" ? "size-24" : "size-16";
   const inner = size === "md" ? "size-[4.625rem]" : "size-13";
 
+  /**
+   * The ring used to render straight to its final `--ring-turn` on the very first paint —
+   * correct arithmetic, but a number that never arrives, it is just already there, which
+   * reads as inert next to `ScoreDisplay`'s own tally and `ContributionBar`'s bar fill
+   * (both of which animate in). Starting at 0 and letting an effect move it to `value`
+   * right after mount is what gives `.score-ring`'s registered-property transition
+   * (index.css) something to animate — and because this re-runs on every `value` change,
+   * not once, a re-rank after a recompute redraws the SAME idea's ring from its old
+   * fraction to its new one instead of snapping, which is the other half of what was
+   * missing: nothing on this board visibly moved when a recompute actually changed it.
+   */
+  const [display, setDisplay] = React.useState(0);
+  React.useEffect(() => {
+    const id = requestAnimationFrame(() => setDisplay(Math.max(0, Math.min(100, value))));
+    return () => cancelAnimationFrame(id);
+  }, [value]);
+
   return (
     <span
       aria-hidden
       className={`score-ring${onBrand ? " score-ring--on-brand" : ""} relative grid ${outer} shrink-0 place-items-center rounded-full shadow-e1`}
       /* A fraction of a turn — the CSS does the arithmetic on the gradient stop. */
-      style={{ "--ring-turn": `${Math.max(0, Math.min(100, value)) / 100}turn` } as React.CSSProperties}
+      style={{ "--ring-turn": `${display / 100}turn` } as React.CSSProperties}
     >
       <span
         className={`flex ${inner} flex-col items-center justify-center rounded-full bg-card`}

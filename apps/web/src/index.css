@@ -414,12 +414,33 @@
 }
 
 /*
+ * `--ring-turn` has to be a REGISTERED custom property before it can transition. An
+ * un-registered custom property has no defined type, so the browser cannot interpolate
+ * between two values of it — the conic-gradient built from it jumps straight to the new
+ * angle every time a score changes, which is exactly what §8.3's "tally" convention (a
+ * number arrives, it does not pop) forbids everywhere else a figure lands on screen.
+ * `<angle>` is what makes the fill itself an animatable value rather than a redraw.
+ */
+@property --ring-turn {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0turn;
+}
+
+/*
  * The score ring — a conic gradient filled to `--ring-turn`.
  *
  * The ramp, not a verdict palette: a 40 and a 90 differ in how much of the ring is
  * filled, not in hue (P-1). Set `--ring-turn` inline as a `turn` value.
+ *
+ * The transition is on the CUSTOM PROPERTY, not on `background` — Chromium and Firefox
+ * will not smoothly cross-fade two conic-gradient stop lists, but they will animate a
+ * registered `<angle>` property, and the gradient is built FROM that property, so
+ * animating it animates the fill. `--dur-tally` already collapses to 0ms under
+ * `prefers-reduced-motion` (tokens.css), so this respects that for free.
  */
 .score-ring {
+  transition: --ring-turn var(--dur-tally) var(--ease-out-quint);
   background: conic-gradient(
     from -90deg,
     var(--ramp-5) 0turn var(--ring-turn, 0turn),

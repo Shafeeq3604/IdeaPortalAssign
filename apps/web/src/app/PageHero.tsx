@@ -74,6 +74,75 @@ export function PageHero({
   );
 }
 
+/**
+ * The plain heading for a "working" page — one someone operates rather than arrives at.
+ *
+ * `PageHero` used to open every single routed page, landing or working alike: Submit an
+ * idea, Rankings, Criteria, the Review queue and both admin screens got the identical
+ * gradient-plus-dot-grid banner as the Dashboard and Discover, so nothing distinguished
+ * "somewhere I arrive" from "somewhere I operate thirty times a day," and eleven
+ * unmodified copies of the same component read as a template rather than a design.
+ *
+ * This keeps the one piece of hero furniture worth keeping on a working page — a per-page
+ * icon, so the destination is still identifiable at a glance — and drops the rest: no
+ * gradient, no dot texture, no serif display type. `<h1>` is a direct child of `.page`
+ * here on purpose (index.css's `.page > h1::after` rule), so the same short gradient
+ * underline that already marks every plain heading in the product (IdeaShell, the
+ * People/Department pages) marks this one too, instead of inventing a second identity
+ * mark for "a heading with an icon."
+ */
+export function PageHeading({
+  icon: Icon,
+  heading,
+  description,
+  actions,
+  stats,
+}: {
+  icon?: React.ComponentType<{ className?: string }>;
+  heading: React.ReactNode;
+  description?: React.ReactNode;
+  actions?: React.ReactNode;
+  /** A small inline figure or two — the thing an aside stat panel would have carried on
+   * the old hero, sized down to fit beside a plain heading instead of inside a card. */
+  stats?: React.ReactNode;
+}) {
+  return (
+    <>
+      <h1 className="flex flex-wrap items-center gap-3">
+        {Icon ? (
+          <span
+            aria-hidden
+            className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent-100 text-accent-700"
+          >
+            <Icon className="size-4" />
+          </span>
+        ) : null}
+        {heading}
+      </h1>
+
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-2">
+        {description ? <p className="muted mb-0 max-w-[60ch]">{description}</p> : <span />}
+        {stats ? <div className="mb-8 flex shrink-0 gap-6">{stats}</div> : null}
+      </div>
+
+      {actions ? <div className="-mt-4 mb-8 flex flex-wrap gap-2.5">{actions}</div> : null}
+    </>
+  );
+}
+
+/** A compact inline figure for `PageHeading`'s `stats` slot — same numeral treatment as
+ * `HeroStat`, sized for sitting beside a plain heading rather than inside a hero card. */
+export function InlineStat({ value, label }: { value: string; label: string }) {
+  return (
+    <span className="text-right">
+      <b className="block font-serif text-400 font-semibold leading-none tabular-nums text-accent-700">
+        {value}
+      </b>
+      <span className="mt-1 block text-050 text-muted-foreground">{label}</span>
+    </span>
+  );
+}
+
 /** One real figure, styled like `DashboardHero`'s own `Stat` — reused so a hero's aside
  * panel never has to invent its own numeral treatment. */
 export function HeroStat({ value, label }: { value: string; label: string }) {

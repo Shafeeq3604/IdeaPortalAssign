@@ -302,11 +302,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-grad-highlight/20 text-100 font-bold text-grad-highlight ring-1 ring-grad-rule">
             IP
           </span>
-          {/* Full name where there is room; the short form only when there is not. */}
+          {/*
+            Full name where there is room, the short form once there isn't, and neither
+            below `sm` — a phone-width header has the hamburger, this link, "New idea",
+            Discover, the theme toggle and the account menu all in one 320-ish px row, and
+            "Idea Platform" has no room left to sit in. Truncating it to "I…" was worse
+            than showing nothing: the "IP" mark two characters to its left already carries
+            the identity on its own at that width.
+          */}
           <span className="hidden truncate text-200 font-semibold text-grad-ink xl:inline">
             {PRODUCT_NAME}
           </span>
-          <span className="truncate text-200 font-semibold text-grad-ink xl:hidden">
+          <span className="hidden truncate text-200 font-semibold text-grad-ink sm:inline xl:hidden">
             {PRODUCT_SHORT}
           </span>
         </Link>

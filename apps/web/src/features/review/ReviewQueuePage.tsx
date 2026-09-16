@@ -6,7 +6,7 @@ import {
 } from "@iep/ui";
 import { STATUS_LABEL } from "../ideas/api";
 import { useReviewQueue } from "./api";
-import { PageHero } from "../../app/PageHero";
+import { PageHeading } from "../../app/PageHero";
 
 /*
  * A clean, structured table rather than floating row-cards.
@@ -75,7 +75,7 @@ export function ReviewQueuePage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  Review queue
       </nav>
-      <PageHero
+      <PageHeading
         icon={ListChecks}
         heading="Review queue"
         description="Ideas waiting on a human decision, oldest first by default — every score still stands until someone here confirms or overrides it."

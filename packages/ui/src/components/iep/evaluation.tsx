@@ -6,6 +6,18 @@ import type {
 } from "./types.js";
 
 /**
+ * Some evidence strings arrive from the analysis already wrapped in their own straight
+ * quotes ("like this"). Rendering evidence as a real quotation adds curly ones on top —
+ * right for a plain sentence, but a double-quoted `""like this""` for a line that already
+ * had its own. Strips one layer of straight quotes (and nothing else) before the curly
+ * pair goes on, so every evidence line ends up quoted exactly once regardless of how the
+ * analysis wrote it.
+ */
+function unquote(text: string): string {
+  return text.replace(/^["“]([\s\S]*)["”]$/, "$1");
+}
+
+/**
  * The explainability primitives (SPEC §7.6), implemented against their P0-frozen
  * signatures.
  *
@@ -143,7 +155,9 @@ export function ContributionBar({
         </span>
         <span className="text-100 tabular-nums text-muted-foreground">
           {normalized.toFixed(1)} × {(weight * 100).toFixed(1)}% ={" "}
-          <span className="font-medium text-foreground">{contribution.toFixed(2)} pts</span>
+          <span className="font-serif font-semibold text-200 text-foreground">
+            {contribution.toFixed(2)} pts
+          </span>
         </span>
       </div>
 
@@ -198,13 +212,13 @@ export function ContributionBar({
 
       {/* `reveal-reasoning` (§8.3). The evidence is the whole point of the component. */}
       {open ? (
-        <ul id={panelId} className="motion-reveal mt-2 space-y-1">
+        <ul id={panelId} className="motion-reveal mt-2 space-y-1.5">
           {evidence.map((line, i) => (
             <li
               key={`${i}-${line.slice(0, 24)}`}
-              className="border-l-2 border-border pl-3 text-200 text-muted-foreground"
+              className="border-l-2 border-border pl-3 text-200 italic text-muted-foreground"
             >
-              {line}
+              “{unquote(line)}”
             </li>
           ))}
         </ul>
@@ -265,6 +279,16 @@ export function ExplanationPanel({
   );
 }
 
+/**
+ * Typeset deliberately, not just laid out — this panel is the platform's actual argument
+ * for why anyone should trust a rank, and it used to share the same plain paragraph
+ * style as every other block of text in the product. Three changes carry that argument:
+ * a serif heading (the same face `PageHero` reserves for a page's own name, so "what
+ * lifted this idea" reads as a real assertion rather than a caption), a tabular-numeral
+ * share-of-score set in a heavier weight (the number IS the claim, so it gets the weight),
+ * and evidence rendered as an actual quotation — the model's own words, set apart from
+ * the engine's factual sentence above it rather than styled identically to it.
+ */
 function ExplanationGroup({
   heading, items, emptyNote, tone,
 }: {
@@ -275,18 +299,18 @@ function ExplanationGroup({
 }) {
   return (
     <div>
-      <h4 className="text-300 font-medium">{heading}</h4>
+      <h4 className="font-serif text-300 font-semibold">{heading}</h4>
       {items.length === 0 ? (
         <p className="mt-1 text-200 text-muted-foreground">{emptyNote}</p>
       ) : (
-        <ul className="mt-2 space-y-3">
+        <ul className="mt-2.5 space-y-4">
           {items.map((item) => (
             <li key={item.criterionKey}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="text-200 font-medium">{item.criterionLabel}</span>
                 <span
                   className={cn(
-                    "text-100 tabular-nums",
+                    "text-200 font-semibold tabular-nums",
                     tone === "up" ? "text-factor-up" : "text-factor-down",
                   )}
                 >
@@ -296,13 +320,13 @@ function ExplanationGroup({
               </div>
               <p className="text-200">{item.text}</p>
               {item.evidence.length > 0 ? (
-                <ul className="mt-1 space-y-1">
+                <ul className="mt-1.5 space-y-1.5">
                   {item.evidence.slice(0, 2).map((line, i) => (
                     <li
                       key={`${i}-${line.slice(0, 24)}`}
-                      className="border-l-2 border-border pl-3 text-100 text-muted-foreground"
+                      className="border-l-2 border-border pl-3 text-100 italic text-muted-foreground"
                     >
-                      {line}
+                      “{unquote(line)}”
                     </li>
                   ))}
                 </ul>

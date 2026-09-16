@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "@iep/ui";
+import { ThemeContext, type Theme } from "./theme-context";
 
 /**
  * Light / dark / system, persisted per browser.
@@ -11,7 +12,6 @@ import { Button } from "@iep/ui";
  * two-way toggle silently overrides it forever after one click.
  */
 
-type Theme = "light" | "dark" | "system";
 const STORAGE_KEY = "iep-theme";
 
 function apply(theme: Theme): void {
@@ -35,11 +35,6 @@ function read(): Theme {
     return "system";
   }
 }
-
-const ThemeContext = React.createContext<{
-  theme: Theme;
-  setTheme: (t: Theme) => void;
-}>({ theme: "system", setTheme: () => {} });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = React.useState<Theme>(read);

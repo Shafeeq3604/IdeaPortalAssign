@@ -5,7 +5,7 @@ import { Button } from "@iep/ui";
 import { ATTACHMENT_TYPES, MAX_ATTACHMENTS_PER_VERSION, MAX_ATTACHMENT_BYTES } from "@iep/contracts";
 import type { Attachment } from "@iep/contracts";
 import { ApiError, api } from "../../app/api-client";
-import { PageHero } from "../../app/PageHero";
+import { PageHeading } from "../../app/PageHero";
 import { IdeaForm, type IdeaFormValues } from "./IdeaForm";
 import { useCreateIdea } from "./api";
 
@@ -139,16 +139,16 @@ export function SubmitIdeaPage() {
 
   return (
     <main className="page">
-      {/* The same gradient shell as every other shared page now (PageHero) — the eyebrow
-          icon still matches "Submit an idea" in the sidebar and header (Idea Platform
-          Redesign), so the destination and the page it lands on read as the same thing. */}
-      <PageHero
-        eyebrow={
-          <>
-            <PenSquare aria-hidden className="size-3" />
-            New submission
-          </>
-        }
+      {/*
+        A plain heading, not the gradient hero every page used to open with. Submitting is
+        a working action someone lands on to get something specific done, the same as
+        Rankings or the Review queue — not an arrival moment like the Dashboard or
+        Discover, which keep the hero treatment. The icon still matches "Submit an idea"
+        in the sidebar and header, so the destination and the page it lands on read as the
+        same thing without needing a banner to say so.
+      */}
+      <PageHeading
+        icon={PenSquare}
         heading="Submit an idea"
         description="Describe it in your own words. Nothing here needs technical knowledge — the platform structures it for you, and a person makes every decision."
       />

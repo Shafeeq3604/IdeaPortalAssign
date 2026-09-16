@@ -10,7 +10,7 @@ import type { AdminUser, AdminUsersResponse, AuditResponse } from "@iep/contract
 import { AddUserDialog, EditUserDialog, RoleBadges, RoleLegend } from "./UserForms";
 import { api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
-import { PageHero } from "../../app/PageHero";
+import { PageHeading } from "../../app/PageHero";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -103,7 +103,7 @@ export function AuditPage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  Audit log
       </nav>
-      <PageHero
+      <PageHeading
         icon={ScrollText}
         heading="Audit log"
         description="Append-only. Every decision a person made, in the same transaction as the change itself — the database refuses updates and deletes on this table."
@@ -237,7 +237,7 @@ export function UsersPage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  People &amp; access
       </nav>
-      <PageHero
+      <PageHeading
         icon={Users}
         heading="People & access"
         description="Every person who can reach this platform, and exactly what you have trusted them to do inside it."

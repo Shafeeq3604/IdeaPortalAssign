@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import {
   Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
   DialogTitle, ErrorState, Label, Skeleton, Textarea,
@@ -139,13 +140,33 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
             <Button
               size="sm"
               disabled={transition.isPending}
-              onClick={() => transition.mutate({ to: "SUBMITTED" })}
+              onClick={() =>
+                transition.mutate(
+                  { to: "SUBMITTED" },
+                  // The status pill above re-renders to "Submitted" either way, but that
+                  // is easy to miss on a page someone is about to navigate away from —
+                  // this is the moment the analysis pipeline actually starts, and it was
+                  // the one transition on this page with nothing telling you it worked.
+                  { onSuccess: () => toast.success("Submitted — analysis is starting.") },
+                )
+              }
             >
               {transition.isPending ? "Submitting…" : "Submit for analysis"}
             </Button>
           ) : null}
           {idea.permissions.allowedTransitions.includes("ARCHIVED") ? (
-            <Button size="sm" variant="destructive" onClick={() => setArchiveOpen(true)}>
+            // `ghost`, not `destructive` — this is the trigger, not the commit. It sat at
+            // full destructive-red weight next to routine actions like "Submit for
+            // analysis," so the rarest, hardest-to-undo control on the page was also the
+            // loudest one. The actual point of no return is the confirm button in the
+            // dialog below, which keeps its destructive styling; a reason is required
+            // there and nothing here can archive anything by itself.
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setArchiveOpen(true)}
+            >
               Archive this idea
             </Button>
           ) : null}
@@ -232,7 +253,15 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
                   // The default `/ideas` view excludes ARCHIVED — landing there right
                   // after archiving made the idea look deleted rather than archived.
                   { to: "ARCHIVED", reason: archiveReason.trim() },
-                  { onSuccess: () => navigate("/ideas?status=ARCHIVED") },
+                  {
+                    onSuccess: () => {
+                      // The navigation alone left this indistinguishable from any other
+                      // filtered list — the one confirmation that the idea was actually
+                      // archived, not just that a dialog closed, was missing.
+                      toast.success(`"${idea.title}" was archived.`);
+                      navigate("/ideas?status=ARCHIVED");
+                    },
+                  },
                 );
               }}
             >

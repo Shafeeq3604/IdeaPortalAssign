@@ -113,6 +113,18 @@ export function IdeaForm({
     mode: "onBlur",
   });
 
+  /**
+   * "How much is left" as a running count, not just the three numbered chips a person has
+   * to scroll past all of to add up themselves. A section counts as answered once every
+   * field in it has real text — matches what the submit button itself will accept, not a
+   * softer "started typing" bar that could say "done" on something that still fails
+   * validation on submit.
+   */
+  const values = form.watch();
+  const isAnswered = (section: (typeof REQUIRED_SECTIONS)[number]): boolean =>
+    section.fields.every((f) => (values[f.name] ?? "").trim().length > 0);
+  const answeredCount = REQUIRED_SECTIONS.filter(isAnswered).length;
+
   // Server rejections land on the field that caused them (SPEC §7.8).
   if (serverError instanceof ApiError && isFieldLevelError(serverError.body)) {
     applyServerErrors(serverError.body, form.setError, FIELD_NAMES);
@@ -241,7 +253,7 @@ export function IdeaForm({
         of this sat on top of section three's heading, which is worse than not sticking
         at all.
       */}
-      <div className="sticky bottom-0 -mx-6 flex flex-wrap gap-3 border-t border-border bg-background/90 px-6 py-4 backdrop-blur">
+      <div className="sticky bottom-0 -mx-6 flex flex-wrap items-center gap-3 border-t border-border bg-background/90 px-6 py-4 backdrop-blur">
         <Button type="submit" disabled={busy}>{busy ? "Saving…" : submitLabel}</Button>
         {!requireChangeSummary ? (
           <Button
@@ -253,6 +265,25 @@ export function IdeaForm({
             Save as draft
           </Button>
         ) : null}
+
+        {/*
+          The one thing missing from three numbered section chips: whether that adds up to
+          "done" without scrolling back up to check. Dots, not a bar — three fixed steps
+          read better as three fixed marks than as a bar whose fill fraction (33%, 66%…)
+          implies a precision this doesn't have. Draft saves regardless, so this is a
+          progress signal, never a gate.
+        */}
+        <span className="ml-auto flex items-center gap-2 text-100 text-muted-foreground">
+          <span className="flex gap-1" aria-hidden>
+            {REQUIRED_SECTIONS.map((section) => (
+              <span
+                key={section.step}
+                className={`size-1.5 rounded-full ${isAnswered(section) ? "bg-accent-600" : "bg-border"}`}
+              />
+            ))}
+          </span>
+          {answeredCount} of {REQUIRED_SECTIONS.length} answered
+        </span>
       </div>
 
     </form>

@@ -1,10 +1,52 @@
 import * as React from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ExternalLink, PenSquare, Send, Sparkles } from "lucide-react";
 import { Badge, Button, Skeleton, Textarea } from "@iep/ui";
 import type { DiscoveryResultItem } from "@iep/contracts";
 import { HeroStat, PageHero } from "../../app/PageHero";
 import { useCreateDiscoveryQuery, useDiscoveryHistory, useDiscoveryQuery } from "./api";
+
+/**
+ * The empty state used to show exactly one static example, always the same one, and
+ * that example was never clickable — it modeled only "a trend" even though the hero's
+ * own copy promises three different kinds of question ("trends, opportunity ideas, or
+ * recurring problems"). A first-time user had no way to tell the other two were things
+ * this could do at all. One example from each mode, picked afresh per visit and
+ * clickable (runs the query immediately, the way a suggested-prompt chip should), models
+ * the actual range instead of one instance of it.
+ */
+const EXAMPLE_PROMPTS: readonly { readonly mode: string; readonly query: string }[] = [
+  { mode: "A trend", query: "What are the latest AI trends in software development?" },
+  { mode: "A trend", query: "How are companies using AI to speed up customer support?" },
+  {
+    mode: "A recurring problem",
+    query: "What recurring problems do finance teams complain about with expense reporting?",
+  },
+  {
+    mode: "A recurring problem",
+    query: "What do IT help desks most often get asked to fix by hand?",
+  },
+  {
+    mode: "An opportunity idea",
+    query: "Where could better use of internal data reduce manual reporting work?",
+  },
+  {
+    mode: "An opportunity idea",
+    query: "What onboarding tasks for new hires are still done manually across teams?",
+  },
+];
+
+/** One random pick per mode, not three random picks overall — the point is showing the
+ * RANGE, so two examples of "a trend" and none of "an opportunity idea" would defeat it.
+ * Runs once per mount (not on a timer): a visit shows a fresh set, which is enough to
+ * read as "rotating" without an animation loop nobody asked for. */
+function oneOfEachMode(
+  items: readonly { readonly mode: string; readonly query: string }[],
+): { readonly mode: string; readonly query: string }[] {
+  const byMode = new Map<string, { readonly mode: string; readonly query: string }[]>();
+  for (const item of items) byMode.set(item.mode, [...(byMode.get(item.mode) ?? []), item]);
+  return [...byMode.values()].map((group) => group[Math.floor(Math.random() * group.length)]!);
+}
 
 /**
  * SPC-001 — AI Discovery Agent chat page.
@@ -50,18 +92,27 @@ function SourceList({ sources }: { sources: readonly string[] }) {
   );
 }
 
-/** One labeled part of a structured item — same vocabulary as `IdeaForm.tsx`'s own
- * section labels, since these are the fields a "Submit as idea" prefill feeds. */
+/**
+ * One labeled part of a structured item — same vocabulary as `IdeaForm.tsx`'s own
+ * section labels, since these are the fields a "Submit as idea" prefill feeds.
+ *
+ * The label used to sit inline ("The problem: <text>"), which reads fine for one field
+ * but turns four of them back-to-back into one undifferentiated paragraph — exactly what
+ * made a whole answer (up to seven of these, each with four fields) scan as a wall of
+ * text instead of four distinct facts. A small uppercase caption above its own value, the
+ * same pattern the Evaluation tab already uses for its strongest/weakest figures, gives
+ * the eye a place to land per field without adding a single extra word.
+ */
 function Field({ label, text }: { label: string; text: string }) {
   return (
-    <p className="mt-1.5 text-100">
-      <span className="font-medium text-muted-foreground">{label}: </span>
-      {text}
-    </p>
+    <div>
+      <dt className="text-050 font-semibold uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 text-100">{text}</dd>
+    </div>
   );
 }
 
-function IdeaItem({ item }: { item: DiscoveryResultItem }) {
+function IdeaItem({ item, index }: { item: DiscoveryResultItem; index: number }) {
   const navigate = useNavigate();
   // SPC-23: a discoveryReport row persisted before the structured shape shipped has
   // `summary` and none of the four fields below — rendered as the old flat paragraph
@@ -89,20 +140,34 @@ function IdeaItem({ item }: { item: DiscoveryResultItem }) {
   };
 
   return (
-    <li className="rounded-xl bg-card p-3 shadow-e1 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e2">
-      <p className="text-200 font-semibold">{item.title}</p>
+    // `bg-muted`, not `bg-card` — the surrounding chat bubble IS `bg-card`, so a card in
+    // the old tone had nothing but a faint ring to tell it apart, and seven of them in a
+    // row read as one continuous block. A visibly recessed tile per idea, a numbered
+    // marker (there can be up to seven of these in one answer — a real sequence worth
+    // counting, not decoration), and a rule before the field list are what actually make
+    // this scannable as "seven distinct ideas" rather than "one long answer."
+    <li className="rounded-xl bg-muted p-4 shadow-e1 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e2">
+      <div className="flex items-start gap-2.5">
+        <span
+          aria-hidden
+          className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-accent-100 text-050 font-bold text-accent-700"
+        >
+          {index + 1}
+        </span>
+        <p className="text-200 font-semibold leading-snug">{item.title}</p>
+      </div>
       {structured ? (
-        <div>
+        <dl className="mt-3 space-y-2.5 border-t border-border pt-3">
           <Field label="The problem" text={item.problem ?? ""} />
           <Field label="The idea" text={item.approach ?? ""} />
           <Field label="Who it helps" text={item.whoItHelps ?? ""} />
           {item.expectedOutcome ? <Field label="What would change" text={item.expectedOutcome} /> : null}
-        </div>
+        </dl>
       ) : (
-        <p className="mt-0.5 text-100 text-muted-foreground">{item.summary}</p>
+        <p className="mt-1.5 text-100 text-muted-foreground">{item.summary}</p>
       )}
       <SourceList sources={item.sources} />
-      <Button type="button" variant="outline" size="sm" className="mt-2.5" onClick={submitAsIdea}>
+      <Button type="button" variant="outline" size="sm" className="mt-3 bg-card" onClick={submitAsIdea}>
         <PenSquare aria-hidden className="size-3.5" />
         Submit as idea
       </Button>
@@ -154,9 +219,9 @@ function TurnBubble({ discoveryQueryId, query }: { discoveryQueryId: string | nu
         {status === "SUCCEEDED" && data ? (
           <div className="space-y-3">
             <p className="text-200">{data.summary}</p>
-            <ol className="space-y-2">
+            <ol className="space-y-3">
               {data.items.map((item, i) => (
-                <IdeaItem key={i} item={item} />
+                <IdeaItem key={i} item={item} index={i} />
               ))}
             </ol>
           </div>
@@ -171,12 +236,15 @@ export function DiscoveryChatPage() {
   // `key` is a stable local identity for the turn, independent of the server's id — which
   // does not exist yet the instant a turn is created (see `submit` below).
   const [turns, setTurns] = React.useState<readonly { key: string; id: string | null; query: string }[]>([]);
+  // Lazy initializer: picked once, when the page first mounts, not on every re-render —
+  // a fresh set every render would mean a set that changes under the reader's cursor.
+  const [examples] = React.useState(() => oneOfEachMode(EXAMPLE_PROMPTS));
   const create = useCreateDiscoveryQuery();
   const history = useDiscoveryHistory();
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = input.trim();
+  /** Shared by the form's Enter/Send and by clicking an example prompt below — both are
+   * "ask this question," just with the text coming from a different place. */
+  const runQuery = (query: string) => {
     if (!query || create.isPending) return;
     setInput("");
 
@@ -200,6 +268,11 @@ export function DiscoveryChatPage() {
     );
   };
 
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    runQuery(input.trim());
+  };
+
   return (
     <main className="page mx-auto flex max-w-3xl flex-col gap-6">
       {/* Same `.dash-hero` shell the dashboard uses — this page previously opened with a
@@ -220,7 +293,14 @@ export function DiscoveryChatPage() {
             knows, not a live web search, framed for how they could help your organization
             and its clients. Nothing here creates or changes an idea on its own — if one is
             worth pursuing, use "Submit as idea" to start a real submission that you write
-            and send yourself.
+            and send yourself.{" "}
+            {/* The submission form has carried this same link since P2 (IdeaForm.tsx); an
+                AI-generated result here had no equivalent, even though it's the page that
+                shows the MOST AI-written text before anyone has decided to trust it. */}
+            <Link to="/help/data-and-ai" className="text-grad-ink-soft underline underline-offset-2">
+              How this works, and what's sent to it
+            </Link>
+            .
           </>
         }
         aside={
@@ -233,11 +313,26 @@ export function DiscoveryChatPage() {
       />
 
       {turns.length === 0 ? (
-        <div className="rounded-2xl bg-accent-050 p-6 text-center shadow-e1 ring-1 ring-inset ring-accent-100">
-          <p className="text-200 text-muted-foreground">Try:</p>
-          <p className="mt-1 text-300 font-medium text-accent-700">
-            "What are the latest AI trends in software development?"
+        <div className="rounded-2xl bg-accent-050 p-6 shadow-e1 ring-1 ring-inset ring-accent-100">
+          <p className="text-center text-200 text-muted-foreground">
+            Try one of these, or ask your own —
           </p>
+          <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
+            {examples.map((example) => (
+              <button
+                key={example.query}
+                type="button"
+                onClick={() => runQuery(example.query)}
+                disabled={create.isPending}
+                className="flex flex-col gap-1 rounded-xl bg-card p-3 text-left shadow-e1 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e2 disabled:pointer-events-none disabled:opacity-50"
+              >
+                <span className="text-050 font-semibold uppercase tracking-wide text-accent-700">
+                  {example.mode}
+                </span>
+                <span className="text-100 text-foreground">{example.query}</span>
+              </button>
+            ))}
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
