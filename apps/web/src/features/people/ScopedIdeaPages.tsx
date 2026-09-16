@@ -23,13 +23,21 @@ const link = ({ to, children, className }: { to: string; children: React.ReactNo
  */
 
 function ScopedList({
-  title, crumb, filterKey, filterValue, emptyDescription,
+  title, crumb, filterKey, filterValue, emptyDescription, resolveTitle,
 }: {
   title: string;
   crumb: string;
   filterKey: "submitterId" | "departmentId";
   filterValue: string;
   emptyDescription: string;
+  /**
+   * Once the list loads, a better title read off its own data — the only way to name a
+   * department without a `/departments/{id}` endpoint (same reasoning as `PersonPage`'s
+   * admin-user lookup, §"There is no ... endpoint" above). Falls back to `title`/`crumb`
+   * while the query is pending, has failed, or genuinely found nothing to read a name
+   * from — never a blank heading.
+   */
+  resolveTitle?: (items: ListIdeasResponse["items"]) => string | undefined;
 }) {
   const filters = { [filterKey]: filterValue, sort: "recent" as const };
   const query = useQuery({
@@ -38,12 +46,15 @@ function ScopedList({
     enabled: Boolean(filterValue),
   });
 
+  const resolved = query.data ? resolveTitle?.(query.data.items) : undefined;
+  const heading = resolved ?? title;
+
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  {crumb}
+        <Link to="/ideas">Ideas</Link>  ›  {resolved ?? crumb}
       </nav>
-      <h1>{title}</h1>
+      <h1>{heading}</h1>
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-64 w-full" aria-busy="true" />
@@ -137,6 +148,10 @@ export function DepartmentPage() {
       filterKey="departmentId"
       filterValue={departmentId}
       emptyDescription="No idea has been filed against this department yet."
+      // Every idea in the list already carries its own department's name (it's how the
+      // idea header links here in the first place) — reading it off the first result
+      // is a real name at no extra request, not a second lookup.
+      resolveTitle={(items) => items.find((i) => i.department?.id === departmentId)?.department?.name}
     />
   );
 }
