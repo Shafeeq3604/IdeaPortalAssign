@@ -11,6 +11,7 @@ import { api } from "./api-client";
 import { canSee, useSession } from "./use-session";
 import { ThemeToggle } from "./theme";
 import { PRODUCT_NAME, PRODUCT_SHORT } from "./product";
+import { OnboardingSpotlight } from "./OnboardingSpotlight";
 
 /**
  * The application shell — header, navigation, account menu.
@@ -369,6 +370,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <AccountMenu />
         </div>
       </header>
+
+      <OnboardingSpotlight />
 
       <div className="md:grid md:grid-cols-[15rem_1fr]">
         <aside className="brand-rail hidden border-r border-border bg-card md:block">{nav}</aside>
