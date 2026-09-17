@@ -1,9 +1,12 @@
+import type * as React from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, EmptyState, ErrorState, Skeleton } from "@iep/ui";
+import { Building2, User } from "lucide-react";
+import { Card, CardContent, EmptyState, ErrorState, Skeleton, StatusPill } from "@iep/ui";
 import type { AdminUsersResponse, ListIdeasResponse } from "@iep/contracts";
 import { api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
+import { InlineStat, PageHeading } from "../../app/PageHero";
 import { STATUS_LABEL } from "../ideas/api";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
@@ -23,13 +26,22 @@ const link = ({ to, children, className }: { to: string; children: React.ReactNo
  */
 
 function ScopedList({
-  title, crumb, filterKey, filterValue, emptyDescription,
+  title, crumb, icon, filterKey, filterValue, emptyDescription, resolveTitle,
 }: {
   title: string;
   crumb: string;
+  icon: React.ComponentType<{ className?: string }>;
   filterKey: "submitterId" | "departmentId";
   filterValue: string;
   emptyDescription: string;
+  /**
+   * Once the list loads, a better title read off its own data — the only way to name a
+   * department without a `/departments/{id}` endpoint (same reasoning as `PersonPage`'s
+   * admin-user lookup, §"There is no ... endpoint" above). Falls back to `title`/`crumb`
+   * while the query is pending, has failed, or genuinely found nothing to read a name
+   * from — never a blank heading.
+   */
+  resolveTitle?: (items: ListIdeasResponse["items"]) => string | undefined;
 }) {
   const filters = { [filterKey]: filterValue, sort: "recent" as const };
   const query = useQuery({
@@ -38,12 +50,19 @@ function ScopedList({
     enabled: Boolean(filterValue),
   });
 
+  const resolved = query.data ? resolveTitle?.(query.data.items) : undefined;
+  const heading = resolved ?? title;
+
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  {crumb}
+        <Link to="/ideas">Ideas</Link>  ›  {resolved ?? crumb}
       </nav>
-      <h1>{title}</h1>
+      <PageHeading
+        icon={icon}
+        heading={heading}
+        stats={query.data ? <InlineStat value={String(query.data.meta.total)} label="ideas" /> : undefined}
+      />
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-64 w-full" aria-busy="true" />
@@ -63,21 +82,16 @@ function ScopedList({
           renderLink={link}
         />
       ) : (
-        <>
-          <p className="mb-4 text-200 text-muted-foreground">
-            {query.data.meta.total} idea{query.data.meta.total === 1 ? "" : "s"}
-          </p>
-          <ul className="space-y-3">
-            {query.data.items.map((idea) => (
-              <li key={idea.id}>
-                <Card>
-                  <CardContent className="pt-6">
+        <ul className="space-y-3">
+          {query.data.items.map((idea) => (
+            <li key={idea.id}>
+              <Card>
+                <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                  <div className="min-w-0">
                     <h2 className="text-300 font-medium">
                       <Link to={`/ideas/${idea.id}/overview`}>{idea.title}</Link>
                     </h2>
-                    <p className="text-100 text-muted-foreground">
-                      {STATUS_LABEL[idea.status]}
-                      {" · "}
+                    <p className="mt-0.5 text-200 text-muted-foreground">
                       <Link to={`/people/${idea.submitter.id}`}>{idea.submitter.displayName}</Link>
                       {idea.department ? (
                         <>
@@ -86,12 +100,13 @@ function ScopedList({
                         </>
                       ) : null}
                     </p>
-                  </CardContent>
-                </Card>
-              </li>
-            ))}
-          </ul>
-        </>
+                  </div>
+                  <StatusPill kind="LIFECYCLE" status={idea.status} label={STATUS_LABEL[idea.status]} />
+                </CardContent>
+              </Card>
+            </li>
+          ))}
+        </ul>
       )}
     </main>
   );
@@ -120,6 +135,7 @@ export function PersonPage() {
     <ScopedList
       title={person?.displayName ?? "This person"}
       crumb={person?.displayName ?? "Person"}
+      icon={User}
       filterKey="submitterId"
       filterValue={userId}
       emptyDescription="This person has not submitted an idea yet."
@@ -134,9 +150,14 @@ export function DepartmentPage() {
     <ScopedList
       title="Department"
       crumb="Department"
+      icon={Building2}
       filterKey="departmentId"
       filterValue={departmentId}
       emptyDescription="No idea has been filed against this department yet."
+      // Every idea in the list already carries its own department's name (it's how the
+      // idea header links here in the first place) — reading it off the first result
+      // is a real name at no extra request, not a second lookup.
+      resolveTitle={(items) => items.find((i) => i.department?.id === departmentId)?.department?.name}
     />
   );
 }

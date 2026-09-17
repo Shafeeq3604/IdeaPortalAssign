@@ -1,30 +1,21 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { matchRouteId, type Role } from "@iep/contracts";
-import { LoginPage } from "./features/auth/LoginPage";
-import { SignupPage } from "./features/auth/SignupPage";
-import { IdeaListPage } from "./features/ideas/IdeaListPage";
-import { SubmitIdeaPage } from "./features/ideas/SubmitIdeaPage";
-import { ReviseIdeaPage } from "./features/ideas/ReviseIdeaPage";
-import { OverviewTab } from "./features/ideas/OverviewTab";
-import { HistoryTab } from "./features/ideas/HistoryTab";
-import { VersionPage } from "./features/ideas/VersionPage";
-import { AnalysisTab } from "./features/analysis/AnalysisTab";
-import { EvaluationTab } from "./features/evaluation/EvaluationTab";
-import { ReviewTab } from "./features/review/ReviewTab";
-import { ReviewQueuePage } from "./features/review/ReviewQueuePage";
-import { RankingsPage } from "./features/rankings/RankingsPage";
-import { ComparePage } from "./features/rankings/ComparePage";
-import { DashboardPage } from "./features/rankings/DashboardPage";
-import { CriteriaPage, ProfilesPage } from "./features/config/ConfigPages";
-import { AuditPage, UsersPage } from "./features/admin/AdminPages";
-import { DepartmentPage, PersonPage } from "./features/people/ScopedIdeaPages";
-import { DataAndAiPage } from "./features/help/DataAndAiPage";
-import { DiscoveryChatPage } from "./features/discovery/DiscoveryChatPage";
+import { Skeleton } from "@iep/ui";
 import { AppProviders } from "./app/providers";
 import { AppShell } from "./app/AppShell";
 import { RouteErrorBoundary } from "./app/error-boundary";
 import { RequireAuth } from "./app/session";
 import { canSee, useSession } from "./app/use-session";
+import { useDocumentTitle } from "./app/use-document-title";
+import { LoginPage } from "./features/auth/LoginPage";
+import { SignupPage } from "./features/auth/SignupPage";
+import { IdeaListPage } from "./features/ideas/IdeaListPage";
+import { OverviewTab } from "./features/ideas/OverviewTab";
+import { HistoryTab } from "./features/ideas/HistoryTab";
+import { AnalysisTab } from "./features/analysis/AnalysisTab";
+import { EvaluationTab } from "./features/evaluation/EvaluationTab";
+import { RankingsPage } from "./features/rankings/RankingsPage";
 
 /**
  * apps/web — routing.
@@ -34,7 +25,51 @@ import { canSee, useSession } from "./app/use-session";
  *
  * Role filtering is convenience, never security — the API refuses independently
  * (SPEC §4.2). What it buys is a straight answer instead of a page full of 403s.
+ *
+ * A first split made EVERY page `lazy()`, on the theory that a fresh navigation would
+ * only ever download the one page it renders. Measured against SPEC §11.6's Lighthouse
+ * budget, that made LCP slightly WORSE on exactly the three routes the budget audits
+ * (`/ideas`, an idea's own `/evaluation`, `/rankings`): the shared vendor/app chunks
+ * still have to load and execute before a lazy import() is even discovered, so those
+ * routes paid a real extra network round-trip for no byte savings on the audited path.
+ *
+ * This is the corrected split: the login screen and the idea-browsing → evaluation →
+ * ranking loop — the path SPEC actually measures and the one most sessions live in —
+ * are ordinary static imports, bundled once with no lazy indirection. Everything reached
+ * less often (admin, config, discovery, compare, the review queue, the submission and
+ * revision forms, person/department pages) stays `lazy()`, so a session that never opens
+ * those still never downloads them.
  */
+
+const SubmitIdeaPage = lazy(() => import("./features/ideas/SubmitIdeaPage").then((m) => ({ default: m.SubmitIdeaPage })));
+const ReviseIdeaPage = lazy(() => import("./features/ideas/ReviseIdeaPage").then((m) => ({ default: m.ReviseIdeaPage })));
+const VersionPage = lazy(() => import("./features/ideas/VersionPage").then((m) => ({ default: m.VersionPage })));
+const ReviewTab = lazy(() => import("./features/review/ReviewTab").then((m) => ({ default: m.ReviewTab })));
+const ReviewQueuePage = lazy(() => import("./features/review/ReviewQueuePage").then((m) => ({ default: m.ReviewQueuePage })));
+const ComparePage = lazy(() => import("./features/rankings/ComparePage").then((m) => ({ default: m.ComparePage })));
+const DashboardPage = lazy(() => import("./features/rankings/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const CriteriaPage = lazy(() => import("./features/config/ConfigPages").then((m) => ({ default: m.CriteriaPage })));
+const ProfilesPage = lazy(() => import("./features/config/ConfigPages").then((m) => ({ default: m.ProfilesPage })));
+const AuditPage = lazy(() => import("./features/admin/AdminPages").then((m) => ({ default: m.AuditPage })));
+const UsersPage = lazy(() => import("./features/admin/AdminPages").then((m) => ({ default: m.UsersPage })));
+const DepartmentPage = lazy(() => import("./features/people/ScopedIdeaPages").then((m) => ({ default: m.DepartmentPage })));
+const PersonPage = lazy(() => import("./features/people/ScopedIdeaPages").then((m) => ({ default: m.PersonPage })));
+const DataAndAiPage = lazy(() => import("./features/help/DataAndAiPage").then((m) => ({ default: m.DataAndAiPage })));
+const DiscoveryChatPage = lazy(() => import("./features/discovery/DiscoveryChatPage").then((m) => ({ default: m.DiscoveryChatPage })));
+
+/** A quiet placeholder while a route's own chunk downloads — the shell (header, nav)
+ * is never part of this, since `AppShell` wraps it rather than sitting inside it. */
+function RouteFallback() {
+  return (
+    <main className="page" aria-busy="true">
+      <Skeleton className="h-8 w-1/3" />
+      <div className="mt-4 space-y-3">
+        <Skeleton className="h-4 w-1/4" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    </main>
+  );
+}
 
 /**
  * The catch-all, which has to tell two different stories.
@@ -53,7 +88,7 @@ function Unreachable({ roles }: { roles: readonly Role[] }) {
 
   if (known && !canSee(roles, known.roles)) {
     return (
-      <main className="page">
+      <main className="page page--narrow">
         <h1>Not available for your role</h1>
         <p className="muted">
           {known.title} is restricted to {known.roles.map(roleLabel).join(", ")}. You
@@ -65,7 +100,7 @@ function Unreachable({ roles }: { roles: readonly Role[] }) {
   }
 
   return (
-    <main className="page">
+    <main className="page page--narrow">
       <h1>Not found</h1>
       <p className="muted">No page matches this address.</p>
       <Link to="/ideas">Back to ideas</Link>
@@ -101,6 +136,7 @@ function Shell() {
   return (
     <AppShell>
       <RouteErrorBoundary resetKey={pathname}>
+        <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/ideas" element={<IdeaListPage scope="all" />} />
             <Route path="/me/ideas" element={<IdeaListPage scope="mine" />} />
@@ -129,28 +165,41 @@ function Shell() {
 
             <Route path="/" element={<Navigate to="/ideas" replace />} />
             <Route path="*" element={<Unreachable roles={roles} />} />
-      </Routes>
+          </Routes>
+        </Suspense>
       </RouteErrorBoundary>
     </AppShell>
   );
+}
+
+/** Renders nothing — just keeps the browser tab in sync with the current route. */
+function DocumentTitle() {
+  useDocumentTitle();
+  return null;
 }
 
 export function AppRouter() {
   return (
     <AppProviders>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route
-            path="*"
-            element={
-              <RequireAuth>
-                <Shell />
-              </RequireAuth>
-            }
-          />
-        </Routes>
+        {/* Sign-in/sign-up sit outside `Shell` (no session yet to gate on), so the title
+            hook lives here instead — one level up, so every route gets it regardless of
+            auth state, rather than duplicating the call inside both branches. */}
+        <DocumentTitle />
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route
+              path="*"
+              element={
+                <RequireAuth>
+                  <Shell />
+                </RequireAuth>
+              }
+            />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </AppProviders>
   );

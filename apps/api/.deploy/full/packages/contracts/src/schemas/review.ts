@@ -119,9 +119,31 @@ export const DashboardTile = z.object({
 });
 export type DashboardTile = z.infer<typeof DashboardTile>;
 
+/**
+ * One point on the board's own history — a real past `RankingRun`, not a derived or
+ * interpolated figure. `cohortSize`/`topScore` are exactly what that run's own entries
+ * say (design-audit finding: the dashboard had no time dimension at all — a management
+ * summary that only ever shows "now" — and the fix has to be actual stored history, not
+ * an invented trend line; `RankingRun` has carried `computedAt` since P0, this is the
+ * first thing to read it back across more than one row).
+ */
+export const DashboardHistoryPoint = z.object({
+  runId: Id,
+  computedAt: Timestamp,
+  cohortSize: z.number().int().min(0),
+  topScore: z.number().min(0).max(100).nullable(),
+});
+export type DashboardHistoryPoint = z.infer<typeof DashboardHistoryPoint>;
+
 export const DashboardResponse = z.object({
   tiles: z.array(DashboardTile).min(9),
   generatedAt: Timestamp,
+  /**
+   * Oldest first, capped defensively — the handler always trims to the most recent
+   * runs for THIS scope (profile/department), so a fresh environment with one run
+   * legitimately returns an array of length 1, not padding to look fuller than it is.
+   */
+  history: z.array(DashboardHistoryPoint).max(12),
 });
 export type DashboardResponse = z.infer<typeof DashboardResponse>;
 

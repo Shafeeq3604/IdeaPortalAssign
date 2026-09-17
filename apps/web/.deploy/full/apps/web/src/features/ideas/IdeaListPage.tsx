@@ -1,14 +1,19 @@
 import * as React from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Archive, ChevronDown, Lightbulb, Search, X } from "lucide-react";
-import { Button, EmptyState, ErrorState, Input, Skeleton, StatusPill } from "@iep/ui";
+import {
+  Archive, ArrowDownUp, ChevronDown, Compass, LayoutGrid, Lightbulb, List, PenSquare, Search,
+  User, X,
+} from "lucide-react";
+import {
+  Button, EmptyState, ErrorState, Input, Select, SelectContent, SelectItem, SelectTrigger,
+  SelectValue, Skeleton, StatusPill, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@iep/ui";
 import { IdeaStatus } from "@iep/contracts";
 import type { IdeaSummary } from "@iep/contracts";
+import { InlineStat, PageHeading } from "../../app/PageHero";
+import { STATUS_LABEL, parseSort, useIdeaList, type IdeaSort } from "./api";
+import { IdeaCard } from "./IdeaCard";
 import { useSession } from "../../app/use-session";
-import { HERO_PRIMARY_ACTION, HeroStat, PageHero } from "../../app/PageHero";
-import { STATUS_LABEL, parseSort, useIdeaList } from "./api";
-import { VoteCount } from "../feedback/VoteButtons";
-import { ScoreRing } from "../rankings/DashboardHero";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -43,6 +48,46 @@ const FILTER_TONE: Record<(typeof VISIBLE_STATUSES)[number], string> = {
   UNDER_REVIEW: "bg-state-warn-bg text-state-warn hover:bg-state-warn-bg",
   RANKED: "bg-accent text-accent-foreground hover:bg-accent",
 };
+
+/** Every value `parseSort` accepts, in the order offered — same closed set as the API's
+ * own `ListIdeasQuery["sort"]`, so a new sort added to the contract is a compile error
+ * here rather than a silently missing menu item. */
+const SORT_LABEL: Record<IdeaSort, string> = {
+  recent: "Newest first",
+  oldest: "Oldest first",
+  rank: "Rank",
+  title: "Title (A–Z)",
+  status: "Status",
+};
+
+/**
+ * The one control this list was missing (Idea Platform Redesign — "Explore ideas").
+ *
+ * Filtering by status was the only way to narrow 20+ ideas down to something scannable;
+ * there was no way to say HOW to order what's left. Same URL-is-the-source-of-truth
+ * contract as everything else on this page (§7.8) — picking an option is a `sort` write,
+ * so a shared or reloaded link keeps whatever order was chosen.
+ */
+function SortSelect({ value, onChange }: { value: IdeaSort; onChange: (next: IdeaSort) => void }) {
+  return (
+    <Select value={value} onValueChange={(next) => onChange(next as IdeaSort)}>
+      <SelectTrigger
+        aria-label="Sort ideas"
+        className="h-9 w-auto gap-1.5 rounded-full border-none bg-transparent font-medium text-muted-foreground shadow-none hover:bg-muted"
+      >
+        <ArrowDownUp aria-hidden className="size-3.5" />
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent align="end">
+        {(Object.keys(SORT_LABEL) as IdeaSort[]).map((key) => (
+          <SelectItem key={key} value={key}>
+            {SORT_LABEL[key]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 /**
  * Search submits rather than filtering as you type.
@@ -154,6 +199,22 @@ export function IdeaListPage({ scope }: Props) {
       }
     });
 
+  /** An explicit choice always wins over the "rank once Ranked is filtered for" default
+   * above — picking "Newest first" while looking at Ranked ideas is a real, sortable
+   * decision, not a state that default should silently override. */
+  const setSort = (value: IdeaSort) => update((next) => next.set("sort", value));
+
+  /**
+   * Grid vs table (§14/§15 of the enterprise-polish pass), URL-backed like every other
+   * filter here (§7.8) — a shared link to the table view stays the table view. Table is
+   * the "dense enterprise view" the request asks for; it reuses `IdeaSummary` fields only
+   * (Rank, Idea, Department, Score, Status, Updated), the same payload the grid already
+   * has, so switching views costs no extra request.
+   */
+  const view = params.get("view") === "table" ? "table" : "grid";
+  const setView = (next: "grid" | "table") =>
+    update((n) => (next === "grid" ? n.delete("view") : n.set("view", next)));
+
   return (
     <main className="page">
       {/*
@@ -162,12 +223,15 @@ export function IdeaListPage({ scope }: Props) {
         called everywhere else — the breadcrumbs, the sidebar and J-3 all read it. The
         canvas's phrasing lands in the description, where it costs nothing.
 
-        This is the same gradient shell the Management/Admin dashboard uses
-        (DashboardHero.tsx's `.dash-hero`) — every role reaches this page, so the
-        product's best-looking screen no longer belongs only to the fewest people who
-        can see the dashboard.
+        Plain heading, not the gradient hero (enterprise-polish pass, §3/§19): this page
+        is worked in dozens of times a day by every role in the product, not arrived at
+        once — the same reasoning that already moved Rankings, the Review queue and both
+        admin screens off `PageHero` onto `PageHeading`. The one gradient surface left in
+        the product is the Management/Admin dashboard's hero, which nobody sees more than
+        once a session.
       */}
-      <PageHero
+      <PageHeading
+        icon={scope === "mine" ? User : Compass}
         heading={scope === "mine" ? "My ideas" : "Ideas"}
         description={
           scope === "mine"
@@ -175,18 +239,19 @@ export function IdeaListPage({ scope }: Props) {
             : "Explore what people have proposed. Back the ones you would use — votes are a demand signal reviewers actually read."
         }
         actions={
-          <Link to="/ideas/new" className={HERO_PRIMARY_ACTION}>
-            Submit an idea
-          </Link>
+          <Button asChild>
+            <Link to="/ideas/new">
+              <PenSquare aria-hidden className="size-4" />
+              Submit an idea
+            </Link>
+          </Button>
         }
-        aside={
+        stats={
           list.data ? (
-            <div className="rounded-2xl bg-grad-ink/8 p-4 ring-1 ring-grad-rule">
-              <HeroStat
-                value={String(list.data.meta.total)}
-                label={scope === "mine" ? "your ideas" : "ideas on the board"}
-              />
-            </div>
+            <InlineStat
+              value={String(list.data.meta.total)}
+              label={scope === "mine" ? "your ideas" : "ideas on the board"}
+            />
           ) : undefined
         }
       />
@@ -226,7 +291,7 @@ export function IdeaListPage({ scope }: Props) {
           );
         })}
 
-        <span aria-hidden className="mx-1 h-5 w-px bg-border" />
+        <span aria-hidden className="mx-1 hidden h-5 w-px shrink-0 bg-border sm:inline-block" />
 
         {/*
           Archived ideas were reachable only by hand-editing the URL: no chip, and
@@ -256,14 +321,65 @@ export function IdeaListPage({ scope }: Props) {
             Clear
           </Button>
         ) : null}
+
+        {/* The one control this list was missing: a way to say HOW to order what the
+            filters above narrowed it down to, not just what to narrow it to. `ml-auto`
+            keeps it apart from the filter pills rather than reading as one more of them —
+            it changes ORDER, not WHAT'S INCLUDED. */}
+        <div className="ml-auto flex items-center gap-1">
+          <SortSelect value={sort} onChange={setSort} />
+
+          {/* Grid for browsing one idea at a time, table for scanning many at once — the
+              same two-mode split Explore/My ideas asked for (§14/§15). A single "view"
+              toggle, not a second navigation, since both modes show the exact same
+              filtered set. */}
+          <div className="flex items-center rounded-full bg-muted p-0.5">
+            <button
+              type="button"
+              aria-pressed={view === "grid"}
+              aria-label="Grid view"
+              onClick={() => setView("grid")}
+              className={`grid size-7 place-items-center rounded-full transition-colors duration-[var(--dur-fast)] ${
+                view === "grid" ? "bg-card text-foreground shadow-e1" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <LayoutGrid aria-hidden className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === "table"}
+              aria-label="Table view"
+              onClick={() => setView("table")}
+              className={`grid size-7 place-items-center rounded-full transition-colors duration-[var(--dur-fast)] ${
+                view === "table" ? "bg-card text-foreground shadow-e1" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <List aria-hidden className="size-3.5" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {list.isPending ? (
-        <div className="grid gap-4 lg:grid-cols-2" aria-busy="true">
-          {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="h-44 w-full rounded-2xl" />
-          ))}
-        </div>
+        // Matches whichever view is selected — a table-shaped skeleton followed by a
+        // grid of cards (or the reverse) reads as the wrong content loading, not as a
+        // preview of what is about to appear.
+        view === "table" ? (
+          <div className="overflow-hidden rounded-2xl border border-border" aria-busy="true">
+            <div className="h-10 bg-muted" />
+            <div className="space-y-3 p-4">
+              {Array.from({ length: 6 }, (_, i) => (
+                <Skeleton key={i} className="h-8 w-full" />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3" aria-busy="true">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="h-44 w-full rounded-2xl" />
+            ))}
+          </div>
+        )
       ) : list.isError ? (
         <ErrorState
           title="Could not load ideas"
@@ -300,14 +416,24 @@ export function IdeaListPage({ scope }: Props) {
 
             The controls are still one per card and still outside the link: a vote count
             nested inside a navigation target is a control you cannot reach without leaving.
+
+            A third column at `xl` (a card this dense — a title, a pill, a score ring, one
+            row of metadata — has no reason to sit alone in a wide single column on a
+            large monitor): two columns was the whole grid on anything short of an
+            ultrawide, which is most of the unused width the "explore" surface was leaving
+            on the table.
           */}
-          <ul className="grid list-none gap-4 p-0 lg:grid-cols-2">
-            {list.data.items.map((idea) => (
-              <li key={idea.id}>
-                <IdeaCard idea={idea} />
-              </li>
-            ))}
-          </ul>
+          {view === "table" ? (
+            <IdeaTable items={list.data.items} />
+          ) : (
+            <ul className="grid list-none gap-4 p-0 lg:grid-cols-2 xl:grid-cols-3">
+              {list.data.items.map((idea) => (
+                <li key={idea.id}>
+                  <IdeaCard idea={idea} />
+                </li>
+              ))}
+            </ul>
+          )}
 
           {list.data.meta.totalPages > 1 ? (
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
@@ -348,36 +474,9 @@ export function IdeaListPage({ scope }: Props) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
- * One idea, as a card (Idea Platform Redesign — "Explore ideas")
+ * All ideas, as a table (enterprise-polish pass §14/§15 — the "dense
+ * enterprise view" toggle)
  * ══════════════════════════════════════════════════════════════════ */
-
-/**
- * The coloured rule across the top of a card.
- *
- * The status already has a pill with an icon and a label, so this is the third cue rather
- * than the only one — nothing here is carried by colour alone (SPEC §7.6). The ramp
- * gradient is reserved for RANKED because that is the one state with a score behind it.
- *
- * Every status in the enum is listed. A new lifecycle state added to the contract becomes
- * a compile error here rather than silently rendering a grey line nobody chose.
- */
-const RULE: Record<IdeaStatus, string> = {
-  DRAFT: "bg-border",
-  SUBMITTED: "bg-state-info",
-  AI_ANALYSIS: "bg-ai-ink",
-  NEEDS_CLARIFICATION: "bg-factor-down",
-  EVALUATED: "bg-ramp-4",
-  RANKED: "bg-gradient-to-r from-ramp-4 via-ramp-5 to-grad-to",
-  UNDER_REVIEW: "bg-state-warn",
-  PROTOTYPE_CANDIDATE: "bg-ramp-3",
-  PILOT: "bg-ramp-3",
-  PRODUCTION_CANDIDATE: "bg-ramp-3",
-  IMPLEMENTED: "bg-state-ok",
-  PARKED: "bg-border-strong",
-  BLOCKED: "bg-state-danger",
-  REJECTED: "bg-state-danger",
-  ARCHIVED: "bg-border-strong",
-};
 
 const initials = (name: string): string =>
   name
@@ -387,103 +486,69 @@ const initials = (name: string): string =>
     .join("")
     .toUpperCase();
 
-function IdeaCard({ idea }: { idea: IdeaSummary }) {
-  /*
-   * "Analysis running" is a state, not a missing score.
-   *
-   * The canvas draws these two very differently and it is right to: a dial reading nothing
-   * says the idea was measured and came out empty, whereas the pipeline simply has not
-   * finished. A draft has no score for a third reason again — it has not been submitted.
-   */
-  const analysing = idea.status === "AI_ANALYSIS";
+const HEAD = "text-100 font-semibold uppercase tracking-wider text-muted-foreground";
 
+function IdeaTable({ items }: { items: IdeaSummary[] }) {
   return (
-    <article className="relative flex h-full flex-col overflow-hidden rounded-2xl bg-card p-5 shadow-e2 ring-1 ring-inset ring-border transition-all duration-[var(--dur-base)] focus-within:ring-2 focus-within:ring-ring hover:-translate-y-0.5 hover:shadow-e3">
-      <span aria-hidden className={`absolute inset-x-0 top-0 h-1.5 ${RULE[idea.status]}`} />
-
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusPill kind="LIFECYCLE" status={idea.status} label={STATUS_LABEL[idea.status]} />
-            {idea.rank === null ? null : (
-              <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-100 font-bold tabular-nums text-accent-foreground">
-                Ranked #{idea.rank}
-              </span>
-            )}
-          </div>
-
-          {/*
-            The link covers the whole card, so the title is the accessible name for the
-            navigation and the rest of the card is inside its hit area. `after:absolute
-            after:inset-0` is what does that without nesting the vote counts inside an <a>.
-          */}
-          <h2 className="mt-2.5 text-400 font-semibold leading-snug">
-            <Link
-              to={`/ideas/${idea.id}/overview`}
-              className="no-underline after:absolute after:inset-0 after:content-['']"
-            >
-              {idea.title}
-            </Link>
-          </h2>
-
-          {/*
-            The canvas puts the problem statement under the title. `IdeaSummary` carries no
-            prose — only the title — so there is nothing to excerpt. Adding the field is an
-            additive contract change and a real improvement to this card; it is NOT done
-            here because the list endpoint would have to select and ship the current
-            version's body for every row, which is a decision about the API's shape rather
-            than about this page.
-          */}
-        </div>
-
-        {analysing ? (
-          <span
-            aria-hidden
-            /* Deliberately not the `ai-*` palette: provenance.test.ts reserves it for
-               <Provenance>, where it means "a model wrote this". This says a job is
-               running, which is a different claim. */
-            className="motion-pending-pulse grid size-16 shrink-0 place-items-center rounded-full bg-card text-center text-100 font-bold leading-tight text-accent-700 ring-2 ring-inset ring-ramp-3"
-          >
-            analysis
-            <br />
-            running
-          </span>
-        ) : idea.compositeScore === null ? null : (
-          <ScoreRing value={idea.compositeScore} size="sm" />
-        )}
-      </div>
-
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
-        <span className="flex min-w-0 items-center gap-2 text-100 text-muted-foreground">
-          <span
-            aria-hidden
-            className="grid size-6.5 shrink-0 place-items-center rounded-full bg-accent text-100 font-extrabold text-accent-foreground"
-          >
-            {initials(idea.submitter.displayName)}
-          </span>
-          <span className="truncate">
-            {idea.submitter.displayName}
-            {idea.department ? ` · ${idea.department.name}` : ""}
-          </span>
-        </span>
-
-        {/*
-          Counts only, no controls. A card is for scanning; voting on something you are
-          skimming means voting on a title, which is not an opinion worth recording. The
-          buttons live on the idea itself.
-
-          `relative` lifts it above the title link's ::after overlay so the numbers are
-          selectable rather than swallowed by the navigation target.
-        */}
-        {idea.status === "DRAFT" ? (
-          <span className="text-100 text-muted-foreground">Not submitted</span>
-        ) : (
-          <span className="relative">
-            <VoteCount up={idea.feedback.up} down={idea.feedback.down} />
-          </span>
-        )}
-      </div>
-    </article>
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <Table>
+        <TableHeader className="bg-muted">
+          <TableRow className="hover:bg-transparent">
+            <TableHead className={HEAD}>Rank</TableHead>
+            <TableHead className={HEAD}>Idea</TableHead>
+            <TableHead className={HEAD}>Department</TableHead>
+            <TableHead className={`${HEAD} text-right`}>Score</TableHead>
+            <TableHead className={HEAD}>Status</TableHead>
+            <TableHead className={`${HEAD} text-right`}>Updated</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map((idea) => (
+            <TableRow key={idea.id}>
+              <TableCell>
+                <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-100 font-bold text-foreground">
+                  {idea.rank === null ? "—" : `#${idea.rank}`}
+                </span>
+              </TableCell>
+              <TableCell className="whitespace-normal">
+                {/* The title is the link — same clickability contract the grid's whole
+                    card carries (§6.2), just expressed as a table cell here. */}
+                <Link to={`/ideas/${idea.id}/overview`} className="font-medium">
+                  {idea.title}
+                </Link>
+                <span className="mt-0.5 flex items-center gap-1.5 text-200 text-muted-foreground">
+                  <span
+                    aria-hidden
+                    className="grid size-4.5 shrink-0 place-items-center rounded-full bg-accent text-100 font-extrabold text-accent-foreground"
+                  >
+                    {initials(idea.submitter.displayName)}
+                  </span>
+                  {idea.submitter.displayName}
+                </span>
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {idea.department?.name ?? "—"}
+              </TableCell>
+              <TableCell className="text-right">
+                {idea.compositeScore === null ? (
+                  <span className="text-muted-foreground">—</span>
+                ) : (
+                  <span className="inline-flex items-center rounded-lg border border-accent-100 bg-accent-050 px-3 py-1 text-200 font-bold tabular-nums text-accent-700">
+                    {idea.compositeScore.toFixed(1)}
+                  </span>
+                )}
+              </TableCell>
+              <TableCell>
+                <StatusPill kind="LIFECYCLE" status={idea.status} label={STATUS_LABEL[idea.status]} />
+              </TableCell>
+              <TableCell className="text-right text-muted-foreground tabular-nums">
+                {new Date(idea.updatedAt).toLocaleDateString()}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 

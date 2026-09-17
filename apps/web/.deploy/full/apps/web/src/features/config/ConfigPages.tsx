@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, Scale, ShieldAlert, SlidersHorizontal, Target, TrendingUp, Users, Wrench } from "lucide-react";
+import {
+  Clock, Scale, ShieldAlert, SlidersHorizontal, Target, TrendingUp, Users, Wrench,
+} from "lucide-react";
 import {
   Badge, Card, CardContent, CardHeader, CardTitle, ErrorState, Skeleton, Table, TableBody,
   TableCell, TableHead, TableHeader, TableRow,
@@ -9,6 +11,7 @@ import type { CriterionGroup, ListCriteriaResponse, ListProfilesResponse } from 
 import { api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
 import { GROUP_LABEL } from "../evaluation/api";
+import { PageHeading } from "../../app/PageHero";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -58,24 +61,33 @@ export function CriteriaPage() {
     staleTime: 5 * 60_000,
   });
 
+  /**
+   * "Weighted in 4 profiles" answered the wrong question — a reviewer scanning this page
+   * wants to know how much a criterion matters under the profile the board is ACTUALLY
+   * using right now, not how many profiles happen to reference it at all. That number
+   * already lives on `/config/profiles`; fetching it here too (same cache key, same
+   * 5-minute staleTime as the profiles page itself, so this costs nothing extra once
+   * either page has been visited) lets this page answer both questions on one line.
+   */
+  const profiles = useQuery({
+    queryKey: queryKeys.config.profiles(),
+    queryFn: () => api<ListProfilesResponse>("/config/profiles"),
+    staleTime: 5 * 60_000,
+  });
+  const defaultProfile = profiles.data?.items.find((p) => p.isDefault) ?? profiles.data?.items[0];
+  const weightOf = (criterionKey: string): number | undefined =>
+    defaultProfile?.weights.find((w) => w.criterionKey === criterionKey)?.weight;
+
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  Evaluation criteria
+        <Link to="/">Home</Link>  ›  Evaluation criteria
       </nav>
-      <h1 className="flex items-center gap-3">
-        <span
-          aria-hidden
-          className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground"
-        >
-          <SlidersHorizontal className="size-4.5" />
-        </span>
-        Evaluation criteria
-      </h1>
-      <p className="muted">
-        Every score in the platform comes from these. Each one is scored 0–100 from the
-        analysis, then weighted by whichever profile is in use.
-      </p>
+      <PageHeading
+        icon={SlidersHorizontal}
+        heading="Evaluation criteria"
+        description="Every score in the platform comes from these. Each one is scored 0–100 from the analysis, then weighted by whichever profile is in use."
+      />
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-96 w-full" aria-busy="true" />
@@ -88,25 +100,31 @@ export function CriteriaPage() {
           renderLink={link}
         />
       ) : (
-        <div className="mt-6 space-y-6">
+        <div className="mt-6 space-y-8">
+          {/*
+            A category is a GROUPING, not a thing anyone picks up or compares against its
+            neighbours — the twelve criteria on this page were the clearest case in the
+            product of a static list wearing the same card recipe as an idea someone
+            clicks, drags a checkbox onto, or reads off a board. A heading, a rule, and a
+            divided list carry the same hierarchy (category → criterion → detail) without
+            claiming each of six categories is its own separate object on the page.
+          */}
           {GROUP_ORDER.filter((g) => query.data.items.some((c) => c.group === g)).map((group) => {
             const { icon: GroupIcon, tone } = GROUP_STYLE[group];
             return (
-            <Card key={group}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2.5">
-                  <span aria-hidden className={`grid size-7 shrink-0 place-items-center rounded-md ${tone}`}>
-                    <GroupIcon className="size-4" />
-                  </span>
-                  {GROUP_LABEL[group]}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5">
+            <section key={group}>
+              <h2 className="flex items-center gap-2.5 text-400 font-semibold">
+                <span aria-hidden className={`grid size-7 shrink-0 place-items-center rounded-md ${tone}`}>
+                  <GroupIcon className="size-4" />
+                </span>
+                {GROUP_LABEL[group]}
+              </h2>
+              <div className="mt-3 divide-y divide-border border-t border-border">
                 {query.data.items
                   .filter((c) => c.group === group)
                   .map((c) => (
                     // The anchor is what a criterion link on the Evaluation tab targets.
-                    <section key={c.key} id={c.key}>
+                    <div key={c.key} id={c.key} className="py-4 first:pt-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-300 font-medium">{c.label}</h3>
                         {!c.isActive ? <Badge variant="outline">Not in use</Badge> : null}
@@ -120,19 +138,28 @@ export function CriteriaPage() {
                           "No profile currently gives this any weight, so it cannot affect a rank."
                         ) : (
                           <>
-                            Weighted in{" "}
+                            {defaultProfile && weightOf(c.key) !== undefined ? (
+                              <>
+                                <span className="font-semibold tabular-nums text-foreground">
+                                  {(weightOf(c.key)! * 100).toFixed(0)}%
+                                </span>{" "}
+                                under the {defaultProfile.name} profile — weighted in{" "}
+                              </>
+                            ) : (
+                              "Weighted in "
+                            )}
                             <Link to="/config/profiles">
                               {c.usedInProfiles.length} profile
                               {c.usedInProfiles.length === 1 ? "" : "s"}
-                            </Link>
-                            .
+                            </Link>{" "}
+                            in total.
                           </>
                         )}
                       </p>
-                    </section>
+                    </div>
                   ))}
-              </CardContent>
-            </Card>
+              </div>
+            </section>
             );
           })}
 
@@ -157,21 +184,13 @@ export function ProfilesPage() {
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  Evaluation profiles
+        <Link to="/">Home</Link>  ›  Evaluation profiles
       </nav>
-      <h1 className="flex items-center gap-3">
-        <span
-          aria-hidden
-          className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground"
-        >
-          <Scale className="size-4.5" />
-        </span>
-        Evaluation profiles
-      </h1>
-      <p className="muted">
-        A profile decides what matters. The same idea can rank differently under two of
-        them, and neither ranking is wrong — they are answers to different questions.
-      </p>
+      <PageHeading
+        icon={Scale}
+        heading="Evaluation profiles"
+        description="A profile decides what matters. The same idea can rank differently under two of them, and neither ranking is wrong — they are answers to different questions."
+      />
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-96 w-full" aria-busy="true" />
@@ -191,7 +210,7 @@ export function ProfilesPage() {
               <Card key={profile.key}>
                 <CardHeader>
                   <div className="flex flex-wrap items-center gap-2">
-                    <CardTitle>{profile.name}</CardTitle>
+                    <CardTitle className="font-serif">{profile.name}</CardTitle>
                     {profile.isDefault ? <Badge>Default</Badge> : null}
                     {!profile.isActive ? <Badge variant="outline">Not in use</Badge> : null}
                   </div>
@@ -204,22 +223,40 @@ export function ProfilesPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Criterion</TableHead>
-                          <TableHead className="text-right">Weight</TableHead>
+                          {/* A weight IS a proportion of the whole, so it gets a bar, not
+                              only a number (visual-richness pass — a real, meaningful
+                              data visualization instead of a column of percentages). */}
+                          <TableHead className="w-56">Weight</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {profile.weights.map((w) => (
-                          <TableRow key={w.criterionKey}>
-                            <TableCell>
-                              <Link to={`/config/criteria#${w.criterionKey}`}>
-                                {w.criterionLabel}
-                              </Link>
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {(w.weight * 100).toFixed(1)}%
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {[...profile.weights]
+                          .sort((a, b) => b.weight - a.weight)
+                          .map((w) => (
+                            <TableRow key={w.criterionKey}>
+                              <TableCell>
+                                <Link to={`/config/criteria#${w.criterionKey}`}>
+                                  {w.criterionLabel}
+                                </Link>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2.5">
+                                  <span className="w-12 shrink-0 text-right tabular-nums">
+                                    {(w.weight * 100).toFixed(1)}%
+                                  </span>
+                                  <span
+                                    aria-hidden
+                                    className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-ramp-1"
+                                  >
+                                    <span
+                                      className="block h-full rounded-full bg-gradient-to-r from-ramp-4 to-accent-700"
+                                      style={{ width: `${Math.max(2, w.weight * 100)}%` }}
+                                    />
+                                  </span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
                       </TableBody>
                     </Table>
                   </div>

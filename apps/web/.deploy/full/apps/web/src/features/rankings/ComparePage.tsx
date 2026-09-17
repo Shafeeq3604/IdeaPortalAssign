@@ -1,14 +1,86 @@
-import { Link, useSearchParams } from "react-router-dom";
+import * as React from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { GitCompare } from "lucide-react";
 import {
-  Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, ScoreDisplay, Skeleton,
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Button, Card, CardContent, CardHeader, CardTitle, Checkbox, EmptyState, ErrorState,
+  ScoreDisplay, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@iep/ui";
 import { MATURITY_LABEL } from "../evaluation/api";
-import { useCompare } from "./api";
+import { useCompare, useRankings } from "./api";
+import { PageHeading } from "../../app/PageHero";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
 );
+
+/**
+ * Pick two to four ranked ideas, then compare them — without a detour through Rankings.
+ *
+ * The only way onto this page used to be a checkbox on the Rankings list; landing here
+ * directly (a bookmark, a link with no `ids`) was a dead end pointing you back there.
+ * Scoped to the top 25 by design: comparing something ranked #80 against the leader is
+ * rarely the decision anyone is actually making, and a picker searching the whole board
+ * would need its own search box and pagination for a feature this page doesn't otherwise
+ * need.
+ */
+function IdeaPicker() {
+  const navigate = useNavigate();
+  const [selected, setSelected] = React.useState<readonly string[]>([]);
+  const query = useRankings({ page: 1, rankBand: "top25" });
+
+  const toggle = (ideaId: string, on: boolean) =>
+    setSelected((prev) => {
+      const kept = prev.filter((id) => id !== ideaId);
+      return on ? [...kept, ideaId] : kept;
+    });
+
+  if (query.isPending) return <Skeleton className="mt-6 h-72 w-full" aria-busy="true" />;
+  if (query.isError || query.data.items.length === 0) return null;
+
+  return (
+    <div className="mt-6">
+      <ul className="list-none space-y-2 p-0">
+        {query.data.items.map((row) => {
+          const on = selected.includes(row.ideaId);
+          return (
+            <li key={row.ideaId}>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-card p-3 shadow-e1 ring-1 ring-inset ring-border transition-shadow hover:shadow-e2">
+                <Checkbox
+                  checked={on}
+                  onCheckedChange={(checked) => toggle(row.ideaId, checked === true)}
+                  disabled={!on && selected.length >= 4}
+                  aria-label={`Select ${row.title} for comparison`}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{row.title}</span>
+                  <span className="text-100 text-muted-foreground">
+                    Rank #{row.rank} · {row.compositeScore.toFixed(1)}
+                  </span>
+                </span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="mt-4 flex items-center gap-3">
+        <Button
+          disabled={selected.length < 2}
+          onClick={() => navigate(`/rankings/compare?${selected.map((id) => `ids=${id}`).join("&")}`)}
+        >
+          Compare {selected.length > 0 ? selected.length : ""} selected
+        </Button>
+        <p className="text-100 text-muted-foreground">
+          {selected.length < 2
+            ? "Pick at least two."
+            : selected.length >= 4
+              ? "That's the most this table can hold at once."
+              : `${4 - selected.length} more allowed.`}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Side-by-side comparison of two to four ideas (P7 — SPEC §9.9).
@@ -27,13 +99,14 @@ export function ComparePage() {
   if (ids.length < 2 || ids.length > 4) {
     return (
       <main className="page">
-        <h1>Compare ideas</h1>
+        <PageHeading icon={GitCompare} heading="Compare ideas" />
         <EmptyState
           title="Pick two to four ideas"
-          description="Two is the minimum for a comparison to say anything; above four the table stops being readable."
+          description="Two is the minimum for a comparison to say anything; above four the table stops being readable. Check them below, or from the Rankings list itself."
           action={{ label: "Go to the rankings", to: "/rankings" }}
           renderLink={link}
         />
+        <IdeaPicker />
       </main>
     );
   }
@@ -43,7 +116,11 @@ export function ComparePage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/rankings">Rankings</Link>  ›  Compare
       </nav>
-      <h1>Comparing {ids.length} ideas</h1>
+      <PageHeading
+        icon={GitCompare}
+        heading={`Comparing ${ids.length} ideas`}
+        description="The table below leads with where they disagree — that's what a decision actually turns on."
+      />
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-96 w-full" aria-busy="true" />

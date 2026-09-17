@@ -48,7 +48,7 @@ export class RouteErrorBoundary extends React.Component<Props, State> {
     if (!error) return this.props.children;
 
     return (
-      <main className="page">
+      <main className="page page--narrow">
         <ErrorState
           title="Something went wrong on this page"
           description={

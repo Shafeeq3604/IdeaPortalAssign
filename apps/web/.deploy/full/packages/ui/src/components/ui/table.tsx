@@ -8,7 +8,14 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      // `overflow-x-auto` already let a wide table scroll — the container itself was
+      // never the bug. What was missing is any SIGNAL that it can: the platform default
+      // scrollbar only paints itself in while a trackpad or drag is actively in motion,
+      // so a table that overflows at a laptop's real width (Review queue, People &
+      // access both clip their rightmost column past ~800px) reads as "the column got
+      // cut off," not "scroll right." A thin, permanently-visible scrollbar fixes that
+      // without touching either page's markup.
+      className="relative w-full overflow-x-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
     >
       <table
         data-slot="table"

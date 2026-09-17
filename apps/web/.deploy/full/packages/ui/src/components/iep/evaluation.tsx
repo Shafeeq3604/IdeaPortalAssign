@@ -6,6 +6,18 @@ import type {
 } from "./types.js";
 
 /**
+ * Some evidence strings arrive from the analysis already wrapped in their own straight
+ * quotes ("like this"). Rendering evidence as a real quotation adds curly ones on top —
+ * right for a plain sentence, but a double-quoted `""like this""` for a line that already
+ * had its own. Strips one layer of straight quotes (and nothing else) before the curly
+ * pair goes on, so every evidence line ends up quoted exactly once regardless of how the
+ * analysis wrote it.
+ */
+function unquote(text: string): string {
+  return text.replace(/^["“]([\s\S]*)["”]$/, "$1");
+}
+
+/**
  * The explainability primitives (SPEC §7.6), implemented against their P0-frozen
  * signatures.
  *
@@ -31,6 +43,42 @@ function useFirstPaint(enabled: boolean): boolean {
   return first;
 }
 
+/**
+ * The digits themselves count 0 → value over `--dur-tally`, on first paint only — the
+ * opacity fade alone (the previous implementation) hid the number while it was invisible
+ * and then simply revealed the final figure, which is not a tally, just a fade. Skips
+ * straight to `value` when `enabled` is false or the viewer prefers reduced motion.
+ */
+function useTally(value: number, enabled: boolean): number {
+  const reduced =
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const [display, setDisplay] = React.useState(enabled && !reduced ? 0 : value);
+  const tallied = React.useRef(!enabled || reduced);
+
+  React.useEffect(() => {
+    // First paint only (SPEC §8.3): once the initial tally has run, a later change to
+    // `value` (a re-evaluated score) updates the figure directly rather than re-tallying
+    // it as though it were arriving for the first time again.
+    if (tallied.current) {
+      setDisplay(value);
+      return;
+    }
+    tallied.current = true;
+    const durationMs = 600; // matches --dur-tally
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs);
+      setDisplay(value * t);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+
+  return display;
+}
+
 /* ══════════════════════════════════════════════════════════════════
  * ScoreDisplay — numbers arrive, they do not pop (SPEC §8.1).
  * ══════════════════════════════════════════════════════════════════ */
@@ -42,14 +90,20 @@ const SIZE: Record<NonNullable<ScoreDisplayProps["size"]>, string> = {
 };
 
 export function ScoreDisplay({ value, max = 100, size = "md", animate = true }: ScoreDisplayProps) {
-  const arriving = useFirstPaint(animate);
+  const tallied = useTally(value, animate);
 
   return (
     <span className={cn("inline-flex items-baseline gap-1 tabular-nums", SIZE[size])}>
-      <span
-        className={cn("font-semibold transition-opacity duration-[var(--dur-tally)]", arriving && "opacity-0")}
-      >
-        {value.toFixed(1)}
+      {/*
+        A gradient fill, not a flat foreground colour — this is the single most-looked-at
+        number on the Evaluation tab (the composite score everything else on the page
+        explains), and it read exactly as important as the "/ 100" beside it. Reserved for
+        this one figure, not applied to body text generally, so it stays a signal rather
+        than a decoration repeated everywhere. The digits themselves count up to it
+        (`useTally`, first paint only) rather than merely fading in at their final value.
+      */}
+      <span className="bg-gradient-to-br from-accent-700 to-grad-to bg-clip-text font-serif font-bold text-transparent">
+        {tallied.toFixed(1)}
       </span>
       <span className="text-200 text-muted-foreground">/ {max}</span>
     </span>
@@ -143,7 +197,9 @@ export function ContributionBar({
         </span>
         <span className="text-100 tabular-nums text-muted-foreground">
           {normalized.toFixed(1)} × {(weight * 100).toFixed(1)}% ={" "}
-          <span className="font-medium text-foreground">{contribution.toFixed(2)} pts</span>
+          <span className="font-serif font-semibold text-200 text-foreground">
+            {contribution.toFixed(2)} pts
+          </span>
         </span>
       </div>
 
@@ -198,13 +254,13 @@ export function ContributionBar({
 
       {/* `reveal-reasoning` (§8.3). The evidence is the whole point of the component. */}
       {open ? (
-        <ul id={panelId} className="motion-reveal mt-2 space-y-1">
+        <ul id={panelId} className="motion-reveal mt-2 space-y-1.5">
           {evidence.map((line, i) => (
             <li
               key={`${i}-${line.slice(0, 24)}`}
-              className="border-l-2 border-border pl-3 text-200 text-muted-foreground"
+              className="border-l-2 border-border pl-3 text-200 italic text-muted-foreground"
             >
-              {line}
+              “{unquote(line)}”
             </li>
           ))}
         </ul>
@@ -222,18 +278,29 @@ export function ExplanationPanel({
 }: ExplanationPanelProps) {
   return (
     <div className="space-y-5">
-      <ExplanationGroup
-        heading="What lifted this idea"
-        items={strengths}
-        emptyNote="Nothing scored strongly enough to single out."
-        tone="up"
-      />
-      <ExplanationGroup
-        heading="What held it back"
-        items={constraints}
-        emptyNote="Nothing scored low enough to single out."
-        tone="down"
-      />
+      {/*
+        Two tiles side by side, not two sections stacked — "what lifted this idea" and
+        "what held it back" are the two halves of one answer (visual-richness pass:
+        stronger visual grouping for the platform's actual argument for a rank), so they
+        read as a pairing rather than a scroll of two lists one after another. Each tile
+        keeps its own tinted ground (the same `factor-up`/`factor-down` direction tones
+        used everywhere else a criterion's direction is shown — P-1: colour, never
+        quality) so the eye separates "helped" from "held back" before reading a word.
+      */}
+      <div className="grid gap-3 md:grid-cols-2">
+        <ExplanationGroup
+          heading="What lifted this idea"
+          items={strengths}
+          emptyNote="Nothing scored strongly enough to single out."
+          tone="up"
+        />
+        <ExplanationGroup
+          heading="What held it back"
+          items={constraints}
+          emptyNote="Nothing scored low enough to single out."
+          tone="down"
+        />
+      </div>
 
       {peerComparisons.length > 0 ? (
         <div>
@@ -265,6 +332,16 @@ export function ExplanationPanel({
   );
 }
 
+/**
+ * Typeset deliberately, not just laid out — this panel is the platform's actual argument
+ * for why anyone should trust a rank, and it used to share the same plain paragraph
+ * style as every other block of text in the product. Three changes carry that argument:
+ * a serif heading (the same face `PageHero` reserves for a page's own name, so "what
+ * lifted this idea" reads as a real assertion rather than a caption), a tabular-numeral
+ * share-of-score set in a heavier weight (the number IS the claim, so it gets the weight),
+ * and evidence rendered as an actual quotation — the model's own words, set apart from
+ * the engine's factual sentence above it rather than styled identically to it.
+ */
 function ExplanationGroup({
   heading, items, emptyNote, tone,
 }: {
@@ -273,20 +350,37 @@ function ExplanationGroup({
   emptyNote: string;
   tone: "up" | "down";
 }) {
+  const up = tone === "up";
   return (
-    <div>
-      <h4 className="text-300 font-medium">{heading}</h4>
+    <div
+      className={cn(
+        "rounded-xl border p-4",
+        up ? "border-factor-up/20 bg-factor-up-bg/40" : "border-factor-down/20 bg-factor-down-bg/40",
+      )}
+    >
+      <h4 className="flex items-center gap-2 font-serif text-300 font-semibold">
+        <span
+          aria-hidden
+          className={cn(
+            "grid size-6 shrink-0 place-items-center rounded-full",
+            up ? "bg-factor-up-bg text-factor-up" : "bg-factor-down-bg text-factor-down",
+          )}
+        >
+          {up ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />}
+        </span>
+        {heading}
+      </h4>
       {items.length === 0 ? (
         <p className="mt-1 text-200 text-muted-foreground">{emptyNote}</p>
       ) : (
-        <ul className="mt-2 space-y-3">
+        <ul className="mt-2.5 space-y-4">
           {items.map((item) => (
             <li key={item.criterionKey}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="text-200 font-medium">{item.criterionLabel}</span>
                 <span
                   className={cn(
-                    "text-100 tabular-nums",
+                    "text-200 font-semibold tabular-nums",
                     tone === "up" ? "text-factor-up" : "text-factor-down",
                   )}
                 >
@@ -296,13 +390,13 @@ function ExplanationGroup({
               </div>
               <p className="text-200">{item.text}</p>
               {item.evidence.length > 0 ? (
-                <ul className="mt-1 space-y-1">
+                <ul className="mt-1.5 space-y-1.5">
                   {item.evidence.slice(0, 2).map((line, i) => (
                     <li
                       key={`${i}-${line.slice(0, 24)}`}
-                      className="border-l-2 border-border pl-3 text-100 text-muted-foreground"
+                      className="border-l-2 border-border pl-3 text-100 italic text-muted-foreground"
                     >
-                      {line}
+                      “{unquote(line)}”
                     </li>
                   ))}
                 </ul>

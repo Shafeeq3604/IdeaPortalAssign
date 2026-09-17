@@ -59,6 +59,14 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
 
+      # Catches the failure mode where apps/{api,worker,web}/Dockerfile builds a committed
+      # apps/<service>/.deploy snapshot (turbo prune --docker) that's drifted from real
+      # source — a green deploy that silently ships stale code. ~1-2s/service (turbo
+      # prune, no Docker build), so unlike `pnpm run preflight` this is cheap enough to
+      # gate every PR; `preflight` stays a slower, separate check for nightly/pre-release.
+      - name: Deploy snapshot freshness (apps/*/.deploy match real source)
+        run: pnpm run deploy:check
+
       # Security (SPEC §11.6) — dependency vulnerabilities, static analysis, leaked
       # secrets. All three are blocking, and all three run before anything expensive.
       - name: Dependency vulnerabilities (production deps only)

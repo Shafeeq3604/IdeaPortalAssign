@@ -16,9 +16,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@iep/ui";
  */
 export function DataAndAiPage() {
   return (
-    <main className="page">
+    <main className="page page--narrow">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  Data &amp; AI notice
+        <Link to="/">Home</Link>  ›  Data &amp; AI notice
       </nav>
       <h1>How your idea is handled</h1>
       <p className="muted">

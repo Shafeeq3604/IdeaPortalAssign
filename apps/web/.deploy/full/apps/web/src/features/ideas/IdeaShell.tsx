@@ -1,12 +1,14 @@
 import * as React from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import {
-  Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
-  DialogTitle, ErrorState, Label, Skeleton, Textarea,
+  Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
+  DialogTitle, ErrorState, Label, Skeleton, StatusPill, Textarea,
 } from "@iep/ui";
 import { ROUTES } from "@iep/contracts";
 import { STATUS_LABEL, useIdea, useTransition } from "./api";
 import { VoteButtons } from "../feedback/VoteButtons";
+import { useSession } from "../../app/use-session";
 import type { IdeaDetail } from "@iep/contracts";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
@@ -32,6 +34,7 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
   const { ideaId = "" } = useParams();
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const session = useSession();
   const query = useIdea(ideaId);
   const transition = useTransition(ideaId);
   const [archiveOpen, setArchiveOpen] = React.useState(false);
@@ -66,11 +69,22 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
   }
 
   const idea = query.data;
+  const actorRoles = session.data?.user.roles ?? [];
+  /*
+   * Bug found live: this used to gate the "Review" tab on `idea.permissions.canReview`
+   * — THIS idea's per-resource permission, not "can this person reach the review
+   * workflow at all." Since a reviewer/admin cannot review their own submission
+   * (permissions.ts's deliberate self-review block), landing on their own idea made the
+   * tab silently vanish from the strip, on top of the tab's own content rendering
+   * nothing (fixed separately in `ReviewTab.tsx` — see `SelfSubmittedNotice`). Gating on
+   * the ROUTE's own roles instead means the tab stays put for anyone who holds
+   * REVIEWER/ADMIN, on every idea including their own, and the page explains the
+   * per-idea "why" instead of the tab bar doing it by disappearing.
+   */
   const canSee = (id: string): boolean => {
     const route = ROUTES.find((r) => r.id === id);
     if (!route) return false;
-    // Review is privileged; the rest follow the idea itself.
-    return id !== "idea.review" || idea.permissions.canReview;
+    return route.roles.length === 0 || route.roles.some((r) => actorRoles.includes(r));
   };
 
   return (
@@ -79,26 +93,115 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
         <Link to="/ideas">Ideas</Link>  ›  {idea.title}
       </nav>
 
-      <h1>{idea.title}</h1>
+      {/*
+        Idea Details is the one screen every role lands on to make a decision — the
+        flagship of the enterprise-polish pass (§12). The title is the primary fact
+        (large, serif, on its own line); status + version are secondary (a real
+        `StatusPill`, the same one every card and table on the product uses, not a plain
+        `Badge` guessing at a variant); submitter/department recede to tertiary metadata.
+        Three tiers instead of one flat row of equally-weighted text.
+      */}
+      <h1 className="font-serif text-700 font-semibold leading-tight tracking-tight">
+        {idea.title}
+      </h1>
 
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <Badge variant={idea.status === "DRAFT" ? "outline" : "secondary"}>
-          {STATUS_LABEL[idea.status]}
-        </Badge>
-        <span className="text-200 text-muted-foreground tabular">
+      <div className="mt-2 mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <StatusPill kind="LIFECYCLE" status={idea.status} label={STATUS_LABEL[idea.status]} />
+        <span className="text-100 text-muted-foreground tabular">
           Version {idea.currentVersionNo} of {idea.versionCount}
         </span>
-        <Link to={`/people/${idea.submitter.id}`} className="text-200">
-          {idea.submitter.displayName}
-        </Link>
-        {idea.department ? (
-          <Link to={`/departments/${idea.department.id}`} className="text-200">
-            {idea.department.name}
-          </Link>
-        ) : null}
+        <span className="text-100 text-muted-foreground">
+          <Link to={`/people/${idea.submitter.id}`}>{idea.submitter.displayName}</Link>
+          {idea.department ? (
+            <>
+              {" · "}
+              <Link to={`/departments/${idea.department.id}`}>{idea.department.name}</Link>
+            </>
+          ) : null}
+        </span>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2 border-b border-border pb-3">
+      {/*
+        Reactions and actions share one compact row, so an idea's context (what it is,
+        what colleagues think, what you can do to it) reads as a single block above the
+        tab strip instead of three separately-margined ones pushing tab content further
+        down the page every time. Both still sit above the tabs and outside them —
+        reacting is something you do to the IDEA, not to its analysis, and an action like
+        "Create a new version" is a decision about the idea as a whole, not one tab's
+        concern — so neither belongs buried on a single tab where most people would never
+        find it.
+      */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2.5">
+        {idea.status === "DRAFT" ? (
+          <span />
+        ) : (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="text-100 font-medium uppercase tracking-widest text-muted-foreground">
+              Team feedback
+            </span>
+            <VoteButtons ideaId={ideaId} />
+            <span className="text-100 text-muted-foreground">
+              What colleagues think — separate from the platform's own evaluation.
+            </span>
+          </div>
+        )}
+
+        {/* Actions the API confirmed THIS actor may take — never guessed client-side. */}
+        <div className="flex flex-wrap gap-2.5">
+          {idea.permissions.canEdit ? (
+            <Button asChild size="sm" variant="outline">
+              {link({ to: `/ideas/${ideaId}/revise`, children: "Edit" })}
+            </Button>
+          ) : null}
+          {idea.permissions.canRevise ? (
+            <Button asChild size="sm">
+              {link({ to: `/ideas/${ideaId}/revise`, children: "Create a new version" })}
+            </Button>
+          ) : null}
+          {idea.permissions.allowedTransitions.includes("SUBMITTED") ? (
+            <Button
+              size="sm"
+              disabled={transition.isPending}
+              onClick={() =>
+                transition.mutate(
+                  { to: "SUBMITTED" },
+                  // The status pill above re-renders to "Submitted" either way, but that
+                  // is easy to miss on a page someone is about to navigate away from —
+                  // this is the moment the analysis pipeline actually starts, and it was
+                  // the one transition on this page with nothing telling you it worked.
+                  { onSuccess: () => toast.success("Submitted — analysis is starting.") },
+                )
+              }
+            >
+              {transition.isPending ? "Submitting…" : "Submit for analysis"}
+            </Button>
+          ) : null}
+          {idea.permissions.allowedTransitions.includes("ARCHIVED") ? (
+            // `ghost`, not `destructive` — this is the trigger, not the commit. It sat at
+            // full destructive-red weight next to routine actions like "Submit for
+            // analysis," so the rarest, hardest-to-undo control on the page was also the
+            // loudest one. The actual point of no return is the confirm button in the
+            // dialog below, which keeps its destructive styling; a reason is required
+            // there and nothing here can archive anything by itself.
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setArchiveOpen(true)}
+            >
+              Archive this idea
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      {/*
+        An underline tab strip, not filled buttons — five destinations sharing one report
+        (Overview / Analysis / Evaluation / History / Review) read as SECTIONS of the same
+        document, not five separate places to navigate to. The active underline is the
+        one thing carrying weight; everything else stays quiet until it's current.
+      */}
+      <div className="mb-6 flex flex-wrap gap-1 border-b border-border">
         {TABS.filter((t) => canSee(t.id)).map((tab) => {
           const to = `/ideas/${ideaId}/${tab.seg}`;
           const active = pathname === to;
@@ -109,61 +212,14 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
               aria-current={active ? "page" : undefined}
               className={
                 active
-                  ? "rounded-md bg-accent px-3 py-2 text-200 font-medium text-accent-foreground"
-                  : "rounded-md px-3 py-2 text-200 text-muted-foreground hover:bg-muted"
+                  ? "-mb-px border-b-2 border-accent-600 px-3 py-2.5 text-200 font-semibold text-foreground"
+                  : "-mb-px border-b-2 border-transparent px-3 py-2.5 text-200 font-medium text-muted-foreground transition-colors duration-[var(--dur-fast)] hover:text-foreground"
               }
             >
               {tab.label}
             </Link>
           );
         })}
-      </div>
-
-      {/*
-        Reactions sit at the top of every idea, next to its actions.
-
-        Deliberately above the tabs' content and outside them: reacting is something you do
-        to the IDEA, not to its analysis, and burying it on one tab would mean most people
-        never find it. A draft has nothing to react to yet.
-      */}
-      {idea.status === "DRAFT" ? null : (
-        <div className="mb-6 flex flex-wrap items-center gap-3">
-          <span className="text-100 font-medium uppercase tracking-widest text-muted-foreground">
-            Team feedback
-          </span>
-          <VoteButtons ideaId={ideaId} />
-          <span className="text-100 text-muted-foreground">
-            What colleagues think. Separate from the platform's own evaluation, and it does
-            not affect the score.
-          </span>
-        </div>
-      )}
-
-      {/* Actions the API confirmed THIS actor may take — never guessed client-side. */}
-      <div className="mb-8 flex flex-wrap gap-3">
-        {idea.permissions.canEdit ? (
-          <Button asChild variant="outline">
-            {link({ to: `/ideas/${ideaId}/revise`, children: "Edit" })}
-          </Button>
-        ) : null}
-        {idea.permissions.canRevise ? (
-          <Button asChild>
-            {link({ to: `/ideas/${ideaId}/revise`, children: "Create a new version" })}
-          </Button>
-        ) : null}
-        {idea.permissions.allowedTransitions.includes("SUBMITTED") ? (
-          <Button
-            disabled={transition.isPending}
-            onClick={() => transition.mutate({ to: "SUBMITTED" })}
-          >
-            {transition.isPending ? "Submitting…" : "Submit for analysis"}
-          </Button>
-        ) : null}
-        {idea.permissions.allowedTransitions.includes("ARCHIVED") ? (
-          <Button variant="destructive" onClick={() => setArchiveOpen(true)}>
-            Archive this idea
-          </Button>
-        ) : null}
       </div>
 
       <Dialog
@@ -225,7 +281,15 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
                   // The default `/ideas` view excludes ARCHIVED — landing there right
                   // after archiving made the idea look deleted rather than archived.
                   { to: "ARCHIVED", reason: archiveReason.trim() },
-                  { onSuccess: () => navigate("/ideas?status=ARCHIVED") },
+                  {
+                    onSuccess: () => {
+                      // The navigation alone left this indistinguishable from any other
+                      // filtered list — the one confirmation that the idea was actually
+                      // archived, not just that a dialog closed, was missing.
+                      toast.success(`"${idea.title}" was archived.`);
+                      navigate("/ideas?status=ARCHIVED");
+                    },
+                  },
                 );
               }}
             >
@@ -235,7 +299,14 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
         </DialogContent>
       </Dialog>
 
-      {children(idea)}
+      {/* `.motion-defer` (visual-richness pass — subtle motion on Idea Details): a plain
+          fade and a slight rise, no stagger, no lift — this page's richness is meant to
+          read as analytical calm, so every tab's content gets one quiet arrival, not a
+          choreographed reveal. Keyed on the route so switching tabs re-triggers it,
+          the same way a page navigation would. */}
+      <div key={pathname} className="motion-defer">
+        {children(idea)}
+      </div>
     </main>
   );
 }

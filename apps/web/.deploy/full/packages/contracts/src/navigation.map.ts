@@ -213,7 +213,7 @@ export function breadcrumbChain(routeId: string, maxDepth = 6): readonly RouteDe
  */
 export function matchRouteId(pathname: string): RouteDef | undefined {
   const normalised = pathname.replace(/\/+$/, "") || "/";
-  return ROUTES.find((route) => {
+  const matches = ROUTES.filter((route) => {
     // `:param` matches one segment and nothing else — `/ideas/a/b` must not match
     // `/ideas/:ideaId`, or a nested typo would report as a permission problem.
     const source = route.path
@@ -226,4 +226,23 @@ export function matchRouteId(pathname: string): RouteDef | undefined {
       .join("/");
     return new RegExp(`^${source}$`).test(normalised);
   });
+
+  /*
+   * Bug found live: `/rankings/compare` matched BOTH `rankings.compare` (its own,
+   * static entry) and `rankings.run`'s `/rankings/:runId` (":runId" happily matches
+   * the literal segment "compare"). The old `.find()` returned whichever of the two
+   * happened to be declared first in `ROUTES` — `rankings.run` was, so the Compare
+   * page's browser tab read "Ranking run · Idea Platform". Order in this array was
+   * never meant to carry meaning; specificity has to decide, the way every real
+   * router (including the one this app runs on) already resolves the same ambiguity.
+   * Fewest `:param` segments wins — a static route is always more specific than a
+   * dynamic one matching the same literal path.
+   */
+  const dynamicSegments = (route: RouteDef): number =>
+    route.path.split("/").filter((s) => s.startsWith(":")).length;
+
+  return matches.reduce<RouteDef | undefined>((best, route) => {
+    if (!best) return route;
+    return dynamicSegments(route) < dynamicSegments(best) ? route : best;
+  }, undefined);
 }

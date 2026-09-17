@@ -10,6 +10,8 @@ import type { Role } from "@iep/contracts";
 import { api } from "./api-client";
 import { canSee, useSession } from "./use-session";
 import { ThemeToggle } from "./theme";
+import { BrandMark } from "./BrandMark";
+import { CommandPalette } from "./CommandPalette";
 import { PRODUCT_NAME, PRODUCT_SHORT } from "./product";
 
 /**
@@ -104,6 +106,7 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
 
 /** How a ghost control has to look sitting on the dark gradient bar. */
 const ON_BAR = "text-grad-ink hover:bg-grad-ink/15 hover:text-grad-ink";
+
 
 function AccountMenu() {
   const { data } = useSession();
@@ -282,6 +285,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh">
       {/*
+        Manual accessibility pass (design-audit finding, distinct from the automated axe
+        sweep): every page here puts 4-8 sidebar nav links between a keyboard or
+        screen-reader user and the content they came for, on every single page load. A
+        skip link is the standard fix (WCAG 2.4.1) and nothing in this codebase had one.
+        Visually hidden until it receives focus, first thing in tab order, jumps straight
+        to the content wrapper below.
+      */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-accent-600 focus:px-4 focus:py-2 focus:text-100 focus:font-semibold focus:text-primary-foreground focus:shadow-e4"
+      >
+        Skip to main content
+      </a>
+
+      {/*
         The header carries the brand gradient, so the product does not change identity the
         moment somebody signs in. Text on it is white in BOTH themes — the bar is dark in
         both, so a token that flips would be wrong here.
@@ -290,7 +308,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Button
           variant="ghost"
           size="sm"
-          className="lg:hidden"
+          className="md:hidden"
           onClick={() => setNavOpen((v) => !v)}
           aria-expanded={navOpen}
           aria-label="Menu"
@@ -298,18 +316,55 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ☰
         </Button>
 
-        <Link to="/" className="flex min-w-0 items-center gap-2 no-underline">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-grad-highlight/20 text-100 font-bold text-grad-highlight ring-1 ring-grad-rule">
-            IP
+        {/*
+          Bug found live at phone width: `min-w-0` (needed so the truncating `PRODUCT_NAME`
+          span doesn't force the row wider than its content) also told the flex algorithm
+          this whole link could shrink all the way to 0 once the row got tight — and with
+          the icon span's own `overflow: visible`, a 0-width anchor still PAINTED its icon,
+          just on top of whatever sibling now started at that same x position (the command
+          palette button). The link needs `min-w-0` for its text child but must never itself
+          be squeezed below its icon's size, so `shrink-0` goes on the link and `min-w-0`
+          moves to the text spans, which is the only place truncation actually happens.
+        */}
+        <Link to="/" className="flex shrink-0 items-center gap-2 no-underline">
+          {/*
+            The same mark the sign-in screen uses (`WelcomeShell`'s own header badge),
+            not a second, unrelated "IP" monogram — design-audit finding: a plain
+            two-letter initial badge here and a different mark there read as two
+            different products across the sign-in/sign-up-to-app boundary. One mark now.
+          */}
+          <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-grad-highlight/20 ring-1 ring-grad-rule">
+            <BrandMark className="size-3.5 text-grad-highlight" />
           </span>
-          {/* Full name where there is room; the short form only when there is not. */}
+          {/*
+            Full name where there is room, the short form once there isn't, and neither
+            below `sm` — a phone-width header has the hamburger, this link, "New idea",
+            Discover, the theme toggle and the account menu all in one 320-ish px row, and
+            "Idea Platform" has no room left to sit in. Truncating it to "I…" was worse
+            than showing nothing: the mark two characters to its left already carries the
+            identity on its own at that width.
+          */}
           <span className="hidden truncate text-200 font-semibold text-grad-ink xl:inline">
             {PRODUCT_NAME}
           </span>
-          <span className="truncate text-200 font-semibold text-grad-ink xl:hidden">
+          <span className="hidden truncate text-200 font-semibold text-grad-ink sm:inline xl:hidden">
             {PRODUCT_SHORT}
           </span>
         </Link>
+
+        <div className="mx-2 md:flex-1 md:max-w-80">
+          {/*
+            Design-audit finding: the header search was a bare text box that only
+            submitted on Enter — no live results, no way to reach a page directly, and
+            the single weakest surface a competitor evaluator singled out. `CommandPalette`
+            replaces it: same slot, same placeholder, but Ctrl K/⌘K opens live idea search
+            AND a "go to" list of every page this person can reach, from anywhere in the
+            app, not just from this box. It used to be hidden below `md` entirely — now a
+            compact icon button at every width, so a phone gets the same reach a desktop
+            keyboard shortcut gives everyone else.
+          */}
+          <CommandPalette className="border-grad-rule bg-grad-ink/10 text-grad-ink-soft hover:bg-grad-ink/15 hover:text-grad-ink focus-visible:bg-card focus-visible:text-foreground" />
+        </div>
 
         {/*
           Each control is told how to look on a dark bar. Explicitly, one at a time.
@@ -339,6 +394,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <Plus aria-hidden className="size-4" />
             <span className="hidden sm:inline">New idea</span>
+            <span aria-hidden className="sm:hidden">New</span>
             <span className="sr-only sm:hidden">New idea</span>
           </Link>
           {/*
@@ -352,23 +408,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             to="/discovery"
             aria-label="Discover"
             title="Discover — ask the AI research agent"
-            className={`${ON_BAR} inline-flex size-8 items-center justify-center rounded-md`}
+            className={`${ON_BAR} inline-flex h-8 items-center gap-1.5 rounded-md px-2 sm:px-2.5`}
           >
-            <Sparkles aria-hidden className="size-4" />
+            <Sparkles aria-hidden className="size-4 shrink-0" />
+            <span className="hidden text-200 font-medium sm:inline">Discover</span>
           </Link>
           <ThemeToggle className={ON_BAR} />
           <AccountMenu />
         </div>
       </header>
 
-      <div className="lg:grid lg:grid-cols-[15rem_1fr]">
-        <aside className="brand-rail hidden border-r border-border bg-card lg:block">{nav}</aside>
+      <div className="md:grid md:grid-cols-[15rem_1fr]">
+        <aside className="brand-rail hidden border-r border-border bg-card md:block">{nav}</aside>
         {navOpen ? (
-          <div className="border-b border-border lg:hidden" onClick={() => setNavOpen(false)}>
+          <div className="border-b border-border md:hidden" onClick={() => setNavOpen(false)}>
             {nav}
           </div>
         ) : null}
-        <div className="min-w-0">{children}</div>
+        <div id="main-content" tabIndex={-1} className="min-w-0 focus:outline-none">
+          {children}
+        </div>
       </div>
     </div>
   );

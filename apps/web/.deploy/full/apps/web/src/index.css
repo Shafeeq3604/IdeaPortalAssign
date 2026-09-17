@@ -26,8 +26,15 @@
     margin: 0;
   }
 
+  /*
+   * The actual background rule lives in packages/ui/src/tokens.css instead of here —
+   * that file's `body {}` is UNLAYERED, and unlayered CSS always wins over anything in
+   * `@layer base`, regardless of source order (the exact bug this file's own opening
+   * comment already documents, from the other direction: a bare rule beating a layered
+   * Tailwind utility). A `background` declared here would be correctly written and
+   * silently have zero effect.
+   */
   body {
-    background: var(--canvas);
     color: var(--text);
     font-family: var(--font-sans);
     font-size: var(--fs-300);
@@ -164,8 +171,14 @@
 /* ── page ── */
 
 .page {
-  max-width: var(--content);
+  max-width: var(--container-wide);
   padding: var(--sp-10) var(--sp-8);
+}
+
+/* Prose-heavy pages (forms, single-idea narrative reading) opt back into the narrower
+   measure instead of stretching body copy across the full 1500px workspace. */
+.page--narrow {
+  max-width: var(--content);
 }
 
 .page h1 {
@@ -312,11 +325,17 @@
 /* Two stops, not one: the violet hands off to the accent tint before it fades out, which
    is what stops the top of the sidebar reading as a bruise on a white column. */
 .brand-rail {
+  /*
+   * A hint, not a wash — the sidebar should read as a calm neutral surface with the brand
+   * colour concentrated in the active pill, not tinted from top to bottom. Toned down from
+   * 14%/50% (Idea Platform Redesign — sidebar) per the enterprise-polish pass: purple is
+   * the accent on top of the surface, not the surface itself (SPEC/REQUIREMENTS §3, §19).
+   */
   background-image: linear-gradient(
     to bottom,
-    color-mix(in oklab, var(--grad-to) 14%, transparent) 0%,
-    color-mix(in oklab, var(--accent-100) 50%, transparent) 26%,
-    transparent 62%
+    color-mix(in oklab, var(--grad-to) 8%, transparent) 0%,
+    color-mix(in oklab, var(--accent-100) 30%, transparent) 20%,
+    transparent 42%
   );
 }
 
@@ -357,6 +376,23 @@
   background-image: radial-gradient(var(--grad-rule) 1px, transparent 1px);
   background-size: 26px 26px;
   mask-image: linear-gradient(200deg, #000, transparent 80%);
+}
+
+/*
+ * The same dot-grid idea as `.dash-hero`, tuned for a light `bg-card` surface instead of
+ * the dark gradient (visual-richness pass — hero-card depth). Reserved for the ONE card
+ * per screen that should read as more important than an ordinary card (the dashboard's
+ * `Spotlight`, the rankings podium's rank-1 card) — texture this subtle stops reading as
+ * a signal the moment it is on every card, so it stays rare on purpose.
+ */
+.card-texture::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(200deg, #000, transparent 65%);
+  opacity: 0.5;
 }
 
 .dash-pulse { animation: dash-pulse var(--dur-pulse) var(--ease-in-out) infinite; }
@@ -414,12 +450,33 @@
 }
 
 /*
+ * `--ring-turn` has to be a REGISTERED custom property before it can transition. An
+ * un-registered custom property has no defined type, so the browser cannot interpolate
+ * between two values of it — the conic-gradient built from it jumps straight to the new
+ * angle every time a score changes, which is exactly what §8.3's "tally" convention (a
+ * number arrives, it does not pop) forbids everywhere else a figure lands on screen.
+ * `<angle>` is what makes the fill itself an animatable value rather than a redraw.
+ */
+@property --ring-turn {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0turn;
+}
+
+/*
  * The score ring — a conic gradient filled to `--ring-turn`.
  *
  * The ramp, not a verdict palette: a 40 and a 90 differ in how much of the ring is
  * filled, not in hue (P-1). Set `--ring-turn` inline as a `turn` value.
+ *
+ * The transition is on the CUSTOM PROPERTY, not on `background` — Chromium and Firefox
+ * will not smoothly cross-fade two conic-gradient stop lists, but they will animate a
+ * registered `<angle>` property, and the gradient is built FROM that property, so
+ * animating it animates the fill. `--dur-tally` already collapses to 0ms under
+ * `prefers-reduced-motion` (tokens.css), so this respects that for free.
  */
 .score-ring {
+  transition: --ring-turn var(--dur-tally) var(--ease-out-quint);
   background: conic-gradient(
     from -90deg,
     var(--ramp-5) 0turn var(--ring-turn, 0turn),

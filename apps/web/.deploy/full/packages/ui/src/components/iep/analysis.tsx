@@ -72,12 +72,37 @@ export function Provenance({ state, validatedBy, children }: ProvenanceProps) {
 
 type StepState = StepperProps["steps"][number]["state"];
 
+/*
+ * Each state gets a filled tone-on-tint circle, not a bare glyph — the same "state gets a
+ * frame" language the Dashboard's pipeline tiles use for their own step markers, applied
+ * to the one other place the product visualises a pipeline running (visual-richness pass).
+ */
 const STEP_ICON: Record<StepState, React.ReactNode> = {
-  PENDING: <CircleDashed aria-hidden className="size-4 text-muted-foreground" />,
-  RUNNING: <Loader2 aria-hidden className="size-4 animate-spin text-primary" />,
-  SUCCEEDED: <Check aria-hidden className="size-4 text-factor-up" />,
-  FAILED: <AlertTriangle aria-hidden className="size-4 text-factor-down" />,
-  SKIPPED: <MinusCircle aria-hidden className="size-4 text-muted-foreground" />,
+  PENDING: (
+    <span className="grid size-6 place-items-center rounded-full bg-muted">
+      <CircleDashed aria-hidden className="size-3.5 text-muted-foreground" />
+    </span>
+  ),
+  RUNNING: (
+    <span className="grid size-6 place-items-center rounded-full bg-accent-100">
+      <Loader2 aria-hidden className="size-3.5 animate-spin text-primary" />
+    </span>
+  ),
+  SUCCEEDED: (
+    <span className="grid size-6 place-items-center rounded-full bg-factor-up-bg">
+      <Check aria-hidden className="size-3.5 text-factor-up" />
+    </span>
+  ),
+  FAILED: (
+    <span className="grid size-6 place-items-center rounded-full bg-factor-down-bg">
+      <AlertTriangle aria-hidden className="size-3.5 text-factor-down" />
+    </span>
+  ),
+  SKIPPED: (
+    <span className="grid size-6 place-items-center rounded-full bg-muted">
+      <MinusCircle aria-hidden className="size-3.5 text-muted-foreground" />
+    </span>
+  ),
 };
 
 const STEP_WORD: Record<StepState, string> = {
@@ -103,7 +128,7 @@ export function Stepper({ steps, onStepClick }: StepperProps) {
     <div
       role="group"
       aria-label="Analysis progress"
-      className="rounded-lg border border-border bg-card p-4"
+      className="rounded-xl border border-border bg-card p-4 shadow-e2"
     >
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <h3 className="text-200 font-medium">Analysis progress</h3>
@@ -127,9 +152,7 @@ export function Stepper({ steps, onStepClick }: StepperProps) {
         {steps.map((step, i) => {
           const inner = (
             <>
-              <span className="flex size-6 shrink-0 items-center justify-center">
-                {STEP_ICON[step.state]}
-              </span>
+              <span className="shrink-0">{STEP_ICON[step.state]}</span>
               <span className="min-w-0 flex-1">
                 <span className="block text-200">{step.label}</span>
                 {step.detail ? (

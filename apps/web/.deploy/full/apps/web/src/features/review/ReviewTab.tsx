@@ -4,9 +4,10 @@ import {
   Badge, Button, Card, CardContent, CardHeader, CardTitle, ErrorState, Input, Label,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Skeleton, Textarea,
 } from "@iep/ui";
-import type { ReviewDecision } from "@iep/contracts";
+import type { IdeaDetail, ReviewDecision } from "@iep/contracts";
 import { IdeaShell } from "../ideas/IdeaShell";
 import { useEvaluation } from "../evaluation/api";
+import { useSession } from "../../app/use-session";
 import {
   DECISION_HELP, DECISION_LABEL, REVIEWER_DECISIONS, useCreateReview, useOverrideScore,
   useReviews,
@@ -47,11 +48,26 @@ export function ReviewTab() {
 
         return (
           <div className="space-y-6">
-            {idea.permissions.canReview ? <DecisionForm ideaId={ideaId} /> : null}
+            {idea.permissions.canReview ? (
+              <DecisionForm ideaId={ideaId} />
+            ) : (
+              /*
+               * Bug found live: this rendered NOTHING when `canReview` is false, most
+               * commonly because the viewer submitted this exact idea themselves — the
+               * API deliberately blocks that ("an ADMIN is still not allowed to judge
+               * their own idea", permissions.ts) and gives it its own reason code,
+               * CANNOT_REVIEW_OWN_IDEA, rather than a flat 403. The Review Queue links
+               * every "waiting" idea to this page regardless of who submitted it, so a
+               * reviewer landing on their own submission hit a page that looked broken —
+               * no decision form, no explanation, and the "Review" tab itself silently
+               * missing from the strip above (same `canReview` check). Say why instead.
+               */
+              <SelfSubmittedNotice idea={idea} />
+            )}
             {idea.permissions.canOverrideScores ? <OverrideForm ideaId={ideaId} /> : null}
 
             <Card>
-              <CardHeader><CardTitle>Review history</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-serif">Review history</CardTitle></CardHeader>
               <CardContent>
                 {reviews.data.items.length === 0 ? (
                   <p className="text-200 text-muted-foreground">
@@ -98,6 +114,33 @@ export function ReviewTab() {
   );
 }
 
+/**
+ * `canReview` has exactly one realistic cause once someone has reached this tab at all:
+ * they hold REVIEWER/ADMIN and submitted this exact idea themselves (permissions.ts's
+ * `review:create` check tests ownership before role, so a non-reviewer never gets this
+ * far in the first place — the sidebar and the tab strip already hide it for them).
+ * `idea.submitter.id` is compared against the signed-in session purely to phrase the
+ * message correctly; nothing here re-derives or loosens the actual permission, which the
+ * server enforces the same way whether this notice guesses right or not.
+ */
+function SelfSubmittedNotice({ idea }: { idea: IdeaDetail }) {
+  const session = useSession();
+  const isOwnIdea = session.data?.user.id === idea.submitter.id;
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="font-serif">Record a decision</CardTitle></CardHeader>
+      <CardContent>
+        <p className="text-200 text-muted-foreground">
+          {isOwnIdea
+            ? "You submitted this idea, so you cannot review it yourself — someone else on the review team needs to make this call."
+            : "You do not have permission to review this idea."}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function DecisionForm({ ideaId }: { ideaId: string }) {
   const [decision, setDecision] = React.useState<ReviewDecision>("VALIDATED");
   const [comment, setComment] = React.useState("");
@@ -110,7 +153,7 @@ function DecisionForm({ ideaId }: { ideaId: string }) {
 
   return (
     <Card>
-      <CardHeader><CardTitle>Record a decision</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="font-serif">Record a decision</CardTitle></CardHeader>
       <CardContent>
         <form
           className="space-y-4"
@@ -198,7 +241,7 @@ function OverrideForm({ ideaId }: { ideaId: string }) {
   if (evaluation.isError || !evaluation.data) {
     return (
       <Card>
-        <CardHeader><CardTitle>Adjust a score</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="font-serif">Adjust a score</CardTitle></CardHeader>
         <CardContent>
           <p className="text-200 text-muted-foreground">
             There is nothing to adjust until this idea has been evaluated.
@@ -214,7 +257,7 @@ function OverrideForm({ ideaId }: { ideaId: string }) {
 
   return (
     <Card>
-      <CardHeader><CardTitle>Adjust a score</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="font-serif">Adjust a score</CardTitle></CardHeader>
       <CardContent>
         <form
           className="space-y-4"

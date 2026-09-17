@@ -1,8 +1,9 @@
 import * as React from "react";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button, Input, Label, cn } from "@iep/ui";
 import { ThemeToggle } from "../../app/theme";
-import { ORG_NAME, PRODUCT_NAME } from "../../app/product";
+import { ORG_NAME, PRODUCT_NAME, PRODUCT_SHORT } from "../../app/product";
+import { BrandMark } from "../../app/BrandMark";
 
 /**
  * The frame the two signed-out screens share — sign in and sign up.
@@ -44,11 +45,16 @@ export function WelcomeShell({
       <section className="welcome-panel relative flex flex-col justify-between overflow-hidden px-6 py-10 text-grad-ink sm:px-10 lg:px-14 lg:py-14">
         <header className="relative flex items-center gap-2">
           <span className="grid size-9 place-items-center rounded-xl bg-grad-highlight/15 ring-1 ring-grad-rule">
-            <Sparkles aria-hidden className="size-4 text-grad-highlight" />
+            <BrandMark className="size-4 text-grad-highlight" />
           </span>
           <span className="text-400 font-semibold tracking-tight">{ORG_NAME}</span>
+          {/*
+            Was a hardcoded "Ideas" — a fourth label for the same product, next to
+            PRODUCT_NAME in the footer three lines down and PRODUCT_SHORT once someone
+            signs in (design-audit finding). Now the same short name everywhere.
+          */}
           <span className="text-100 font-medium uppercase tracking-[0.2em] text-grad-ink-soft">
-            Ideas
+            {PRODUCT_SHORT}
           </span>
         </header>
 

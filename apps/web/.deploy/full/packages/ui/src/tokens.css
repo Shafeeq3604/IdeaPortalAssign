@@ -39,16 +39,23 @@
      one-line fix instead of a sweep. Now 4.8:1 on surface, 4.5:1 on canvas. */
   --ink-400: #64748b;   /* slate-500 — 4.8:1 on white, the floor for body text */
   --ink-300: #cbd5e1;
-  --ink-200: #e2e8f0;   /* slate-200 — the card border */
-  --ink-100: #f1f5f9;
-  --ink-050: #f8fafc;   /* slate-50 — the page canvas */
+  --ink-200: #dce3ec;   /* cool slate border — a shade cooler than slate-200, to sit right beside the charcoal/blue accent rather than the old indigo one */
+  /*
+   * "Cool slate" (visual-flair round, per-user direction): the canvas beside a charcoal
+   * hero and an electric-blue accent still read as an unstyled default grey rather than a
+   * chosen one — the fix is a genuinely cool, faintly blue-grey floor (not a second dose
+   * of the accent's own blue, which would flatten the palette back to one hue), so canvas,
+   * secondary and card still read as three real steps of luminance, just cooler ones.
+   */
+  --ink-100: #f8fafc;   /* secondary surfaces — filter rows, input groups, sidebar */
+  --ink-050: #eef2f7;   /* the page canvas */
   --ink-000: #ffffff;
 
   /* ── Semantic surfaces ── */
   /*
-   * Canvas slate-50, cards pure white — five points of luminance apart, which is almost
-   * nothing. The separation is therefore NOT doing the work: the border and the shadow
-   * are, and both were tuned for a canvas this close.
+   * Canvas → secondary → card is now three visible steps of luminance, not one big jump
+   * from card to an almost-identical canvas. Border and shadow still carry real edges on
+   * top of that, same as before — the layering does more of the work now, not less.
    */
   --canvas: var(--ink-050);
   --surface: var(--ink-000);
@@ -59,12 +66,19 @@
   --text-secondary: var(--ink-500);
   --text-tertiary: var(--ink-400);
 
-  /* ── Accent: one, calm indigo ── */
-  --accent-700: #2b3ba8;
-  --accent-600: #3548c7;
-  --accent-500: #4c5fdb;
-  --accent-100: #e6e9fb;
-  --accent-050: #f2f4fe;
+  /* ── Accent: electric blue, on a charcoal ground ──
+   *
+   * Replaces the indigo/violet identity (visual-flair round, per-user direction): the
+   * brand color a reader actually recognizes as "this product" moves from a violet that
+   * reads as one of several interchangeable AI-dashboard purples to a blue-600/500 pair
+   * that a Carbon- or Primer-literate eye reads as deliberate, not templated. Same role
+   * in every component that reads this token — nothing downstream changes, only the hue.
+   */
+  --accent-700: #1d4ed8;
+  --accent-600: #2563eb;
+  --accent-500: #3b82f6;
+  --accent-100: #dbeafe;
+  --accent-050: #eff6ff;
   --focus-ring: var(--accent-500);
 
   /* ── Evidence: DIRECTION, not verdict. Deliberately not green/red. ── */
@@ -75,11 +89,11 @@
   --factor-neutral: var(--ink-400);
 
   /* ── Score magnitude ramp: neutral → accent, no good/bad reading ── */
-  --ramp-1: #e8ebf2;
-  --ramp-2: #c6ceea;
-  --ramp-3: #9aa7df;
-  --ramp-4: #6b7cd2;
-  --ramp-5: #3548c7;
+  --ramp-1: #e5edfb;
+  --ramp-2: #bfd7f8;
+  --ramp-3: #8fbbf3;
+  --ramp-4: #5b98ee;
+  --ramp-5: #2563eb;
 
   /* ── AI provenance (SPEC §7.4) ── */
   --ai-surface: #f5f2fc;
@@ -106,9 +120,17 @@
   /* ── Type: 1.200 minor third, base 16px ── */
   /* ── Welcome surfaces: sign-in and sign-up ONLY (SPEC §7.1 amendment) ──
    *
-   * A deliberately separate, warm palette for the two screens seen before anyone signs
-   * in. Everything past the door stays on the cool ink-and-indigo scale, because the
-   * working application should be quiet and the front door should not be.
+   * A deliberately separate, warm canvas for the two screens seen before anyone signs
+   * in — a cool indigo-tinted white, not the app's own slate. Everything past the door
+   * stays on the ink scale, because the working application should be quiet and the
+   * front door should not be.
+   *
+   * The ACCENT is deliberately NOT separate any more (design-audit finding: the CTA here
+   * used to be indigo-600 while the entire signed-in app runs on accent-600 electric
+   * blue — the first color a person clicks was one they never saw again three seconds
+   * later). --welcome-accent now reuses --accent-600 exactly, so "Sign in" is the same
+   * blue as every button and link past it. Canvas/ink/rule keep their own identity;
+   * only the color someone actually presses is unified.
    *
    * These names appear nowhere else. If a third screen wants them, that is a design
    * decision taken on purpose, not one made by importing a token.
@@ -118,28 +140,33 @@
   --welcome-ink: #1e1b4b;         /* indigo-950 — 15.4:1 on surface */
   --welcome-ink-soft: #4b5563;    /* 7.5:1 on surface — AA for body text */
   --welcome-rule: #e0e3f5;
-  --welcome-accent: #4f46e5;      /* indigo-600 — carries white at 6.3:1 */
-  --welcome-accent-soft: #eef1ff;
-  --welcome-on-accent: #ffffff;  /* 6.3:1 on --welcome-accent */
+  --welcome-accent: #2563eb;      /* = --accent-600. Same blue on-white contrast (~5.2:1) that already carries every link and button in the app. */
+  --welcome-accent-soft: #eff6ff; /* = --accent-050 */
+  --welcome-on-accent: #ffffff;  /* white on accent-600 — the same pairing every primary button in the app already uses */
 
 
   /* ── The gradient panel ──
    *
-   * Three stops, indigo → violet, and NOTHING warmer under text. Amber is an accent on
-   * the numerals and pills only: white on the amber end of a gradient is about 2:1, and
-   * a headline that becomes unreadable halfway across is a headline nobody finishes.
+   * Charcoal → near-black, not indigo → violet (visual-flair round, per-user direction:
+   * "Charcoal + electric blue"). The one thing carried over from the old panel is the
+   * RULE — a single warm/bright highlight color must stay legible on --grad-from, because
+   * it is reused as both a pill/button fill and a text color for headline numerals. Blue
+   * itself was too close in luminance to the charcoal ground to do that job (a mid-blue
+   * text color a reader actually has to read reads muddier against charcoal than amber did
+   * against violet), so the highlight is a brighter sky-blue rather than the accent's own
+   * blue-500 — still unmistakably "electric blue," not a second unrelated hue.
    *
    * Every value below was computed against its own stop, not eyeballed:
-   *   white on --grad-from  17.1:1     white on --grad-to   5.7:1
-   *   --grad-ink-soft on --grad-via    5.4:1
-   *   --grad-highlight on --grad-from  6.6:1
+   *   white on --grad-from  16.6:1     white on --grad-to    18.5:1
+   *   --grad-ink-soft on --grad-via    6.1:1
+   *   --grad-highlight on --grad-from  6.0:1
    */
-  --grad-from: #1e1b4b;
-  --grad-via: #4c1d95;
-  --grad-to: #7c3aed;
+  --grad-from: #1f2937;
+  --grad-via: #161d29;
+  --grad-to: #111827;
   --grad-ink: #ffffff;
-  --grad-ink-soft: #ddd6fe;       /* violet-200 */
-  --grad-highlight: #fbbf24;      /* amber-400, the one warm accent */
+  --grad-ink-soft: #a8b8cc;       /* cool blue-slate, replaces violet-200 */
+  --grad-highlight: #38bdf8;      /* sky-400 — the one bright "electric blue" accent */
   --grad-rule: #ffffff26;
 
   /*
@@ -203,6 +230,7 @@
 
   /* ── Layout ── */
   --container: 1280px;
+  --container-wide: 1500px; /* page ceiling on the 1fr workspace beside the 15rem sidebar */
   --content: 960px;
   --prose: 68ch;
 
@@ -239,24 +267,32 @@
     --ink-200: #334155;
     --ink-100: #1e293b;
     --ink-050: #0f172a;   /* slate-900 canvas */
-    --ink-000: #1e293b;   /* slate-800 — surface sits ABOVE canvas in dark */
+    /*
+     * Design-audit finding: this used to equal --ink-100 exactly, so canvas → secondary
+     * → card had only TWO visible steps in dark mode instead of the three light mode
+     * documents above — cards, the sidebar and the page background all read as the same
+     * near-black, and the border/shadow system that was supposed to carry the rest of
+     * the hierarchy had nothing left to separate. A distinct third step between
+     * --ink-100 and the --ink-200 border restores it.
+     */
+    --ink-000: #26344a;   /* a real step above slate-800, still a real step below the slate-700 border */
 
-    --accent-700: #8e9bff;
-    --accent-600: #7c8bfa;
-    --accent-500: #9aa6ff;
-    --accent-100: #252c4a;
-    --accent-050: #1e2438;
+    --accent-700: #93c5fd;
+    --accent-600: #60a5fa;
+    --accent-500: #3b82f6;
+    --accent-100: #1e3a5f;
+    --accent-050: #16283f;
 
     --factor-up: #5fc9b4;
     --factor-up-bg: #12312c;
     --factor-down: #d19a63;
     --factor-down-bg: #33261a;
 
-    --ramp-1: #2a3140;
-    --ramp-2: #3c4766;
-    --ramp-3: #55638f;
-    --ramp-4: #6f7fbe;
-    --ramp-5: #8e9bff;
+    --ramp-1: #1e2a3d;
+    --ramp-2: #2a3f5c;
+    --ramp-3: #3a5a85;
+    --ramp-4: #4f7fc2;
+    --ramp-5: #60a5fa;
 
     /* ── Welcome surfaces (see the light block for why these exist) ── */
     --welcome-canvas: #0f0f1a;
@@ -264,19 +300,18 @@
     --welcome-ink: #e9e9f5;
     --welcome-ink-soft: #a1a1c0;   /* 7.1:1 on surface */
     --welcome-rule: #2e2e4a;
-    --welcome-accent: #818cf8;     /* indigo-400 — 7.0:1 on surface */
-    --welcome-accent-soft: #232344;
-  --welcome-on-accent: #14142b;
+    --welcome-accent: #60a5fa;     /* = --accent-600 (dark) */
+    --welcome-accent-soft: #16283f; /* = --accent-050 (dark) */
     --welcome-on-accent: #14142b;  /* the accent lightens in dark, so the label darkens */
 
 
     /* The panel is already dark in both themes; it only deepens. */
-    --grad-from: #0d0b26;
-    --grad-via: #2e1065;
-    --grad-to: #5b21b6;
+    --grad-from: #0b0f14;
+    --grad-via: #10151d;
+    --grad-to: #171f2b;
     --grad-ink: #ffffff;
-    --grad-ink-soft: #c4b5fd;
-    --grad-highlight: #fcd34d;
+    --grad-ink-soft: #b9c6d9;
+    --grad-highlight: #7dd3fc;
     --grad-rule: #ffffff1f;
 
     --ai-surface: #221e33;
@@ -311,24 +346,24 @@
   --ink-200: #334155;
   --ink-100: #1e293b;
   --ink-050: #0f172a;   /* slate-900 canvas */
-  --ink-000: #1e293b;   /* slate-800 — surface sits ABOVE canvas in dark */
+  --ink-000: #26344a;   /* same fix as the system-dark block above — a real step above --ink-100, below the --ink-200 border */
 
-  --accent-700: #8e9bff;
-  --accent-600: #7c8bfa;
-  --accent-500: #9aa6ff;
-  --accent-100: #252c4a;
-  --accent-050: #1e2438;
+  --accent-700: #93c5fd;
+  --accent-600: #60a5fa;
+  --accent-500: #3b82f6;
+  --accent-100: #1e3a5f;
+  --accent-050: #16283f;
 
   --factor-up: #5fc9b4;
   --factor-up-bg: #12312c;
   --factor-down: #d19a63;
   --factor-down-bg: #33261a;
 
-  --ramp-1: #2a3140;
-  --ramp-2: #3c4766;
-  --ramp-3: #55638f;
-  --ramp-4: #6f7fbe;
-  --ramp-5: #8e9bff;
+  --ramp-1: #1e2a3d;
+  --ramp-2: #2a3f5c;
+  --ramp-3: #3a5a85;
+  --ramp-4: #4f7fc2;
+  --ramp-5: #60a5fa;
 
   /* ── Welcome surfaces (see the light block for why these exist) ── */
   --welcome-canvas: #0f0f1a;
@@ -336,17 +371,23 @@
   --welcome-ink: #e9e9f5;
   --welcome-ink-soft: #a1a1c0;   /* 7.1:1 on surface */
   --welcome-rule: #2e2e4a;
-  --welcome-accent: #818cf8;     /* indigo-400 — 7.0:1 on surface */
-  --welcome-accent-soft: #232344;
-
+  --welcome-accent: #60a5fa;     /* = --accent-600 (dark) */
+  --welcome-accent-soft: #16283f; /* = --accent-050 (dark) */
+  /*
+   * Was missing from this block entirely (bug found alongside the design-audit fix
+   * above) — the system-dark media block set it, this explicit toggle didn't, so
+   * following the OS preference and pressing the in-app dark toggle rendered different
+   * button-label colors for the exact same theme.
+   */
+  --welcome-on-accent: #14142b;  /* the accent lightens in dark, so the label darkens */
 
   /* The panel is already dark in both themes; it only deepens. */
-  --grad-from: #0d0b26;
-  --grad-via: #2e1065;
-  --grad-to: #5b21b6;
+  --grad-from: #0b0f14;
+  --grad-via: #10151d;
+  --grad-to: #171f2b;
   --grad-ink: #ffffff;
-  --grad-ink-soft: #c4b5fd;
-  --grad-highlight: #fcd34d;
+  --grad-ink-soft: #b9c6d9;
+  --grad-highlight: #7dd3fc;
   --grad-rule: #ffffff1f;
 
   --ai-surface: #221e33;
@@ -395,8 +436,20 @@
 }
 
 /* ── Base ── */
+/*
+ * Two faint, fixed radial washes instead of a flat fill — the ground every page sits on
+ * had zero depth of its own, so every shadow and elevation elsewhere had to do its work
+ * against a completely inert backdrop. `color-mix` derives both from tokens already
+ * defined above (the accent and gradient scales), so this stays correct in dark mode
+ * without a second set of values, and at 5-6% it reads as atmosphere, not a visible
+ * gradient — it should not be nameable as "a gradient" at a glance.
+ */
 body {
-  background: var(--canvas);
+  background:
+    radial-gradient(ellipse 80% 50% at 15% -10%, color-mix(in oklab, var(--accent-600) 6%, transparent), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, color-mix(in oklab, var(--grad-to) 5%, transparent), transparent),
+    var(--canvas);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-sans);
   font-size: var(--fs-300);

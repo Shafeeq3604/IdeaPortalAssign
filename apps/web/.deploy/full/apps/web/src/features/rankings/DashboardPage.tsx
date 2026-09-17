@@ -3,10 +3,18 @@ import { Link } from "react-router-dom";
 import {
   CheckCircle2, Flag, FlaskConical, Hourglass, Layers, ParkingSquare, Rocket, Sparkles, Trophy,
 } from "lucide-react";
-import { Button, Card, CardContent, ErrorState, Input, Label, Skeleton } from "@iep/ui";
+import { ErrorState, Skeleton } from "@iep/ui";
 import type { DashboardResponse, ListRankingsResponse } from "@iep/contracts";
-import { useDashboard, useProfiles, useRankings, useRecompute } from "./api";
+import { useDashboard, useRankings } from "./api";
 import { DashboardHero, Spotlight } from "./DashboardHero";
+import { useCountUp } from "../../app/use-count-up";
+
+/** A KPI tile's own count, ticking up to its value (visual-richness pass) — reserved for
+ * these five headline figures, not every score on the board (that would animate 20-30
+ * numbers in a grid at once, the exact "looks like a demo" effect to avoid). */
+function TileCount({ value }: { value: number }) {
+  return <>{Math.round(useCountUp(value))}</>;
+}
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -24,11 +32,10 @@ export function DashboardPage() {
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  Dashboard
+        <Link to="/">Home</Link>  ›  Dashboard
       </nav>
       <h1>Dashboard</h1>
       <Tiles />
-      <RecomputePanel />
     </main>
   );
 }
@@ -150,8 +157,17 @@ const PIPELINE: readonly {
     ink: "text-accent-700", rule: "bg-ramp-4" },
   { key: "requiring_review", eyebrow: "Needs you", icon: Flag, surface: "bg-state-warn-bg ring-1 ring-inset ring-state-warn/25",
     ink: "text-state-warn", rule: "bg-state-warn" },
-  { key: "top_ranked", eyebrow: "Top ranked", icon: Trophy, surface: "board-crown text-grad-ink shadow-e3",
-    ink: "text-grad-highlight", rule: "bg-grad-highlight" },
+  /*
+   * NOT `.board-crown` (the full brand-gradient block RankingsPage's own podium uses for
+   * rank 1) — this is one of five equal-sized KPI tiles, not a hero. A second full-gradient
+   * surface on the same screen as `DashboardHero` competes with it rather than supporting
+   * it, and turns "the board has a leader" into "purple is the whole dashboard" (enterprise
+   * polish pass, §3/§19: brand colour is an accent, not a surface). A light accent tint,
+   * same family as `total`, keeps the tile calm while the trophy icon and label still say
+   * what it is.
+   */
+  { key: "top_ranked", eyebrow: "Top ranked", icon: Trophy, surface: "bg-accent-050 ring-1 ring-inset ring-ramp-3",
+    ink: "text-accent-700", rule: "bg-gradient-to-r from-ramp-4 to-ramp-5" },
 ];
 
 function PipelineTiles({
@@ -162,6 +178,16 @@ function PipelineTiles({
   board: ListRankingsResponse | undefined;
 }) {
   const byKey = new Map(tiles.map((t) => [t.key, t]));
+
+  /**
+   * Each tile's own count, scaled against the loudest one on the board — a real
+   * magnitude, not an invented trend or a share of a whole. These five counts overlap
+   * (an idea can be both "top ranked" and "needs you"), so a stacked "% of total" bar
+   * would imply a partition that does not exist; this reads each bar on its own, the
+   * same rule `Flourish` above already applies to what it will and will not draw.
+   */
+  const maxCount = Math.max(1, ...PIPELINE.map((s) => byKey.get(s.key)?.count ?? 0));
+  const totalCount = byKey.get("total")?.count ?? 0;
 
   return (
     <section className="mt-8 first:mt-6">
@@ -174,7 +200,14 @@ function PipelineTiles({
         </div>
       </div>
 
-      <div className="mt-3.5 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {/*
+        `.motion-reveal` (visual-richness pass — moderate motion on Dashboard): a stagger
+        fade+rise that plays once when these tiles first mount. It does NOT replay on an
+        ordinary re-render (a CSS keyframe animation only (re)starts when its element is
+        newly inserted into the DOM, not on a prop-only update), so filtering, a recompute,
+        or any other state change here stays instant, not re-choreographed.
+      */}
+      <div className="motion-reveal mt-3.5 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {PIPELINE.map((stage) => {
           const tile = byKey.get(stage.key);
           if (!tile) return null;
@@ -186,7 +219,7 @@ function PipelineTiles({
               to={tile.href}
               /* The whole tile is the link — a count you cannot click is a dead end
                  wearing a number (SPEC §6.3). */
-              className={`relative block overflow-hidden rounded-2xl p-4 no-underline transition-all duration-[var(--dur-base)] hover:-translate-y-0.5 hover:shadow-e3 ${
+              className={`motion-reveal relative block overflow-hidden rounded-2xl p-4 no-underline transition-all duration-[var(--dur-base)] hover:-translate-y-0.5 hover:shadow-e3 ${
                 live ? `${stage.surface} shadow-e2` : "bg-card ring-1 ring-inset ring-border"
               }`}
             >
@@ -212,15 +245,52 @@ function PipelineTiles({
                     : "mt-1.5 block font-serif text-700 font-semibold leading-none tabular-nums text-muted-foreground"
                 }
               >
-                {tile.count}
+                <TileCount value={tile.count} />
               </span>
 
-              <span
-                className={`mt-1.5 block text-200 ${
-                  stage.key === "top_ranked" && live ? "text-grad-ink-soft" : "text-muted-foreground"
-                }`}
-              >
+              <span className="mt-1.5 block text-200 text-muted-foreground">
                 {tile.label}
+              </span>
+
+              {/*
+                One real number derived from another, not an invented trend — the "+12%
+                vs previous period" the canvas asked for has nothing behind it (no run
+                history is stored), but a share of TODAY's own total is arithmetic over
+                data already on the page. Only on the tile someone should act on; the
+                other four are already self-explanatory from their eyebrow and label.
+              */}
+              {stage.key === "requiring_review" && live && totalCount > 0 ? (
+                <span className="mt-0.5 block text-100 text-muted-foreground">
+                  {Math.round((tile.count / totalCount) * 100)}% of the board
+                </span>
+              ) : null}
+
+              {/*
+                Design-audit finding: "New" and "Evaluating" reading zero at the same time
+                looked like the intake pipeline had stalled, not like nothing new has
+                shown up since the board last moved — the tile gave no way to tell those
+                two very different situations apart. Naming the second one, only for the
+                two stages someone would actually worry about (Total/Needs you/Top ranked
+                reading zero isn't a "stall" question the same way), removes the ambiguity
+                without inventing a number this product does not have.
+              */}
+              {!live && (stage.key === "new" || stage.key === "under_evaluation") ? (
+                <span className="mt-0.5 block text-100 text-muted-foreground">
+                  Nothing at this stage right now
+                </span>
+              ) : null}
+
+              {/* This tile's count against the loudest one on the board — a magnitude,
+                  not a percentage of anything, since these five counts overlap and do
+                  not add up to a whole. */}
+              <span
+                aria-hidden
+                className="mt-2 block h-1 overflow-hidden rounded-full bg-border"
+              >
+                <span
+                  className={`block h-full rounded-full ${live ? stage.rule : "bg-transparent"}`}
+                  style={{ width: `${Math.max(live ? 6 : 0, (tile.count / maxCount) * 100)}%` }}
+                />
               </span>
 
               {live ? <Flourish stageKey={stage.key} board={board} /> : null}
@@ -292,7 +362,7 @@ function Flourish({
         {faces.map((name, i) => (
           <span
             key={name}
-            className={`grid size-6.5 place-items-center rounded-full bg-grad-ink/25 text-100 font-extrabold text-grad-ink ring-2 ring-grad-via ${
+            className={`grid size-6.5 place-items-center rounded-full bg-accent text-100 font-extrabold text-accent-foreground ring-2 ring-card ${
               i === 0 ? "" : "-ml-2"
             }`}
           >
@@ -330,12 +400,15 @@ const OUTCOMES: readonly {
 ];
 
 /**
- * The four outcome counts as a journey rather than four more tiles.
+ * The four outcome counts as one quiet footnote, not a fifth section fighting the live
+ * pipeline above it for the same visual weight.
  *
- * They all read zero, and they will until P15 writes to them. Four zeroes in the same
- * grid as the live pipeline invites the reading that something is broken; a dotted track
- * with a "Coming in P15" chip says what is actually true — the stages exist, nothing has
- * reached them yet.
+ * They all read zero, and they will until P15 writes to them. The original design gave
+ * this its own full-width card with four large "0" circles — the single least rewarding
+ * thing on the page, sitting dead-centre in the scroll (production UX review). A count
+ * that cannot move yet does not need the same visual budget as one that can; a single
+ * slim row states the honest reason once and lists the four destinations as plain,
+ * small links, so the page's remaining weight stays with the live board above it.
  *
  * Still four links. The counts are a requirement (requirements.md §29) and a count you
  * cannot follow is the dead end §6.3 forbids, empty or not.
@@ -344,48 +417,24 @@ function OutcomeTrack({ tiles }: { tiles: DashboardResponse["tiles"] }) {
   const byKey = new Map(tiles.map((t) => [t.key, t]));
 
   return (
-    <section className="mt-8 rounded-2xl bg-card p-5 ring-1 ring-inset ring-border">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <div>
-          <h2 className="font-serif text-400 font-semibold">What happens after a decision</h2>
-          <p className="mt-0.5 text-200 text-muted-foreground">
-            Outcome tracking lands in a later phase, so this track is still empty — by
-            design, not by accident.
-          </p>
-        </div>
-        <span className="rounded-full bg-muted px-2.5 py-0.5 text-100 font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          Coming in P15
-        </span>
-      </div>
-
-      <div className="relative mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {/* The dotted track, drawn once behind all four. Hidden where the stages wrap to
-            two rows — a connector that connects the wrong pairs is worse than none. */}
-        <span
-          aria-hidden
-          className="stage-track absolute left-[8%] right-[8%] top-5.5 hidden h-0.5 sm:block"
-        />
+    <section className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl bg-muted/60 px-4 py-2.5">
+      <p className="text-100 text-muted-foreground">
+        Outcome tracking (prototype → pilot → implemented → parked) arrives in P15 — still
+        empty by design, not by accident.
+      </p>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {OUTCOMES.map((stage) => {
           const tile = byKey.get(stage.key);
           if (!tile) return null;
-
           return (
             <Link
               key={stage.key}
               to={tile.href}
-              className="relative flex flex-col items-center gap-2 rounded-xl py-1 no-underline transition-colors duration-[var(--dur-fast)] hover:bg-muted"
+              className="inline-flex items-center gap-1.5 text-100 font-medium text-muted-foreground no-underline hover:text-foreground"
             >
-              <span className="grid size-11 place-items-center rounded-full bg-card font-serif text-400 font-bold tabular-nums text-muted-foreground ring-2 ring-inset ring-ramp-2">
-                {tile.count}
-              </span>
-              {/* The API's label carries the meaning; the short form is what fits under a
-                  circle. Both are in the accessible name. The icon is pure decoration —
-                  the stage's own shape, not a status, which is why it stays muted like
-                  everything else on a track nothing has reached yet. */}
-              <span className="flex items-center gap-1.5 text-100 font-semibold">
-                <stage.icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-                {stage.label}
-              </span>
+              <stage.icon aria-hidden className="size-3.5 shrink-0" />
+              {stage.label}
+              <span className="tabular-nums">({tile.count})</span>
               <span className="sr-only">{tile.label}</span>
             </Link>
           );
@@ -395,93 +444,10 @@ function OutcomeTrack({ tiles }: { tiles: DashboardResponse["tiles"] }) {
   );
 }
 
-/**
- * Recompute (FR-13, ADR-008).
- *
- * A reason is required and is stored on the run, so a board that surprises someone can
- * be traced to the decision that produced it. Recompute makes no provider call — it is
- * arithmetic over stored evaluations — which is why it is safe to expose as a button.
+/*
+ * The recompute control used to live here. It's an administrative action — creating a new
+ * ranking snapshot, not reading one — and a dashboard's job is to summarize, not to host
+ * a form (production UX review: "the page doesn't end on a summary, it ends on a form").
+ * It now lives on Administration → Audit log, collapsed by default, next to the very log
+ * that records every recompute it produces (see `RecomputePanel` in AdminPages.tsx).
  */
-function RecomputePanel() {
-  const profiles = useProfiles();
-  const recompute = useRecompute();
-  const [profileKey, setProfileKey] = React.useState("");
-  const [reason, setReason] = React.useState("");
-  const [touched, setTouched] = React.useState(false);
-
-  const options = profiles.data?.items ?? [];
-  const active = profileKey || options.find((p) => p.isDefault)?.key || options[0]?.key || "";
-  const reasonMissing = reason.trim().length === 0;
-
-  if (options.length === 0) return null;
-
-  return (
-    <Card className="mt-8">
-      <CardContent className="pt-6">
-        <h2 className="text-400 font-medium">Recompute the rankings</h2>
-        <p className="mt-1 text-200 text-muted-foreground">
-          Creates a new snapshot from the scores as they stand now. The previous run stays
-          readable, so you can always show what the board said before.
-        </p>
-
-        <form
-          className="mt-4 space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setTouched(true);
-            if (reasonMissing) return;
-            recompute.mutate({ profileKey: active, reason: reason.trim() });
-          }}
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-200 text-muted-foreground">Profile</span>
-            {options.map((p) => (
-              <Button
-                key={p.key}
-                type="button"
-                size="sm"
-                variant={p.key === active ? "default" : "outline"}
-                onClick={() => setProfileKey(p.key)}
-              >
-                {p.name}
-              </Button>
-            ))}
-          </div>
-
-          <div>
-            <Label htmlFor="field-recomputeReason">Why (required)</Label>
-            <Input
-              id="field-recomputeReason"
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              placeholder="e.g. quarterly review board"
-              aria-invalid={touched && reasonMissing}
-              aria-describedby={touched && reasonMissing ? "error-recomputeReason" : undefined}
-            />
-            {touched && reasonMissing ? (
-              <p id="error-recomputeReason" role="alert" className="mt-1 text-100 text-destructive">
-                The reason is stored on the run and shown on the board. Say why.
-              </p>
-            ) : null}
-          </div>
-
-          {recompute.isError ? (
-            <p role="alert" className="text-100 text-destructive">
-              The recompute did not run. The current board is unchanged.
-            </p>
-          ) : null}
-          {recompute.isSuccess ? (
-            <p role="status" className="text-100 text-factor-up">
-              Done — {recompute.data.cohortSize} ideas ranked.{" "}
-              <Link to="/rankings">See the new board</Link>.
-            </p>
-          ) : null}
-
-          <Button type="submit" disabled={recompute.isPending}>
-            {recompute.isPending ? "Recomputing…" : "Recompute"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}

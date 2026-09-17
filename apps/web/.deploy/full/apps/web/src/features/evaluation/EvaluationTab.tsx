@@ -80,12 +80,20 @@ export function EvaluationTab() {
           <div className="space-y-6">
             {/* ── the headline numbers ── */}
             <Card>
-              <CardHeader><CardTitle>Score</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-serif">Score</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
-                  <div>
+                  {/*
+                    The composite is the single most-looked-at figure on this tab — the
+                    thing every other section on the page explains — so it gets a frame,
+                    not just larger type: the same ring-on-tint language the Dashboard's
+                    Spotlight card uses for its own headline number (visual-richness pass).
+                  */}
+                  <div className="text-center">
                     <p className="text-100 text-muted-foreground">Composite</p>
-                    <ScoreDisplay value={e.compositeScore} size="lg" />
+                    <div className="mt-1 flex size-28 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent-050 to-accent-100 ring-4 ring-accent-050/60">
+                      <ScoreDisplay value={e.compositeScore} size="lg" />
+                    </div>
                   </div>
 
                   {e.ranking ? (
@@ -130,11 +138,20 @@ export function EvaluationTab() {
               </CardContent>
             </Card>
 
-            {/* ── the explanation, inline (P-2) ── */}
+            {/*
+              ── the explanation, inline (P-2) ──
+
+              Not another `<Card>`. Score and Every-criterion either side of this ARE
+              cards, deliberately, and the sameness was the problem: the one section
+              that's actually this product's argument for why anyone should trust a rank
+              looked exactly as important as a page footnote. A left rule in the brand
+              accent and a serif heading — the same face `PageHero` uses for a page's own
+              name — mark it as the section that gets read first, not last.
+            */}
             {e.ranking ? (
-              <Card>
-                <CardHeader><CardTitle>Why it ranks here</CardTitle></CardHeader>
-                <CardContent>
+              <section className="rounded-xl border-l-4 border-accent-600 bg-accent-050/50 p-6">
+                <h2 className="font-serif text-500 font-semibold">Why it ranks here</h2>
+                <div className="mt-4">
                   <ExplanationPanel
                     strengths={e.ranking.explanation.strengths}
                     constraints={e.ranking.explanation.constraints}
@@ -149,23 +166,21 @@ export function EvaluationTab() {
                     </Link>
                     .
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </section>
             ) : (
-              <Card>
-                <CardHeader><CardTitle>Why it ranks here</CardTitle></CardHeader>
-                <CardContent>
-                  <p className="text-200 text-muted-foreground">
-                    This idea has a score but has not been included in a ranking run yet.
-                    The scores below already explain how that number was reached.
-                  </p>
-                </CardContent>
-              </Card>
+              <section className="rounded-xl border-l-4 border-border bg-muted/40 p-6">
+                <h2 className="font-serif text-500 font-semibold">Why it ranks here</h2>
+                <p className="mt-2 text-200 text-muted-foreground">
+                  This idea has a score but has not been included in a ranking run yet.
+                  The scores below already explain how that number was reached.
+                </p>
+              </section>
             )}
 
             {/* ── every criterion, grouped, each with its evidence ── */}
             <Card>
-              <CardHeader><CardTitle>Every criterion</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-serif">Every criterion</CardTitle></CardHeader>
               <CardContent className="space-y-6">
                 <p className="text-100 text-muted-foreground">
                   Each row shows the score, the weight it carries in this profile, and what

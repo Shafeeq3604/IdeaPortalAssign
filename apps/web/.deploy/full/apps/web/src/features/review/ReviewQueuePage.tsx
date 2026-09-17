@@ -6,6 +6,7 @@ import {
 } from "@iep/ui";
 import { STATUS_LABEL } from "../ideas/api";
 import { useReviewQueue } from "./api";
+import { PageHeading } from "../../app/PageHero";
 
 /*
  * A clean, structured table rather than floating row-cards.
@@ -21,6 +22,18 @@ import { useReviewQueue } from "./api";
  * `pnpm lint:tokens`.
  */
 const HEAD = "text-100 font-semibold uppercase tracking-wider text-muted-foreground";
+
+/**
+ * A left-border tint by how long a row has waited, so scanning a long queue doesn't
+ * require reading the Waiting column on every row. Presentational only, not a business
+ * SLA — the thresholds are a triage aid tied to this table's own "Longest waiting" sort,
+ * not a number anything else in the platform depends on.
+ */
+function waitingBorder(days: number): string {
+  if (days >= 7) return "border-l-4 border-l-state-danger";
+  if (days >= 3) return "border-l-4 border-l-state-warn";
+  return "border-l-4 border-l-transparent";
+}
 
 const initials = (name: string): string =>
   name
@@ -60,17 +73,13 @@ export function ReviewQueuePage() {
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  Review queue
+        <Link to="/">Home</Link>  ›  Review queue
       </nav>
-      <h1 className="flex items-center gap-3">
-        <span
-          aria-hidden
-          className="grid size-9 shrink-0 place-items-center rounded-lg bg-state-warn-bg text-state-warn"
-        >
-          <ListChecks className="size-4.5" />
-        </span>
-        Review queue
-      </h1>
+      <PageHeading
+        icon={ListChecks}
+        heading="Review queue"
+        description="Ideas waiting on a human decision, oldest first by default — every score still stands until someone here confirms or overrides it."
+      />
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-96 w-full" aria-busy="true" />
@@ -145,7 +154,7 @@ export function ReviewQueuePage() {
                 </TableHeader>
                 <TableBody>
                   {query.data.items.map((item) => (
-                    <TableRow key={item.ideaId}>
+                    <TableRow key={item.ideaId} className={`group ${waitingBorder(item.waitingDays)}`}>
                       <TableCell>
                         <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-100 font-bold text-foreground">
                           {item.rank === null ? "—" : `#${item.rank}`}
@@ -203,11 +212,20 @@ export function ReviewQueuePage() {
                         {item.waitingDays === 0 ? "today" : `${item.waitingDays}d`}
                       </TableCell>
                       <TableCell className="text-right">
+                        {/*
+                          A named action, not a bare icon (§16 — "quick 'Open analysis'
+                          action") and a bigger hit area (px-3 py-2, was p-1.5) — an arrow
+                          alone at the far right of a nine-column row is easy to miss and
+                          small enough to be a fussy target on a laptop trackpad.
+                          `group-hover` lets the whole row announce it's clickable, not
+                          just the last few pixels of it.
+                        */}
                         <Link
                           to={`/ideas/${item.ideaId}/review`}
                           aria-label={`Open review for ${item.title}`}
-                          className="inline-flex rounded-md p-1.5 text-muted-foreground no-underline transition-colors duration-[var(--dur-fast)] hover:bg-muted hover:text-foreground"
+                          className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-100 font-semibold text-muted-foreground no-underline transition-colors duration-[var(--dur-fast)] group-hover:text-accent-700 hover:bg-accent-050 hover:text-accent-700"
                         >
+                          <span className="hidden sm:inline">Open</span>
                           <ArrowRight aria-hidden className="size-4" />
                         </Link>
                       </TableCell>

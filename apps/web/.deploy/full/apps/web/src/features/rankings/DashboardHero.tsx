@@ -1,4 +1,4 @@
-import type * as React from "react";
+import * as React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, ListChecks, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import { matchRouteId } from "@iep/contracts";
@@ -75,16 +75,26 @@ export function DashboardHero({
   ).length;
   const leader = board?.items.find((e) => e.rank === 1);
 
+  /*
+   * Design-audit finding: the flat case ("The board is settled since the last run")
+   * read as accurate but forgettable — correct, and nothing else. `changedPlaces`
+   * unifies both branches under one verb instead of two unrelated ones ("moved" vs.
+   * "settled"), so the sentence reads as one considered thought about the same fact
+   * (did anyone change places, yes or no) rather than a template that swaps a whole
+   * clause. Nothing here claims anything the numbers above it don't already say.
+   */
   const headline =
     moved > 0
-      ? `${moved === 1 ? "One idea" : `${moved} ideas`} moved on the last run.`
-      : "The board is settled since the last run.";
+      ? `${moved === 1 ? "One idea" : `${moved} ideas`} changed places on the last run.`
+      : "Quiet since the last run — nobody changed places.";
 
   const detail = [
     toReview > 0
       ? `${toReview === 1 ? "One idea needs" : `${toReview} ideas need`} a reviewer`
       : null,
-    leader ? `“${leader.title}” leads on ${leader.compositeScore.toFixed(1)}` : null,
+    // "leading" matches the Spotlight card's own "LEADING THE BOARD" label below —
+    // one term for the same idea, not two ("leads on" here, "leading" there).
+    leader ? `“${leader.title}” is leading at ${leader.compositeScore.toFixed(1)}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -156,8 +166,97 @@ export function DashboardHero({
               label="top score"
             />
           </div>
+
+          {/*
+            Design-audit finding: this dashboard had no time dimension at all — every
+            visit rendered the same single "now" snapshot, with nothing to show whether
+            the board is actually moving. `data.history` is real stored `RankingRun`
+            history (CONTRACT-LOG 2026-09-17), not a derived or invented series — the
+            same "every number is real" rule this whole hero already holds itself to.
+          */}
+          <TopScoreTrend history={data.history} />
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * "Top score, over the runs this board actually has" — the one series worth a glance
+ * here: it is the single figure the hero already leads with ("X leads on Y"), so seeing
+ * it move (or not) across recent runs is the direct answer to "is this dashboard doing
+ * anything." Cohort size is deliberately NOT drawn a second time here — the two stats
+ * above it already say "on the board" plainly, and a second line for the same shape of
+ * number would be two charts arguing about which one to look at.
+ */
+function TopScoreTrend({ history }: { history: DashboardResponse["history"] }) {
+  const withScore = history.filter(
+    (h): h is typeof h & { topScore: number } => h.topScore !== null,
+  );
+
+  if (withScore.length < 2) {
+    return (
+      <p className="mt-3 border-t border-grad-rule pt-3 text-100 text-grad-ink-soft">
+        {withScore.length === 0
+          ? "No ranking run has a score yet."
+          : "Only one ranking run so far — a trend needs at least two."}
+      </p>
+    );
+  }
+
+  const w = 208;
+  const h = 32;
+  const pad = 3;
+  const scores = withScore.map((p) => p.topScore);
+  const min = Math.min(...scores);
+  const max = Math.max(...scores);
+  /*
+   * A perfectly flat run (every recompute landing on the same top score, which a
+   * profile with no data changes between runs genuinely does) is the one case
+   * `max - min` is 0 — falling back to a range of 1 without also re-centering left the
+   * line pinned to the BOTTOM of the track instead of sitting level, because dividing a
+   * zero numerator by that fallback range still lands on `min`. A flat line is real
+   * information ("nothing changed") and has to look flat and centered, not like it fell.
+   */
+  const flat = max === min;
+  const range = max - min || 1;
+  const coords = scores.map((s, i) => ({
+    x: pad + (i / (scores.length - 1)) * (w - pad * 2),
+    y: flat ? h / 2 : pad + (1 - (s - min) / range) * (h - pad * 2),
+  }));
+  const last = coords[coords.length - 1]!;
+  const delta = scores[scores.length - 1]! - scores[0]!;
+
+  return (
+    <div className="mt-3 border-t border-grad-rule pt-3">
+      <div className="flex items-baseline justify-between">
+        <p className="text-100 font-bold uppercase tracking-[0.14em] text-grad-ink-soft">
+          Top score, last {withScore.length} runs
+        </p>
+        <span
+          className={`text-100 font-semibold tabular-nums ${delta === 0 ? "text-grad-ink-soft" : "text-grad-highlight"}`}
+        >
+          {delta > 0 ? "+" : ""}
+          {delta.toFixed(1)}
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        className="mt-1.5 w-full"
+        role="img"
+        aria-label={`Top score across the last ${withScore.length} ranking runs, from ${scores[0]!.toFixed(1)} to ${scores[scores.length - 1]!.toFixed(1)}.`}
+      >
+        <polyline
+          points={coords.map((c) => `${c.x},${c.y}`).join(" ")}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-grad-highlight"
+        />
+        <circle cx={last.x} cy={last.y} r="2.5" className="fill-grad-highlight" />
+      </svg>
     </div>
   );
 }
@@ -220,18 +319,39 @@ export function ScoreRing({
   const outer = size === "md" ? "size-24" : "size-16";
   const inner = size === "md" ? "size-[4.625rem]" : "size-13";
 
+  /**
+   * The ring used to render straight to its final `--ring-turn` on the very first paint —
+   * correct arithmetic, but a number that never arrives, it is just already there, which
+   * reads as inert next to `ScoreDisplay`'s own tally and `ContributionBar`'s bar fill
+   * (both of which animate in). Starting at 0 and letting an effect move it to `value`
+   * right after mount is what gives `.score-ring`'s registered-property transition
+   * (index.css) something to animate — and because this re-runs on every `value` change,
+   * not once, a re-rank after a recompute redraws the SAME idea's ring from its old
+   * fraction to its new one instead of snapping, which is the other half of what was
+   * missing: nothing on this board visibly moved when a recompute actually changed it.
+   */
+  const [display, setDisplay] = React.useState(0);
+  React.useEffect(() => {
+    const id = requestAnimationFrame(() => setDisplay(Math.max(0, Math.min(100, value))));
+    return () => cancelAnimationFrame(id);
+  }, [value]);
+
   return (
     <span
       aria-hidden
       className={`score-ring${onBrand ? " score-ring--on-brand" : ""} relative grid ${outer} shrink-0 place-items-center rounded-full shadow-e1`}
       /* A fraction of a turn — the CSS does the arithmetic on the gradient stop. */
-      style={{ "--ring-turn": `${Math.max(0, Math.min(100, value)) / 100}turn` } as React.CSSProperties}
+      style={{ "--ring-turn": `${display / 100}turn` } as React.CSSProperties}
     >
       <span
         className={`flex ${inner} flex-col items-center justify-center rounded-full bg-card`}
       >
+        {/* Gradient-filled, like `ScoreDisplay`'s own composite figure (evaluation.tsx) —
+            the number inside this ring IS the reason the ring exists, so it gets the same
+            treatment reserved for a page's single most important figure, everywhere this
+            ring appears (idea cards, the dashboard leader, Compare). */}
         <b
-          className={`font-serif ${size === "md" ? "text-600" : "text-400"} font-bold leading-none tabular-nums text-accent-700`}
+          className={`bg-gradient-to-br from-accent-700 to-grad-to bg-clip-text font-serif ${size === "md" ? "text-600" : "text-400"} font-bold leading-none tabular-nums text-transparent`}
         >
           {value.toFixed(1)}
         </b>
@@ -281,7 +401,13 @@ function FactorBar({ item, kind }: { item: ExplanationItem; kind: "up" | "down" 
             ? `+${item.contribution.toFixed(1)} pts`
             : item.headroom === undefined
               ? "held it back"
-              : `${item.headroom.toFixed(1)} pts available`}
+              /*
+               * Design-audit finding: "6.5 pts available" didn't say available toward
+               * WHAT — a first-time reader has no way to know this is upside if the
+               * criterion improves, not a number already lost. Spelling out "to gain if
+               * this improves" costs a few characters and removes the ambiguity entirely.
+               */
+              : `up to ${item.headroom.toFixed(1)} pts to gain if this improves`}
         </span>
       </div>
       {width === undefined ? null : (
@@ -375,7 +501,13 @@ export function Spotlight({ board }: { board: ListRankingsResponse | undefined }
 
   return (
     <section className="mt-8">
-      <div className="relative overflow-hidden rounded-2xl bg-card p-5 shadow-e2 ring-1 ring-inset ring-border">
+      {/*
+        `card-texture` + `shadow-e4` (visual-richness pass — hero-card depth): this is the
+        one card on the dashboard that answers "what's the single most important thing
+        happening on the board," so it gets more depth than the KPI tiles above it and
+        the outcome track below it, not just a coloured edge.
+      */}
+      <div className="card-texture relative overflow-hidden rounded-2xl bg-card p-5 shadow-e4 ring-1 ring-inset ring-border transition-transform duration-[var(--dur-base)] hover:-translate-y-1">
         {/* The amber-to-violet edge the canvas runs down the spotlight, and the only thing
             marking this card out from the ones below it. */}
         <span

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import type { DashboardResponse, DashboardTile, ListRankingsResponse } from "@iep/contracts";
 import { renderWithProviders } from "../../test/render";
 import { DashboardPage } from "./DashboardPage";
@@ -16,7 +16,7 @@ function tile(overrides: Partial<DashboardTile> = {}): DashboardTile {
 }
 
 function dashboard(tiles: DashboardTile[]): DashboardResponse {
-  return { tiles, generatedAt: "2026-08-01T00:00:00.000Z" };
+  return { tiles, generatedAt: "2026-08-01T00:00:00.000Z", history: [] };
 }
 
 const NINE_TILES: DashboardTile[] = [
@@ -39,9 +39,8 @@ function boardResponse(): ListRankingsResponse {
   };
 }
 
-function stubFetch(overrides: { dashboardStatus?: number; recomputeStatus?: number } = {}) {
-  const recompute = vi.fn();
-  const fetchMock = vi.fn((input: string | URL, init?: RequestInit) => {
+function stubFetch(overrides: { dashboardStatus?: number } = {}) {
+  const fetchMock = vi.fn((input: string | URL) => {
     const url = new URL(String(input), "http://localhost");
     if (url.pathname === "/api/dashboard") {
       if (overrides.dashboardStatus && overrides.dashboardStatus >= 400) {
@@ -52,20 +51,6 @@ function stubFetch(overrides: { dashboardStatus?: number; recomputeStatus?: numb
     if (url.pathname === "/api/rankings") {
       return Promise.resolve(new Response(JSON.stringify(boardResponse()), { status: 200 }));
     }
-    if (url.pathname === "/api/config/profiles") {
-      return Promise.resolve(
-        new Response(JSON.stringify({ items: [{ key: "default", name: "Default", description: "", isDefault: true, isActive: true, weights: [] }] }), { status: 200 }),
-      );
-    }
-    if (url.pathname === "/api/rankings/recompute") {
-      recompute(init?.body);
-      if (overrides.recomputeStatus && overrides.recomputeStatus >= 400) {
-        return Promise.resolve(new Response(JSON.stringify({ code: "VALIDATION_FAILED", message: "no", requestId: "r1" }), { status: overrides.recomputeStatus }));
-      }
-      return Promise.resolve(
-        new Response(JSON.stringify({ runId: "run-2", profileKey: "default", profileName: "Default", engineVersion: "1.0.0", cohortSize: 8, computedAt: "2026-08-01T00:00:00.000Z", triggerReason: "manual" }), { status: 200 }),
-      );
-    }
     if (url.pathname === "/api/auth/session") {
       return Promise.resolve(
         new Response(JSON.stringify({ user: { id: "user-1", displayName: "Mo Manager", email: "mo@example.invalid", roles: ["MANAGEMENT"], department: null } }), { status: 200 }),
@@ -74,7 +59,7 @@ function stubFetch(overrides: { dashboardStatus?: number; recomputeStatus?: numb
     return Promise.resolve(new Response(JSON.stringify({}), { status: 404 }));
   });
   vi.stubGlobal("fetch", fetchMock);
-  return { fetchMock, recompute };
+  return { fetchMock };
 }
 
 afterEach(() => {
@@ -110,40 +95,7 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("link", { name: "Back to ideas" })).toHaveAttribute("href", "/ideas");
   });
 
-  it("refuses to recompute without a reason, and does not call the API", async () => {
-    const { recompute } = stubFetch();
-
-    renderWithProviders(<DashboardPage />, { route: "/dashboard" });
-    await screen.findByRole("button", { name: "Recompute" });
-
-    fireEvent.click(screen.getByRole("button", { name: "Recompute" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(/Say why/);
-    expect(recompute).not.toHaveBeenCalled();
-  });
-
-  it("recomputes with the typed reason and reports the new cohort size", async () => {
-    const { recompute } = stubFetch();
-
-    renderWithProviders(<DashboardPage />, { route: "/dashboard" });
-    await screen.findByRole("button", { name: "Recompute" });
-
-    fireEvent.change(screen.getByLabelText("Why (required)"), { target: { value: "quarterly review board" } });
-    fireEvent.click(screen.getByRole("button", { name: "Recompute" }));
-
-    await waitFor(() => expect(recompute).toHaveBeenCalledWith(JSON.stringify({ profileKey: "default", reason: "quarterly review board" })));
-    expect(await screen.findByRole("status")).toHaveTextContent("Done — 8 ideas ranked.");
-  });
-
-  it("reports a failed recompute without pretending the board changed", async () => {
-    stubFetch({ recomputeStatus: 422 });
-
-    renderWithProviders(<DashboardPage />, { route: "/dashboard" });
-    await screen.findByRole("button", { name: "Recompute" });
-
-    fireEvent.change(screen.getByLabelText("Why (required)"), { target: { value: "quarterly review board" } });
-    fireEvent.click(screen.getByRole("button", { name: "Recompute" }));
-
-    expect(await screen.findByText("The recompute did not run. The current board is unchanged.")).toBeInTheDocument();
-  });
+  // Recompute-the-rankings coverage lives in `../admin/AdminPages.test.tsx` — the control
+  // itself moved to Administration → Audit log (production UX review: creating a new
+  // ranking run is an administrative action, not a dashboard reading).
 });
