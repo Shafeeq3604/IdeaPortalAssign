@@ -81,7 +81,7 @@ export function CriteriaPage() {
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  Evaluation criteria
+        <Link to="/">Home</Link>  ›  Evaluation criteria
       </nav>
       <PageHeading
         icon={SlidersHorizontal}
@@ -184,7 +184,7 @@ export function ProfilesPage() {
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  Evaluation profiles
+        <Link to="/">Home</Link>  ›  Evaluation profiles
       </nav>
       <PageHeading
         icon={Scale}

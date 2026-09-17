@@ -383,8 +383,14 @@ function explain(
     .map((s) =>
       toItem(
         s,
-        `${labelOf(s.criterionKey)} scored ${s.normalized} of 100 and carries ` +
-          `${Math.round(s.weight * 100)}% of this profile, adding ${s.contribution.toFixed(1)} points.`,
+        // Deliberately not "X% of the score" — that phrase is reserved for
+        // `shareOfTotal` (contribution ÷ composite) in ExplanationGroup's badge, right next
+        // to this sentence. Two different percentages both worded "% of the score" read as
+        // contradictory even though each is correct on its own terms, so this one names
+        // what it actually is: the criterion's weight in the profile, not its share of the
+        // resulting score.
+        `${labelOf(s.criterionKey)} scored ${s.normalized} of 100; this profile weights it ` +
+          `${Math.round(s.weight * 100)}%, adding ${s.contribution.toFixed(1)} points.`,
       ),
     );
 

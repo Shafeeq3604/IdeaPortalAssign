@@ -7,6 +7,7 @@ import { AppShell } from "./app/AppShell";
 import { RouteErrorBoundary } from "./app/error-boundary";
 import { RequireAuth } from "./app/session";
 import { canSee, useSession } from "./app/use-session";
+import { useDocumentTitle } from "./app/use-document-title";
 import { LoginPage } from "./features/auth/LoginPage";
 import { SignupPage } from "./features/auth/SignupPage";
 import { IdeaListPage } from "./features/ideas/IdeaListPage";
@@ -171,10 +172,20 @@ function Shell() {
   );
 }
 
+/** Renders nothing — just keeps the browser tab in sync with the current route. */
+function DocumentTitle() {
+  useDocumentTitle();
+  return null;
+}
+
 export function AppRouter() {
   return (
     <AppProviders>
       <BrowserRouter>
+        {/* Sign-in/sign-up sit outside `Shell` (no session yet to gate on), so the title
+            hook lives here instead — one level up, so every route gets it regardless of
+            auth state, rather than duplicating the call inside both branches. */}
+        <DocumentTitle />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />

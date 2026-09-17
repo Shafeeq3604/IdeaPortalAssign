@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Check } from "lucide-react";
 import {
   Button, Input, Label, Textarea, applyServerErrors, isFieldLevelError,
 } from "@iep/ui";
@@ -183,46 +184,56 @@ export function IdeaForm({
         </section>
       ) : null}
 
-      {REQUIRED_SECTIONS.map((section) => (
-        <section
-          key={section.step}
-          className="space-y-6 rounded-2xl bg-card p-6 shadow-e2 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] focus-within:shadow-e3"
-        >
-          <div className="flex items-start gap-3">
-            <span
-              aria-hidden
-              className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-accent-600 to-grad-to text-200 font-semibold text-primary-foreground shadow-e1"
-            >
-              {section.step}
-            </span>
-            <div>
-              <h2 className="text-400 font-semibold">{section.title}</h2>
-              <p className="text-200 text-muted-foreground">{section.blurb}</p>
+      {REQUIRED_SECTIONS.map((section) => {
+        /*
+         * Design-audit finding: this card carried no visible sign of its own progress
+         * beyond the dots at the very bottom of the form, a scroll away — `isAnswered`
+         * was already computed for that footer and nothing else read it. A section that
+         * is genuinely done now says so where someone is actually looking, the same
+         * checkmark-on-done language the Analysis progress checklist already uses
+         * elsewhere in this product, rather than a new visual idiom invented for one form.
+         */
+        const done = isAnswered(section);
+        return (
+          <section
+            key={section.step}
+            className={`space-y-6 rounded-2xl bg-card p-6 shadow-e2 ring-1 ring-inset transition-shadow duration-[var(--dur-base)] focus-within:shadow-e3 ${done ? "ring-factor-up/30" : "ring-border"}`}
+          >
+            <div className="flex items-start gap-3">
+              <span
+                aria-hidden
+                className={`grid size-8 shrink-0 place-items-center rounded-lg text-200 font-semibold shadow-e1 ${
+                  done
+                    ? "bg-factor-up-bg text-factor-up"
+                    : "bg-gradient-to-br from-accent-600 to-grad-to text-primary-foreground"
+                }`}
+              >
+                {done ? <Check aria-hidden className="size-4" /> : section.step}
+              </span>
+              <div>
+                <h2 className="text-400 font-semibold">{section.title}</h2>
+                <p className="text-200 text-muted-foreground">{section.blurb}</p>
+              </div>
             </div>
-          </div>
-          {section.fields.map(renderField)}
-        </section>
-      ))}
+            {section.fields.map(renderField)}
+          </section>
+        );
+      })}
 
       <section className="space-y-6 rounded-2xl border border-dashed border-border bg-muted/50 p-6">
-        <div className="flex items-start gap-3">
-          {/*
-            Dashed, and numbered with a dash rather than a 4. Optional means optional:
-            the section should not look like a step somebody has failed to complete.
-          */}
-          <span
-            aria-hidden
-            className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-200 font-semibold text-muted-foreground ring-1 ring-inset ring-border"
-          >
-            +
-          </span>
-          <div>
-            <h2 className="text-400 font-semibold">Anything else? (all optional)</h2>
-            <p className="text-200 text-muted-foreground">
-              Leaving these blank is fine — it never blocks submission. Filling them in
-              gives the analysis more to work with, and raises the maturity level.
-            </p>
-          </div>
+        {/*
+          No numbered badge here, unlike the required sections above. A tile that looks
+          like the same clickable-looking step marker used elsewhere in the product read
+          to reviewers as an actual control ("do I need to click the +?") rather than the
+          plain section label it was meant to be — dropped rather than swapped for a
+          different glyph, since optional means optional and this isn't a step at all.
+        */}
+        <div>
+          <h2 className="text-400 font-semibold">Anything else? (all optional)</h2>
+          <p className="text-200 text-muted-foreground">
+            Leaving these blank is fine — it never blocks submission. Filling them in
+            gives the analysis more to work with, and raises the maturity level.
+          </p>
         </div>
         {OPTIONAL_FIELDS.map(renderField)}
       </section>

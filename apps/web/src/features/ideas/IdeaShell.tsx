@@ -8,6 +8,7 @@ import {
 import { ROUTES } from "@iep/contracts";
 import { STATUS_LABEL, useIdea, useTransition } from "./api";
 import { VoteButtons } from "../feedback/VoteButtons";
+import { useSession } from "../../app/use-session";
 import type { IdeaDetail } from "@iep/contracts";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
@@ -33,6 +34,7 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
   const { ideaId = "" } = useParams();
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const session = useSession();
   const query = useIdea(ideaId);
   const transition = useTransition(ideaId);
   const [archiveOpen, setArchiveOpen] = React.useState(false);
@@ -67,11 +69,22 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
   }
 
   const idea = query.data;
+  const actorRoles = session.data?.user.roles ?? [];
+  /*
+   * Bug found live: this used to gate the "Review" tab on `idea.permissions.canReview`
+   * — THIS idea's per-resource permission, not "can this person reach the review
+   * workflow at all." Since a reviewer/admin cannot review their own submission
+   * (permissions.ts's deliberate self-review block), landing on their own idea made the
+   * tab silently vanish from the strip, on top of the tab's own content rendering
+   * nothing (fixed separately in `ReviewTab.tsx` — see `SelfSubmittedNotice`). Gating on
+   * the ROUTE's own roles instead means the tab stays put for anyone who holds
+   * REVIEWER/ADMIN, on every idea including their own, and the page explains the
+   * per-idea "why" instead of the tab bar doing it by disappearing.
+   */
   const canSee = (id: string): boolean => {
     const route = ROUTES.find((r) => r.id === id);
     if (!route) return false;
-    // Review is privileged; the rest follow the idea itself.
-    return id !== "idea.review" || idea.permissions.canReview;
+    return route.roles.length === 0 || route.roles.some((r) => actorRoles.includes(r));
   };
 
   return (

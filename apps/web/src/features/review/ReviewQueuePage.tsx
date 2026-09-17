@@ -73,7 +73,7 @@ export function ReviewQueuePage() {
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  Review queue
+        <Link to="/">Home</Link>  ›  Review queue
       </nav>
       <PageHeading
         icon={ListChecks}

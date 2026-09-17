@@ -4,6 +4,7 @@ import { ErrorState } from "@iep/ui";
 import { ApiError, ApiUnreachableError } from "./api-client";
 import { useSession } from "./use-session";
 import { PRODUCT_SHORT } from "./product";
+import { BrandMark } from "./BrandMark";
 
 /** Route guarding (FR-01). Hooks and role helpers live in ./use-session. */
 
@@ -24,8 +25,8 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-dvh">
         <header className="brand-bar flex h-14 items-center gap-3 px-4 text-grad-ink shadow-e2">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-grad-highlight/20 text-100 font-bold text-grad-highlight ring-1 ring-grad-rule">
-            IP
+          <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-grad-highlight/20 ring-1 ring-grad-rule">
+            <BrandMark className="size-3.5 text-grad-highlight" />
           </span>
           <span className="truncate text-200 font-semibold text-grad-ink">{PRODUCT_SHORT}</span>
         </header>

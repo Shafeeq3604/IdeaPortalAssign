@@ -450,6 +450,41 @@ export function registerRankingRoutes(handlers: Map<string, Handler>): void {
       },
     ];
 
-    return { tiles, generatedAt: new Date().toISOString() };
+    /**
+     * The board's own history (design-audit finding: the dashboard had no time
+     * dimension — every visit showed the exact same shape of page, "now" and nothing
+     * else). Every `RankingRun` already carries its own `computedAt`; this is the first
+     * place anything reads more than the single latest one back.
+     *
+     * Deliberately board-wide, not `scope`-filtered by department — a `RankingRun` is
+     * one snapshot of the whole cohort, not a per-department slice, so there is no
+     * per-department run to read history from without recomputing one, which this GET
+     * must not do.
+     */
+    const recentRuns = await ctx.db.rankingRun.findMany({
+      orderBy: { computedAt: "desc" },
+      take: 8,
+      select: {
+        id: true,
+        computedAt: true,
+        entries: {
+          orderBy: { rank: "asc" },
+          take: 1,
+          select: { compositeScore: true },
+        },
+        _count: { select: { entries: true } },
+      },
+    });
+
+    const history = recentRuns
+      .map((run) => ({
+        runId: run.id,
+        computedAt: run.computedAt.toISOString(),
+        cohortSize: run._count.entries,
+        topScore: run.entries[0] ? Number(run.entries[0].compositeScore) : null,
+      }))
+      .reverse(); // oldest first, so a chart reads left-to-right as time moving forward
+
+    return { tiles, generatedAt: new Date().toISOString(), history };
   });
 }

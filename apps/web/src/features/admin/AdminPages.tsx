@@ -3,8 +3,9 @@ import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { MoreHorizontal, ScrollText, Search, Users, X } from "lucide-react";
 import {
-  Badge, Button, Card, CardContent, EmptyState, ErrorState, Input, Skeleton, Table, TableBody,
-  TableCell, TableHead, TableHeader, TableRow,
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Button, Card, CardContent,
+  EmptyState, ErrorState, Input, Label, Skeleton, Table, TableBody, TableCell, TableHead,
+  TableHeader, TableRow,
 } from "@iep/ui";
 import { Role } from "@iep/contracts";
 import type { AdminUser, AdminUsersResponse, AuditResponse } from "@iep/contracts";
@@ -12,6 +13,7 @@ import { AddUserDialog, EditUserDialog, RoleBadges, RoleLegend } from "./UserFor
 import { api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
 import { InlineStat, PageHeading } from "../../app/PageHero";
+import { useProfiles, useRecompute } from "../rankings/api";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -127,6 +129,133 @@ function groupByDay<T extends { at: string }>(items: readonly T[]): [string, T[]
   return groups;
 }
 
+/**
+ * Recompute (FR-13, ADR-008).
+ *
+ * Moved here from the Dashboard (production UX review): this creates a new ranking
+ * snapshot rather than summarizing one, which makes it an administrative action, not a
+ * dashboard reading — and it sits beside the very audit log that records every recompute
+ * it produces ("Rankings recomputed" in `ACTION_LABEL` above). Collapsed by default: an
+ * action taken rarely does not need to stand open at full height next to a log people
+ * check daily.
+ */
+function RecomputePanel() {
+  const profiles = useProfiles();
+  const recompute = useRecompute();
+  const [profileKey, setProfileKey] = React.useState("");
+  const [reason, setReason] = React.useState("");
+  const [touched, setTouched] = React.useState(false);
+
+  /*
+   * Design-audit finding: recompute moved here from the Dashboard (a form doesn't
+   * belong on a summary page), but that left it reachable only by knowing it lives on
+   * this specific tab, behind a collapsed panel nobody would think to open on spec.
+   * `?recompute=open` — now also a "Recompute the rankings" entry in the command
+   * palette — makes it a single link away from anywhere in the app instead of a thing
+   * you have to already know about.
+   */
+  const [params, setParams] = useSearchParams();
+  const wantsOpen = params.get("recompute") === "open";
+
+  const options = profiles.data?.items ?? [];
+  const active = profileKey || options.find((p) => p.isDefault)?.key || options[0]?.key || "";
+  const reasonMissing = reason.trim().length === 0;
+
+  if (options.length === 0) return null;
+
+  return (
+    <Card className="mb-6 py-0">
+      <Accordion
+        type="single"
+        collapsible
+        value={wantsOpen ? "recompute" : ""}
+        onValueChange={(value) => {
+          setParams((next) => {
+            if (value === "recompute") next.set("recompute", "open");
+            else next.delete("recompute");
+            return next;
+          }, { replace: true });
+        }}
+      >
+        <AccordionItem value="recompute" className="border-none">
+          <AccordionTrigger className="px-6 py-5 hover:no-underline [&>svg]:size-5">
+            <span className="flex flex-col items-start text-left">
+              <span className="font-medium">Recompute the rankings</span>
+              <span className="text-100 font-normal text-muted-foreground">
+                Creates a new snapshot from the scores as they stand now
+              </span>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="px-6">
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setTouched(true);
+                if (reasonMissing) return;
+                recompute.mutate({ profileKey: active, reason: reason.trim() });
+              }}
+            >
+              <p className="text-200 text-muted-foreground">
+                The previous run stays readable, so you can always show what the board
+                said before.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-200 text-muted-foreground">Profile</span>
+                {options.map((p) => (
+                  <Button
+                    key={p.key}
+                    type="button"
+                    size="sm"
+                    variant={p.key === active ? "default" : "outline"}
+                    onClick={() => setProfileKey(p.key)}
+                  >
+                    {p.name}
+                  </Button>
+                ))}
+              </div>
+
+              <div>
+                <Label htmlFor="field-recomputeReason">Why (required)</Label>
+                <Input
+                  id="field-recomputeReason"
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                  placeholder="e.g. quarterly review board"
+                  aria-invalid={touched && reasonMissing}
+                  aria-describedby={touched && reasonMissing ? "error-recomputeReason" : undefined}
+                />
+                {touched && reasonMissing ? (
+                  <p id="error-recomputeReason" role="alert" className="mt-1 text-100 text-destructive">
+                    The reason is stored on the run and shown on the board. Say why.
+                  </p>
+                ) : null}
+              </div>
+
+              {recompute.isError ? (
+                <p role="alert" className="text-100 text-destructive">
+                  The recompute did not run. The current board is unchanged.
+                </p>
+              ) : null}
+              {recompute.isSuccess ? (
+                <p role="status" className="text-100 text-factor-up">
+                  Done — {recompute.data.cohortSize} ideas ranked.{" "}
+                  <Link to="/rankings">See the new board</Link>.
+                </p>
+              ) : null}
+
+              <Button type="submit" disabled={recompute.isPending}>
+                {recompute.isPending ? "Recomputing…" : "Recompute"}
+              </Button>
+            </form>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </Card>
+  );
+}
+
 export function AuditPage() {
   const [params, setParams] = useSearchParams();
   const page = Math.max(1, Number(params.get("page") ?? 1));
@@ -145,7 +274,7 @@ export function AuditPage() {
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  Audit log
+        <Link to="/">Home</Link>  ›  Audit log
       </nav>
       <PageHeading
         icon={ScrollText}
@@ -155,6 +284,8 @@ export function AuditPage() {
       <AdminSubNav
         stat={query.data ? { value: String(query.data.meta.total), label: "entries logged" } : undefined}
       />
+
+      <RecomputePanel />
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-96 w-full" aria-busy="true" />
@@ -323,7 +454,7 @@ export function UsersPage() {
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  People &amp; access
+        <Link to="/">Home</Link>  ›  People &amp; access
       </nav>
       <PageHeading
         icon={Users}

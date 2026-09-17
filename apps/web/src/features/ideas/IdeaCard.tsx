@@ -74,6 +74,19 @@ export function IdeaCard({ idea }: { idea: IdeaSummary }) {
                 Ranked #{idea.rank}
               </span>
             )}
+            {/*
+              A real, existing field (`IdeaSummary.department`) promoted from the footer
+              metadata line up beside the status — a whole grid of cards that differ only
+              by a one-pixel status rule reads as one template repeated (production visual
+              review). This is real data, not decoration: which department an idea is from
+              is exactly the kind of second fact that lets a scanning eye tell cards apart
+              without reading every title.
+            */}
+            {idea.department ? (
+              <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-100 font-medium text-muted-foreground">
+                {idea.department.name}
+              </span>
+            ) : null}
           </div>
 
           {/*
@@ -131,10 +144,9 @@ export function IdeaCard({ idea }: { idea: IdeaSummary }) {
           >
             {initials(idea.submitter.displayName)}
           </span>
-          <span className="truncate">
-            {idea.submitter.displayName}
-            {idea.department ? ` · ${idea.department.name}` : ""}
-          </span>
+          {/* The department now has its own pill up top, next to status — saying it
+              twice on one card would read as filler, not confirmation. */}
+          <span className="truncate">{idea.submitter.displayName}</span>
         </span>
 
         {/*

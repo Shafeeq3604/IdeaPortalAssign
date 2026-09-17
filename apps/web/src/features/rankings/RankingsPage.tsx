@@ -82,7 +82,14 @@ export function RankingsPage({ mode = "current" }: { mode?: "current" | "run" })
   return (
     <main className="page">
       <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/ideas">Ideas</Link>  ›  {mode === "run" ? "A past ranking" : "Rankings"}
+        <Link to="/">Home</Link>  ›{" "}
+        {mode === "run" ? (
+          <>
+            <Link to="/rankings">Rankings</Link>  ›  A past ranking
+          </>
+        ) : (
+          "Rankings"
+        )}
       </nav>
 
       {/*

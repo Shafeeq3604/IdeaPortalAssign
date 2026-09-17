@@ -18,6 +18,15 @@ export default defineConfig({
   workers: 1,
   retries: process.env["CI"] ? 1 : 0,
   reporter: process.env["CI"] ? [["list"], ["html", { open: "never" }]] : [["list"]],
+  /*
+   * Real problem, found live: this suite runs against the same shared database `pnpm
+   * dev` does (by design, per the comment above), and every run leaves real rows behind
+   * — submitted ideas, cast votes, review decisions, ranking runs — with nothing ever
+   * restoring them. `pnpm demo:reset` was already the fix; it just required someone to
+   * notice and run it by hand. This runs it automatically once the suite finishes, pass
+   * or fail, so "shared database" stops meaning "e2e quietly corrupts the environment."
+   */
+  globalTeardown: "./global-teardown.ts",
   use: {
     baseURL: process.env["E2E_BASE_URL"] ?? "http://localhost:5173",
     trace: "retain-on-failure",

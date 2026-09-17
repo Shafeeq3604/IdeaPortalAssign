@@ -1,11 +1,12 @@
 import * as React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ExternalLink, PenSquare, Send, Sparkles } from "lucide-react";
+import {
+  CircleAlert, ExternalLink, Lightbulb, PenSquare, Send, Sparkles, TrendingUp, Users,
+} from "lucide-react";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Button, Skeleton, Textarea,
 } from "@iep/ui";
 import type { DiscoveryResultItem } from "@iep/contracts";
-import { HeroStat, PageHero } from "../../app/PageHero";
 import { useCreateDiscoveryQuery, useDiscoveryHistory, useDiscoveryQuery } from "./api";
 
 /**
@@ -38,6 +39,15 @@ const EXAMPLE_PROMPTS: readonly { readonly mode: string; readonly query: string 
   },
 ];
 
+/** The category chip + icon each example card wears — same three modes the hero's own
+ * copy promises, given a visual identity so the row reads as a menu of AI actions rather
+ * than a paragraph's worth of sample text. */
+const MODE_ICON: Record<string, React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
+  "A trend": TrendingUp,
+  "A recurring problem": CircleAlert,
+  "An opportunity idea": Lightbulb,
+};
+
 /** One random pick per mode, not three random picks overall — the point is showing the
  * RANGE, so two examples of "a trend" and none of "an opportunity idea" would defeat it.
  * Runs once per mount (not on a timer): a visit shows a fresh set, which is enough to
@@ -51,7 +61,14 @@ function oneOfEachMode(
 }
 
 /**
- * SPC-001 — AI Discovery Agent chat page.
+ * SPC-001 — AI Discovery Agent workspace.
+ *
+ * Restructured from a chat page with a hero bolted on top of it into an "ask → explore →
+ * evaluate → submit" workspace (production redesign): the prompt moves into the hero as
+ * the page's primary focal point, the hero's aside reports what the tool has actually
+ * done rather than one static count, and every generated idea gets the same four-level
+ * reading order (name → problem/who/impact → how it would work → sources) so it can be
+ * judged in seconds, not read like a report.
  *
  * A standalone chatbot (SPC-13): processing a query never reads or writes an Idea record
  * — nothing here is enforced by a foreign key or a server-side link. "Submit as idea"
@@ -59,7 +76,8 @@ function oneOfEachMode(
  * human-authored `/ideas/new` form (`SubmitIdeaPage`) as a pre-fill, exactly as
  * `schema.prisma`'s SPC-13 comment anticipated — "a user acting on a finding submits a
  * real idea by hand." No discovery_queries row is read, written, or referenced by that
- * form; the two stay structurally unrelated.
+ * form; the two stay structurally unrelated — which is also why "ideas submitted from
+ * Discover" cannot be one of the hero's metrics below: nothing records that link.
  */
 
 /** A source is a clickable link only when it actually looks like one (SPC-9/SPC-11's
@@ -95,21 +113,24 @@ function SourceList({ sources }: { sources: readonly string[] }) {
 }
 
 /**
- * One labeled part of a structured item — same vocabulary as `IdeaForm.tsx`'s own
- * section labels, since these are the fields a "Submit as idea" prefill feeds.
- *
- * The label used to sit inline ("The problem: <text>"), which reads fine for one field
- * but turns four of them back-to-back into one undifferentiated paragraph — exactly what
- * made a whole answer (up to seven of these, each with four fields) scan as a wall of
- * text instead of four distinct facts. A small uppercase caption above its own value, the
- * same pattern the Evaluation tab already uses for its strongest/weakest figures, gives
- * the eye a place to land per field without adding a single extra word.
+ * One facet of the Level-2 grid — Problem / Who it helps / Expected impact, each its own
+ * tile rather than a row in one list, so the three facts a reader needs to judge an idea
+ * sit side by side instead of stacked under each other (production redesign, change 5/6).
  */
-function Field({ label, text }: { label: string; text: string }) {
+function Facet({
+  icon: Icon, label, text,
+}: {
+  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  label: string;
+  text: string;
+}) {
   return (
-    <div>
-      <dt className="text-100 font-semibold uppercase tracking-wide text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 text-100">{text}</dd>
+    <div className="rounded-lg border border-border bg-card p-3">
+      <dt className="flex items-center gap-1.5 text-100 font-semibold uppercase tracking-wide text-accent-700">
+        <Icon aria-hidden className="size-3.5 shrink-0" />
+        {label}
+      </dt>
+      <dd className="mt-1 text-100 leading-relaxed">{text}</dd>
     </div>
   );
 }
@@ -148,15 +169,10 @@ function IdeaItem({
   };
 
   return (
-    // `bg-muted`, not `bg-card` — the surrounding chat bubble IS `bg-card`, so a card in
-    // the old tone had nothing but a faint ring to tell it apart, and seven of them in a
-    // row read as one continuous block. A visibly recessed tile per idea, a numbered
-    // marker (there can be up to seven of these in one answer — a real sequence worth
-    // counting, not decoration), and a rule before the field list are what actually make
-    // this scannable as "seven distinct ideas" rather than "one long answer."
     <li
       className={`rounded-xl bg-muted p-4 shadow-e1 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e2 ${className ?? ""}`}
     >
+      {/* Level 1 — the name, the thing a skim has to land on first. */}
       <div className="flex items-start gap-2.5">
         <span
           aria-hidden
@@ -164,53 +180,93 @@ function IdeaItem({
         >
           {index + 1}
         </span>
-        <p className="text-200 font-semibold leading-snug">{item.title}</p>
+        <p className="text-300 font-semibold leading-snug">{item.title}</p>
       </div>
+
       {structured ? (
         <>
-          {/*
-            Scannable by default: the problem and who it helps are the two facts that let
-            someone decide "is this worth a second look" without reading further
-            (visual-richness pass — "substantially more scannable... not long paragraphs
-            as the primary presentation"). "The idea" (usually the longest field, the HOW)
-            and sources move behind a single disclosure — real detail, not lost, just not
-            competing with the scan line.
-          */}
-          <dl className="mt-3 space-y-2.5 border-t border-border pt-3">
-            <Field label="The problem" text={item.problem ?? ""} />
-            <Field label="Who it helps" text={item.whoItHelps ?? ""} />
-            {item.expectedOutcome ? <Field label="What would change" text={item.expectedOutcome} /> : null}
+          {/* Level 2 — problem / who it helps / impact, as three facts side by side
+              rather than a paragraph each, so the case for the idea reads in one
+              glance (production redesign, change 5/6). */}
+          <dl className="mt-3 grid gap-2 border-t border-border pt-3 sm:grid-cols-3">
+            <Facet icon={CircleAlert} label="The problem" text={item.problem ?? ""} />
+            <Facet icon={Users} label="Who it helps" text={item.whoItHelps ?? ""} />
+            {item.expectedOutcome ? (
+              <Facet icon={TrendingUp} label="Expected impact" text={item.expectedOutcome} />
+            ) : null}
           </dl>
-          <Accordion type="single" collapsible>
-            <AccordionItem value="details" className="border-none">
-              <AccordionTrigger className="py-2 text-100 font-semibold uppercase tracking-wide text-muted-foreground hover:no-underline hover:text-foreground">
-                Show details
-              </AccordionTrigger>
-              <AccordionContent>
-                <Field label="The idea" text={item.approach ?? ""} />
-                <SourceList sources={item.sources} />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+
+          {/* Level 3 — how it would work, real data (`approach`), always visible: the
+              brief asked for a "suggested actions" list, but nothing in the contract
+              produces one, and inventing bullet points here would be exactly the kind
+              of fabricated content this product refuses to ship. The real field that
+              already existed — the approach itself — takes that slot instead, promoted
+              out from behind the old accordion since it's the one thing left that
+              actually helps someone decide whether to act. */}
+          {item.approach ? (
+            <div className="mt-3">
+              <p className="text-100 font-semibold uppercase tracking-wide text-muted-foreground">
+                How it would work
+              </p>
+              <p className="mt-1 text-200 leading-relaxed">{item.approach}</p>
+            </div>
+          ) : null}
+
+          {/* Level 4 — sources only, the one thing genuinely worth a click to reveal. */}
+          {item.sources.length > 0 ? (
+            <Accordion type="single" collapsible className="mt-1">
+              <AccordionItem value="sources" className="border-none">
+                <AccordionTrigger className="py-2 text-100 font-semibold uppercase tracking-wide text-muted-foreground hover:no-underline hover:text-foreground">
+                  Show sources
+                </AccordionTrigger>
+                <AccordionContent>
+                  <SourceList sources={item.sources} />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          ) : null}
         </>
       ) : (
-        <p className="mt-1.5 text-100 text-muted-foreground">{item.summary}</p>
+        <>
+          <p className="mt-1.5 text-200 text-muted-foreground">{item.summary}</p>
+          <SourceList sources={item.sources} />
+        </>
       )}
-      {!structured ? <SourceList sources={item.sources} /> : null}
-      <Button type="button" variant="outline" size="sm" className="mt-3 bg-card" onClick={submitAsIdea}>
-        <PenSquare aria-hidden className="size-3.5" />
-        Submit as idea
-      </Button>
+
+      {/* Footer — both exits stay visible together (production redesign, change 7/8):
+          "Show sources" (above, when present) never has to be opened before "Submit as
+          idea" is reachable, and the submit action now carries its own explanation of
+          what pressing it actually does. */}
+      <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3.5">
+        <p className="text-100 text-muted-foreground">
+          Send this recommendation into the idea evaluation workflow.
+        </p>
+        <Button type="button" size="sm" className="bg-accent-600 hover:bg-accent-600/90" onClick={submitAsIdea}>
+          <PenSquare aria-hidden className="size-3.5" />
+          Submit as idea
+        </Button>
+      </div>
     </li>
   );
 }
 
-function TurnBubble({ discoveryQueryId, query }: { discoveryQueryId: string | null; query: string }) {
+function TurnBubble({
+  discoveryQueryId, query, onItemsResolved,
+}: {
+  discoveryQueryId: string | null;
+  query: string;
+  onItemsResolved: (count: number) => void;
+}) {
   // `discoveryQueryId` is null for the brief moment between the user hitting send and the
   // server assigning a real id — rendering the "Thinking…" state immediately for that case
   // (rather than waiting on the id) is what makes the click feel instant instead of dead.
   const { data, isPending } = useDiscoveryQuery(discoveryQueryId);
   const status = discoveryQueryId === null ? "PENDING" : (data?.status ?? (isPending ? "PENDING" : "FAILED"));
+
+  React.useEffect(() => {
+    if (status === "SUCCEEDED" && data) onItemsResolved(data.items.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   return (
     <div className="space-y-2">
@@ -282,10 +338,19 @@ export function DiscoveryChatPage() {
   // Lazy initializer: picked once, when the page first mounts, not on every re-render —
   // a fresh set every render would mean a set that changes under the reader's cursor.
   const [examples] = React.useState(() => oneOfEachMode(EXAMPLE_PROMPTS));
+  // Real, session-scoped count of ideas actually generated — keyed by turn so a re-render
+  // never double-counts the same answer. There is no all-time equivalent: nothing persists
+  // how many ideas a past query produced (only the query text and its status), and no
+  // discovery answer is ever linked to whether it was later submitted — both of those
+  // would have to be invented numbers, which this hero does not show (production redesign,
+  // change 3: real metrics only).
+  const [ideaCounts, setIdeaCounts] = React.useState<Record<string, number>>({});
+  const ideasThisSession = Object.values(ideaCounts).reduce((sum, n) => sum + n, 0);
+
   const create = useCreateDiscoveryQuery();
   const history = useDiscoveryHistory();
 
-  /** Shared by the form's Enter/Send and by clicking an example prompt below — both are
+  /** Shared by the hero form's Enter/Send and by clicking a suggestion card — both are
    * "ask this question," just with the text coming from a different place. */
   const runQuery = (query: string) => {
     if (!query || create.isPending) return;
@@ -316,100 +381,149 @@ export function DiscoveryChatPage() {
     runQuery(input.trim());
   };
 
+  const mostRecentTopic = history.data?.items[0]?.query;
+
   return (
     <main className="page mx-auto flex max-w-3xl flex-col gap-6">
-      {/* Same `.dash-hero` shell the dashboard uses — this page previously opened with a
-          plain icon chip and a paragraph, the least visually distinguished entry point
-          in the product for a feature that is otherwise the most novel thing here. */}
-      <PageHero
-        eyebrow={
-          <>
-            <Sparkles aria-hidden className="size-3" />
-            AI Discovery Agent
-          </>
-        }
-        heading="Discover"
-        description={
-          <>
-            Ask a research question — trends, opportunity ideas, or recurring problems
-            people discuss. It generates original ideas inspired by what the model already
-            knows, not a live web search, framed for how they could help your organization
-            and its clients. Nothing here creates or changes an idea on its own — if one is
-            worth pursuing, use "Submit as idea" to start a real submission that you write
-            and send yourself.{" "}
-            {/* The submission form has carried this same link since P2 (IdeaForm.tsx); an
-                AI-generated result here had no equivalent, even though it's the page that
-                shows the MOST AI-written text before anyone has decided to trust it. */}
-            <Link to="/help/data-and-ai" className="text-grad-ink-soft underline underline-offset-2">
-              How this works, and what's sent to it
-            </Link>
-            .
-          </>
-        }
-        aside={
-          history.data && history.data.items.length > 0 ? (
-            <div className="rounded-2xl bg-grad-ink/8 p-4 ring-1 ring-grad-rule">
-              <HeroStat value={String(history.data.items.length)} label="questions asked so far" />
-            </div>
-          ) : undefined
-        }
-      />
+      {/*
+        The prompt is now the hero's own content, not a paragraph above a separate input
+        further down the page (production redesign, change 1): an AI workspace leads with
+        "ask something," not with an explanation of itself. The dark `.dash-hero` shell
+        stays — carried over from the dashboard on purpose — but its job changes from
+        "explain the feature" to "capture the question and report what the tool has
+        actually done" (change 3).
+      */}
+      <div className="dash-hero relative overflow-hidden rounded-2xl p-6 text-grad-ink shadow-e4 sm:p-7">
+        <div className="relative grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full bg-grad-ink/10 px-3 py-1 text-100 uppercase tracking-[0.06em] text-grad-ink-soft ring-1 ring-grad-rule">
+              <Sparkles aria-hidden className="size-3" />
+              AI Discovery Agent
+            </span>
+            <h1 className="mt-3.5 font-serif text-600 font-semibold leading-tight tracking-tight text-grad-ink">
+              Discover
+            </h1>
+            <p className="mt-2 max-w-[52ch] text-200 leading-relaxed text-grad-ink-soft">
+              Explore trends, recurring problems, and opportunity areas. AI suggests
+              initiatives you may want to submit as ideas.{" "}
+              <Link to="/help/data-and-ai" className="underline underline-offset-2 hover:text-grad-ink">
+                How this works
+              </Link>
+              .
+            </p>
 
+            <form onSubmit={submit} className="mt-4 rounded-xl bg-grad-ink/8 p-3 ring-1 ring-grad-rule">
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask about trends, recurring business problems, cost savings, innovation opportunities, or process improvements…"
+                rows={2}
+                maxLength={2_000}
+                className="border-0 bg-transparent text-grad-ink shadow-none placeholder:text-grad-ink-soft/70 focus-visible:ring-0"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) submit(e);
+                }}
+              />
+              <div className="flex justify-end border-t border-grad-rule pt-2">
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!input.trim() || create.isPending}
+                  className="bg-grad-highlight text-grad-from hover:opacity-90"
+                >
+                  Ask
+                  <Send aria-hidden className="size-3.5" />
+                </Button>
+              </div>
+            </form>
+          </div>
+
+          {/* The aside reports real usage, not decoration (change 3): every figure here
+              is either the length of the caller's own history or a count of ideas this
+              page actually rendered this session — nothing invented, and nothing that
+              implies a link (like "submitted from Discover") that the product does not
+              track. */}
+          <div className="grid grid-cols-2 gap-2.5 self-start">
+            <div className="rounded-xl bg-grad-ink/8 p-3 ring-1 ring-grad-rule">
+              <p className="font-serif text-500 font-semibold leading-none text-grad-ink">
+                {history.data ? history.data.items.length : "—"}
+              </p>
+              <p className="mt-1 text-100 text-grad-ink-soft">Questions asked</p>
+            </div>
+            <div className="rounded-xl bg-grad-ink/8 p-3 ring-1 ring-grad-rule">
+              <p className="font-serif text-500 font-semibold leading-none text-grad-ink">
+                {/*
+                  Design-audit finding: a bare "0" here on every first visit, sitting next
+                  to two tiles that usually show a real accumulated number, read as a
+                  broken/empty feature rather than an honestly session-scoped one. The fix
+                  is not to hide the zero — it's real — but to say WHY it's zero when the
+                  reason is "haven't asked yet this visit" rather than "asked and got
+                  nothing," which are two different situations this tile used to render
+                  identically.
+                */}
+                {turns.length === 0 ? "—" : ideasThisSession}
+              </p>
+              <p className="mt-1 text-100 text-grad-ink-soft">
+                {turns.length === 0 ? "Ideas generated this session — ask below to start" : "Ideas generated this session"}
+              </p>
+            </div>
+            <div className="col-span-2 rounded-xl bg-grad-ink/8 p-3 ring-1 ring-grad-rule">
+              <p className="truncate text-200 font-semibold text-grad-ink" title={mostRecentTopic}>
+                {mostRecentTopic ?? "Nothing asked yet"}
+              </p>
+              <p className="mt-0.5 text-100 text-grad-ink-soft">Most recent topic</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/*
+        Suggestions read as launchable actions, not sample text sitting apart from the
+        input (production redesign, change 4): a category, the exact question, and an
+        explicit "run this" cue. Shown only before the first real question — once actual
+        results exist below, a row of examples above them would compete with, not guide,
+        what the page is now actually showing.
+      */}
       {turns.length === 0 ? (
-        <div className="rounded-2xl bg-accent-050 p-6 shadow-e1 ring-1 ring-inset ring-accent-100">
-          <p className="text-center text-200 text-muted-foreground">
-            Try one of these, or ask your own —
-          </p>
-          <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
-            {examples.map((example) => (
-              <button
-                key={example.query}
-                type="button"
-                onClick={() => runQuery(example.query)}
-                disabled={create.isPending}
-                className="flex flex-col gap-1 rounded-xl bg-card p-3 text-left shadow-e1 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e2 disabled:pointer-events-none disabled:opacity-50"
-              >
-                <span className="text-100 font-semibold uppercase tracking-wide text-accent-700">
-                  {example.mode}
-                </span>
-                <span className="text-100 text-foreground">{example.query}</span>
-              </button>
-            ))}
+        <div>
+          <p className="mb-2.5 text-200 font-semibold text-muted-foreground">Try one of these</p>
+          <div className="grid gap-2.5 sm:grid-cols-3">
+            {examples.map((example) => {
+              const Icon = MODE_ICON[example.mode] ?? Lightbulb;
+              return (
+                <button
+                  key={example.query}
+                  type="button"
+                  onClick={() => runQuery(example.query)}
+                  disabled={create.isPending}
+                  className="flex flex-col gap-2 rounded-xl bg-card p-3.5 text-left shadow-e1 ring-1 ring-inset ring-border transition-all duration-[var(--dur-base)] hover:-translate-y-0.5 hover:shadow-e3 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-1.5 text-100 font-semibold uppercase tracking-wide text-accent-700">
+                    <Icon aria-hidden className="size-3.5 shrink-0" />
+                    {example.mode}
+                  </span>
+                  <span className="text-100 text-foreground">&ldquo;{example.query}&rdquo;</span>
+                  <span className="mt-auto text-100 font-semibold text-accent-700">Run this question →</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       ) : (
         <div className="space-y-4">
-          {turns.map((t) => (
-            <TurnBubble key={t.key} discoveryQueryId={t.id} query={t.query} />
+          {/* Newest first: the input lives in the hero above, not at the foot of a
+              growing thread, so a fresh answer belongs right under it rather than at
+              the bottom of a list someone has to scroll to find. */}
+          {[...turns].reverse().map((t) => (
+            <TurnBubble
+              key={t.key}
+              discoveryQueryId={t.id}
+              query={t.query}
+              onItemsResolved={(count) => setIdeaCounts((prev) => (prev[t.key] === undefined ? { ...prev, [t.key]: count } : prev))}
+            />
           ))}
         </div>
       )}
-
-      <form
-        onSubmit={submit}
-        className="flex items-end gap-2 rounded-2xl bg-card p-2 shadow-e2 ring-1 ring-inset ring-border"
-      >
-        <Textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask the Discovery Agent…"
-          rows={2}
-          maxLength={2_000}
-          className="border-0 shadow-none focus-visible:ring-0"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) submit(e);
-          }}
-        />
-        <Button
-          type="submit"
-          size="icon"
-          disabled={!input.trim() || create.isPending}
-          aria-label="Send"
-          className="bg-gradient-to-br from-accent-600 to-grad-to shadow-e1 hover:opacity-90"
-        >
-          <Send aria-hidden className="size-4" />
-        </Button>
-      </form>
 
       {history.data && history.data.items.length > 0 ? (
         <div className="rounded-2xl bg-card p-4 shadow-e1 ring-1 ring-inset ring-border">
