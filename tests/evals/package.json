@@ -1,0 +1,17 @@
+{
+  "name": "@iep/evals",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "eval": "tsx --env-file-if-exists=../../apps/worker/.env run-evals.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@iep/ai": "workspace:*",
+    "@iep/contracts": "workspace:*",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
