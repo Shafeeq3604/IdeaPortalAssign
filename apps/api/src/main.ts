@@ -86,12 +86,15 @@ const ctx: AppContext = {
 
 const app = buildServer(ctx);
 // The enqueuer logs through Fastify, so a queue failure is visible rather than silent.
+// Each enqueuer opens its own Redis connection alongside `redis` above (the session
+// store's), so all three are tracked here to be closed on shutdown, not just left open.
+const queueEnqueuers: { close(): Promise<void> }[] = [];
 if (redis) {
-  Object.assign(ctx, {
-    analysis: makeAnalysisEnqueuer(env.REDIS_URL, app.log),
-    ranking: makeRankingEnqueuer(env.REDIS_URL, app.log),
-    discovery: makeDiscoveryEnqueuer(env.REDIS_URL, app.log),
-  });
+  const analysis = makeAnalysisEnqueuer(env.REDIS_URL, app.log);
+  const ranking = makeRankingEnqueuer(env.REDIS_URL, app.log);
+  const discovery = makeDiscoveryEnqueuer(env.REDIS_URL, app.log);
+  Object.assign(ctx, { analysis, ranking, discovery });
+  queueEnqueuers.push(analysis, ranking, discovery);
 }
 registerDevLogin(app, ctx);
 
@@ -114,6 +117,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     app.log.info(`${signal} received, closing`);
     void (async () => {
       await app.close();
+      await Promise.all(queueEnqueuers.map((q) => q.close()));
       redis?.disconnect();
       process.exit(0);
     })();
