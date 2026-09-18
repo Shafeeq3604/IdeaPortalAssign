@@ -86,6 +86,27 @@ pnpm eval             # AI golden-set evals (nightly / pre-release, not per-PR)
 pnpm smoke            # boots the stack, hits /health, walks the nav map
 ```
 
+## Deployment
+
+**Target:** Azure. **Pipeline:** owned and run by a third party, Validra — not by anything
+in this repo.
+
+This came up during a design-review pass that (correctly, at the time) flagged "no
+deploy/CD workflow visible in `.github/workflows/`" as a gap. It isn't one: `.deploy`
+snapshots and each app's `Dockerfile` exist so *something* can ship them, but the actual
+build → push → release → rollback pipeline is Validra's, external to this repository.
+
+**What that means for work done here:**
+- Do not add a `deploy.yml` / `cd.yml` to `.github/workflows/` on the theory that one is
+  missing. `ci.yml` (PR gate) and `load-test.yml` (nightly k6) are the only pipelines that
+  belong in this repo; anything past "the code is correct and the image builds" is
+  Validra's concern, not this codebase's.
+- Keep the `Dockerfile`s and `.deploy` snapshots current and buildable — that is this
+  repo's half of the contract with Validra's pipeline, and the only half it owns.
+- If a real deployment question comes up (a failed release, an env var Validra's pipeline
+  needs, a rollback), that is a question for whoever administers Validra, not something to
+  solve by writing a workflow file here.
+
 ## Phase tracker
 
 Marks: `[ ]` not started · `[~]` in progress · `[x]` done & Definition of Done met.
@@ -98,13 +119,17 @@ MILESTONE M0 — Foundations
 MILESTONE M1 — MVP1 (must be a real, usable, navigable product on its own)
   [x] P1  Identity, Access & App Shell
   [x] P2  Idea Capture & Lifecycle
-  [~] P3  AI Analysis Pipeline   (UI + pipeline done; AI evals not written)
+  [~] P3  AI Analysis Pipeline   (UI + pipeline done; AI evals: starter golden-set
+                                  harness exists — tests/evals, `pnpm eval` — 3 cases,
+                                  not yet a full regression suite)
   [x] P4  Evaluation & Ranking Engine        (parallel-safe with P2/P3)
   [x] P5  Explanation & Improvement   (AI-09 narrative deferred — optional in SPEC)
   [x] P6  Human Review, Overrides & Audit
   [x] P7  Ranked Board & Management Dashboard   (settle-rank FLIP reorder not built)
   [x] P8  Re-evaluation & Version History
-  [~] P9  Config Viewer (read-only) + MVP1 hardening   (axe + J1-J5 done; Lighthouse, k6, AI evals outstanding)
+  [~] P9  Config Viewer (read-only) + MVP1 hardening   (axe + J1-J5 + Lighthouse + k6 +
+                                  a starter AI eval suite all exist; no real usability
+                                  validation with an actual person has happened yet)
 
 MILESTONE M2 — Signals, Duplication & Config
   [ ] P10 Admin Configuration (write)
