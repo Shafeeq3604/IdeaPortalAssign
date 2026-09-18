@@ -1,6 +1,7 @@
 import Redis from "ioredis";
 import { getPrisma } from "@iep/db";
 import { ApiEnv, loadEnv } from "@iep/contracts/env";
+import { initErrorTracking } from "./lib/error-tracking.js";
 import { buildServer } from "./server.js";
 import { registerDevLogin } from "./modules/auth.routes.js";
 import {
@@ -21,6 +22,10 @@ import { makeAttachmentBackend } from "./modules/idea/attachments.js";
 
 const env = loadEnv(ApiEnv, process.env);
 const isProd = env.NODE_ENV === "production";
+
+// Before anything else can throw (ADR-025) — an error during session-store or route
+// setup below is exactly the kind this exists to catch.
+initErrorTracking(env);
 
 /**
  * Which mechanism establishes identity (ADR-023).

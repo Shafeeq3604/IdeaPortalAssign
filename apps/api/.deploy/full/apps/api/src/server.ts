@@ -19,6 +19,7 @@ import { registerRankingRoutes } from "./modules/rankings/routes.js";
 import { registerAccountRoutes } from "./modules/account/routes.js";
 import { registerAttachmentRoutes } from "./modules/idea/attachment-routes.js";
 import { registerDiscoveryRoutes } from "./modules/discovery/routes.js";
+import { captureException } from "./lib/error-tracking.js";
 import { notImplementedYet } from "./lib/handlers.js";
 import type { AppContext } from "./context.js";
 import { sessionCookieName } from "./auth/session.js";
@@ -250,6 +251,10 @@ export function buildServer(ctx: AppContext): FastifyInstance {
       request.log.error(
         isProd ? "database unreachable" : "database unreachable — is it running? `pnpm deps:up`",
       );
+      // A dependency outage is exactly the kind of thing an on-call person needs paged
+      // for (ADR-025) — logged above for the request that hit it, reported here so it is
+      // visible without someone reading logs after the fact.
+      captureException(error, { requestId: request.id, tags: { kind: "db-down" } });
       return sendError(
         reply,
         "DEPENDENCY_UNAVAILABLE",
@@ -260,6 +265,12 @@ export function buildServer(ctx: AppContext): FastifyInstance {
     }
 
     request.log.error({ err: error }, "unhandled error");
+    // ADR-025 — `userId` is an opaque id only, never the email/name `request.actor`
+    // never carries anyway.
+    captureException(error, {
+      requestId: request.id,
+      ...(request.actor ? { userId: request.actor.userId } : {}),
+    });
     // Never leak provider or stack detail to a client (SPEC §4.4).
     return sendError(reply, "INTERNAL_ERROR", "Something went wrong");
   });

@@ -182,7 +182,12 @@ export function ComparePage() {
                       {query.data.divergentCriteria.map((d) => (
                         <TableRow key={d.criterionKey}>
                           <TableCell>
-                            <Link to={`/config/criteria#${d.criterionKey}`}>{d.criterionLabel}</Link>
+                            {/* `criterion-table-link` — see tokens.css. Same wall-of-blue
+                                pattern as the Evaluation Profiles weight table: every row
+                                here links to the same place. */}
+                            <Link to={`/config/criteria#${d.criterionKey}`} className="criterion-table-link">
+                              {d.criterionLabel}
+                            </Link>
                           </TableCell>
                           {query.data.ideas.map((idea) => {
                             const cell = d.byIdea.find((b) => b.ideaId === idea.ideaId);

@@ -1,6 +1,7 @@
 import { Queue } from "bullmq";
 import type { DiscoveryEnqueuer } from "../context.js";
 import type { EnqueuerLogger } from "./analysis-queue.js";
+import { captureException } from "./error-tracking.js";
 import { makeQueueConnection } from "./redis-connection.js";
 
 /**
@@ -37,6 +38,7 @@ export function makeDiscoveryEnqueuer(
           { err: error, discoveryQueryId: job.discoveryQueryId },
           "could not enqueue discovery query — it is saved but will not be processed",
         );
+        captureException(error, { tags: { kind: "enqueue-failed", queue: "discovery" } });
         return false;
       }
     },

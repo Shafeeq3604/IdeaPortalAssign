@@ -15,6 +15,17 @@ const Base = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   DATABASE_URL: nonEmpty.startsWith("postgres"),
   REDIS_URL: nonEmpty.startsWith("redis"),
+
+  /**
+   * Error tracking / APM (Sentry — ADR-025). Optional, on BOTH processes that can hold
+   * one, unlike the rest of this file: a missing or malformed DSN degrades to "nothing is
+   * reported" rather than refusing to boot, the same shape as the worker's `OBS_*` iManner
+   * fields below, because losing error visibility is not a reason to take the product down.
+   * `SENTRY_TRACES_SAMPLE_RATE` defaults to 0 — this wires up error capture, not
+   * performance tracing, until a real sampling rate is chosen on purpose.
+   */
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
 });
 
 export const ApiEnv = Base.extend({

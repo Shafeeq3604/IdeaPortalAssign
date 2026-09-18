@@ -14,6 +14,7 @@ import { runDiscoveryQuery } from "./discovery.js";
 import { backfillMissingEvaluations, evaluateVersion, recomputeRankings } from "@iep/evaluation";
 import { grantRole } from "@iep/db";
 import { makeObservabilityClient } from "./observability.js";
+import { captureException, initErrorTracking } from "./error-tracking.js";
 
 /**
  * apps/worker — the AI pipeline consumer (P3).
@@ -33,6 +34,7 @@ import { makeObservabilityClient } from "./observability.js";
  */
 
 const env = loadEnv(WorkerEnv, process.env);
+initErrorTracking(env); // ADR-025 — before anything below can throw
 const db = getPrisma();
 
 function makeProvider(): AiProvider {
@@ -104,6 +106,7 @@ backfillMissingEvaluations(db)
       "[backfill] could not backfill missing evaluations:",
       error instanceof Error ? error.message : error,
     );
+    captureException(error, { kind: "startup-backfill" });
   });
 
 const worker = new Worker<AnalysisJob>(
@@ -150,6 +153,7 @@ const worker = new Worker<AnalysisJob>(
 
 worker.on("failed", (job, error) => {
   console.error(`[analysis] job ${job?.id} failed:`, error.message);
+  captureException(error, { queue: "analysis", jobId: job?.id ?? "unknown" });
 });
 
 const ranker = new Worker<RankingJob>(
@@ -174,6 +178,7 @@ const ranker = new Worker<RankingJob>(
 
 ranker.on("failed", (job, error) => {
   console.error(`[ranking] job ${job?.id} failed:`, error.message);
+  captureException(error, { queue: "ranking", jobId: job?.id ?? "unknown" });
 });
 
 const discoveryWorker = new Worker<DiscoveryJob>(
@@ -191,6 +196,7 @@ const discoveryWorker = new Worker<DiscoveryJob>(
 
 discoveryWorker.on("failed", (job, error) => {
   console.error(`[discovery] job ${job?.id} failed:`, error.message);
+  captureException(error, { queue: "discovery", jobId: job?.id ?? "unknown" });
 });
 
 console.log(
@@ -222,6 +228,7 @@ if (env.BOOTSTRAP_ADMIN_EMAIL) {
         `[bootstrap] could not grant ADMIN to ${env.BOOTSTRAP_ADMIN_EMAIL}:`,
         error instanceof Error ? error.message : error,
       );
+      captureException(error, { kind: "startup-admin-bootstrap" });
     });
 }
 

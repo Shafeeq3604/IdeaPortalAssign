@@ -138,7 +138,7 @@ export function SubmitIdeaPage() {
   }
 
   return (
-    <main className="page page--narrow">
+    <main className="page page--form">
       {/*
         A plain heading, not the gradient hero every page used to open with. Submitting is
         a working action someone lands on to get something specific done, the same as
@@ -169,6 +169,7 @@ export function SubmitIdeaPage() {
       ) : null}
 
       <IdeaForm
+        wizard
         defaultValues={prefill}
         submitLabel="Submit for analysis"
         onSubmit={submit}

@@ -49,6 +49,11 @@
   --color-input: var(--border);
   --color-ring: var(--focus-ring);
 
+  /* Dark-mode refinement pass: the sidebar/header rail as its own surface, distinct from
+     a card (see tokens.css). Equal to --surface/--surface-sunken in light mode. */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-hover: var(--sidebar-hover);
+
   /* ── Accent: one calm indigo (SPEC §7.1 "ink before colour") ── */
   --color-primary: var(--accent-600);
   --color-primary-foreground: var(--ink-000);

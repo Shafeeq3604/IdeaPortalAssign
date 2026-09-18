@@ -95,14 +95,19 @@ export function ScoreDisplay({ value, max = 100, size = "md", animate = true }: 
   return (
     <span className={cn("inline-flex items-baseline gap-1 tabular-nums", SIZE[size])}>
       {/*
-        A gradient fill, not a flat foreground colour — this is the single most-looked-at
-        number on the Evaluation tab (the composite score everything else on the page
-        explains), and it read exactly as important as the "/ 100" beside it. Reserved for
-        this one figure, not applied to body text generally, so it stays a signal rather
-        than a decoration repeated everywhere. The digits themselves count up to it
+        Solid `accent-700`, not a gradient fill (dark-mode final-polish pass — the same
+        fix as `ScoreRing`, DashboardHero.tsx, and the Rankings podium's own composite
+        figure). This used to fade toward `--grad-to` at one corner of the glyph, which on
+        the single most-looked-at number on the Evaluation tab — the composite score
+        everything else on the page explains — is exactly backwards: that corner rendered
+        at effectively zero contrast against the card behind it. `accent-700` is this
+        design system's own token for readable accent text and reads at a solid ~5:1+ on
+        the card surface everywhere this figure appears. It is still reserved for this one
+        figure, not applied to body text generally, so it stays a signal rather than a
+        decoration repeated everywhere. The digits themselves still count up to it
         (`useTally`, first paint only) rather than merely fading in at their final value.
       */}
-      <span className="bg-gradient-to-br from-accent-700 to-grad-to bg-clip-text font-serif font-bold text-transparent">
+      <span className="font-serif font-bold text-accent-700">
         {tallied.toFixed(1)}
       </span>
       <span className="text-200 text-muted-foreground">/ {max}</span>

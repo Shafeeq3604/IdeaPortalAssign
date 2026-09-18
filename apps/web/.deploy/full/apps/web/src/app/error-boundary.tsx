@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { ErrorState } from "@iep/ui";
+import { captureException } from "./error-tracking";
 
 /**
  * Route-level error boundary (P0 deliverable 5c, SPEC §7.8 tier 1).
@@ -37,8 +38,10 @@ export class RouteErrorBoundary extends React.Component<Props, State> {
   }
 
   override componentDidCatch(error: Error, info: React.ErrorInfo): void {
-    // P1 wires this to the telemetry sink with the requestId (SPEC §3.6).
     console.error("[route-error]", error, info.componentStack);
+    // ADR-025 — no user id attached here: this boundary has no session context of its
+    // own, and a route crash is useful to Sentry by stack trace alone.
+    captureException(error, { componentStack: info.componentStack ?? undefined });
   }
 
   private readonly retry = (): void => this.setState({ error: null });

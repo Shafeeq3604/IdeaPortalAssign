@@ -233,11 +233,17 @@ function TopScoreTrend({ history }: { history: DashboardResponse["history"] }) {
         <p className="text-100 font-bold uppercase tracking-[0.14em] text-grad-ink-soft">
           Top score, last {withScore.length} runs
         </p>
+        {/*
+          Design-audit finding: a flat line and a bare "0.0" read as a stalled widget,
+          not as "nothing changed between these two runs" — the one piece of information
+          this figure exists to carry. Same fix as `RankDelta`'s own "No change" chip
+          above: say the fact in words when the number alone doesn't, without touching
+          what it means for the runs to have tied.
+        */}
         <span
           className={`text-100 font-semibold tabular-nums ${delta === 0 ? "text-grad-ink-soft" : "text-grad-highlight"}`}
         >
-          {delta > 0 ? "+" : ""}
-          {delta.toFixed(1)}
+          {delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${delta.toFixed(1)}`}
         </span>
       </div>
       <svg
@@ -346,12 +352,20 @@ export function ScoreRing({
       <span
         className={`flex ${inner} flex-col items-center justify-center rounded-full bg-card`}
       >
-        {/* Gradient-filled, like `ScoreDisplay`'s own composite figure (evaluation.tsx) —
-            the number inside this ring IS the reason the ring exists, so it gets the same
-            treatment reserved for a page's single most important figure, everywhere this
-            ring appears (idea cards, the dashboard leader, Compare). */}
+        {/*
+          Dark-mode final-polish pass: was gradient-filled, fading toward `--grad-to` at
+          one corner of the glyph — legible reading top-to-bottom on the larger dashboard
+          leader, but on the small "sm" ring every idea card uses, that dark corner landed
+          inside the digits themselves, exactly where "the number should have stronger
+          contrast than secondary metadata" (design review) said it needed the MOST
+          contrast, not the least. A solid `--accent-700` — the one token this file
+          already reserves for readable accent text on a card — reads at ~5.4:1 on the
+          card surface everywhere this ring is drawn, evenly across every digit, and still
+          answers "score = primary accent." The ring itself carries the gradient; the
+          number no longer has to.
+        */}
         <b
-          className={`bg-gradient-to-br from-accent-700 to-grad-to bg-clip-text font-serif ${size === "md" ? "text-600" : "text-400"} font-bold leading-none tabular-nums text-transparent`}
+          className={`font-serif text-accent-700 ${size === "md" ? "text-600" : "text-400"} font-bold leading-none tabular-nums`}
         >
           {value.toFixed(1)}
         </b>
@@ -457,12 +471,17 @@ export function RankDelta({
 
   if (delta === 0) {
     return (
+      // "Held" (dark-mode final-polish pass, item 4): not obviously readable to a
+      // first-time visitor as "same rank as last time" rather than, say, a state action
+      // ("this rank is on hold"). "No change" says what actually happened; the `title`
+      // carries the rest, same wording as the sr-only text on the up/down chip below.
       <span
+        title="Same rank as the last board update"
         className={`inline-flex items-center rounded-full px-2.5 py-1 text-100 font-bold ${
           onBrand ? "bg-grad-ink/15 text-grad-ink-soft" : "bg-muted text-muted-foreground"
         }`}
       >
-        — held
+        No change
       </span>
     );
   }

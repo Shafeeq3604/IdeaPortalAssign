@@ -181,6 +181,11 @@
   max-width: var(--content);
 }
 
+/* Idea submission/revision — see --content-form in tokens.css. */
+.page--form {
+  max-width: var(--content-form);
+}
+
 .page h1 {
   margin: 0 0 var(--sp-2);
   font-size: var(--fs-700);

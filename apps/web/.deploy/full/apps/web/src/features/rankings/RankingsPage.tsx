@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { Trophy } from "lucide-react";
+import { Target, Trophy } from "lucide-react";
 import { Button, Checkbox, EmptyState, ErrorState, Skeleton, StatusPill } from "@iep/ui";
 import type { ExplanationItem, ListRankingsResponse, RankingEntry } from "@iep/contracts";
 import { InlineStat, PageHeading } from "../../app/PageHero";
@@ -168,8 +168,8 @@ export function RankingsPage({ mode = "current" }: { mode?: "current" | "run" })
  * is simultaneously the best thing about the idea and the only thing holding it back,
  * so both "top" picks resolve to it. Shown as two separate chips, that reads as the
  * board contradicting itself ("Strongest: Business impact 50/100" right beside
- * "Weakest: Business impact 50/100") — exactly the kind of unexplained number P-2
- * exists to prevent. `FactorPair` below collapses that case into one honest line.
+ * "Limiting factor: Business impact 50/100") — exactly the kind of unexplained number
+ * P-2 exists to prevent. `FactorPair` below collapses that case into one honest line.
  */
 function sameCriterion(a: ExplanationItem | null, b: ExplanationItem | null): boolean {
   return a !== null && b !== null && a.criterionKey === b.criterionKey;
@@ -190,12 +190,19 @@ function Factor({ kind, item }: { kind: "up" | "down"; item: ExplanationItem | n
 
   return (
     <div>
+      {/*
+        "Weakest" → "Limiting factor" (dark-mode final-polish pass, item 3): P-1 is
+        explicit that an idea is assessed, not graded, and "weakest" reads as a verdict
+        on the idea itself rather than on the one number holding its score back — which
+        is exactly the distinction `hasFigures` below already draws in "pts available."
+        Same underlying `topConstraint` field, same figures, only the label changes.
+      */}
       <dt
         className={`text-100 font-medium uppercase tracking-wider ${
           item ? tone : "text-muted-foreground"
         }`}
       >
-        {up ? "Strongest" : "Weakest"}
+        {up ? "Strongest" : "Limiting factor"}
       </dt>
 
       {item === null ? (
@@ -264,15 +271,21 @@ function FactorPair({
 
 /**
  * The top three (Idea Platform Redesign — "podium"), rebalanced by the enterprise-polish
- * pass (§11/§17: "here is how this opportunity was assessed," not a trophy plaque).
+ * pass (§11/§17: "here is how this opportunity was assessed," not a trophy plaque), and
+ * rebalanced again by the dark-mode final-polish pass (item 6: "opportunity assessment,
+ * not an awards leaderboard").
  *
  * Rank 1 used to get the full brand gradient plus a Trophy badge — a genuine "leaderboard
  * winner" treatment that competed with the very thing P-2 exists to keep central: WHY an
  * idea is where it is. It still stands out — larger type, a stronger top rule, a two-tone
  * ring — but on the same calm card surface every other row uses, and with the same
- * strongest/weakest explanation shape, not a special chip layout reserved for a winner's
- * podium. The distinction left is "the assessment that came out highest," not "the idea
- * that beat the others."
+ * strongest/limiting-factor explanation shape, not a special chip layout reserved for a
+ * winner's podium. This pass goes one step further: 2nd and 3rd used to show their rank
+ * as a large free-floating numeral the same size as the title, which is exactly "the rank
+ * number dominates the explanation" — it is now the same contained tile the rows below
+ * the podium use, so position reads as a small fact next to the idea, not the headline.
+ * The distinction left is "the assessment that came out highest," not "the idea that beat
+ * the others."
  */
 function PodiumCard({
   row,
@@ -311,12 +324,23 @@ function PodiumCard({
 
       <div className="relative flex items-center justify-between gap-3">
         {first ? (
+          // "Top opportunity" → "Featured opportunity", Trophy → Target (dark-mode
+          // final-polish pass, items 3 & 6): "top"/Trophy is a leaderboard-winner claim;
+          // "featured" says this is the one opportunity being called out, not the one
+          // that beat the others. Kept a NEUTRAL-adjacent icon (bullseye = "the thing
+          // under assessment"), not the trophy every awards page uses.
           <span className="inline-flex items-center gap-2 rounded-full bg-accent-050 px-2.5 py-1 text-100 font-bold uppercase tracking-wide text-accent-700">
-            <Trophy aria-hidden className="size-3.5" />
-            Top opportunity
+            <Target aria-hidden className="size-3.5" />
+            Featured opportunity
           </span>
         ) : (
-          <span className="font-serif text-600 font-bold leading-none text-ramp-4">{row.rank}</span>
+          // A contained tile, not a free-floating numeral the same visual weight as the
+          // title (dark-mode final-polish pass, item 6 — "rank number should not
+          // dominate explanation"). Same neutral tile the rows below the podium use, so
+          // position reads as a small fact next to the idea, not a medal.
+          <span className="grid size-9 place-items-center rounded-lg bg-muted text-300 font-bold tabular-nums text-muted-foreground">
+            {row.rank}
+          </span>
         )}
         <RankDelta rank={row.rank} previousRank={row.previousRank} />
       </div>
@@ -330,8 +354,13 @@ function PodiumCard({
         {row.department ? ` · ${row.department}` : ""}
       </p>
 
+      {/* Solid, not gradient-clipped (dark-mode final-polish pass, item 2 — same fix as
+          `ScoreRing`, DashboardHero.tsx): the old gradient faded toward `--grad-to` at one
+          corner of the glyph, which is the opposite of "the score should have stronger
+          contrast than secondary metadata." `--accent-700` is this file's own readable-
+          accent-text token, solid, evenly legible across every digit. */}
       <p
-        className={`relative mt-3.5 bg-gradient-to-br from-accent-700 to-grad-to bg-clip-text font-serif font-bold leading-none tabular-nums text-transparent ${
+        className={`relative mt-3.5 font-serif font-bold leading-none tabular-nums text-accent-700 ${
           first ? "text-700" : "text-600"
         }`}
       >
@@ -351,10 +380,15 @@ function PodiumCard({
         />
       </div>
 
-      {/* Same explanation shape every row on the board uses — the leader does not get a
-          bespoke chip layout just for having the highest score (P-2: the explanation is
-          the point, not the rank). */}
-      <dl className="mt-3 grid gap-1">
+      {/*
+        Same explanation shape every row on the board uses — the leader does not get a
+        bespoke chip layout just for having the highest score (P-2: the explanation is
+        the point, not the rank). A top divider (dark-mode final-polish pass, item 6)
+        gives it its own visual group instead of running straight on from the score bar,
+        so "why this rank" reads as the thing this card is actually about, not an
+        afterthought below the number.
+      */}
+      <dl className="relative mt-3.5 grid gap-1.5 border-t border-border pt-3">
         <FactorPair strength={row.topStrength} constraint={row.topConstraint} />
       </dl>
 
@@ -523,7 +557,11 @@ function Board({
                 afterglow it pairs with are. Called out rather than faked — SPEC §8.3
                 describes a motion this board does not yet perform. */}
             <div className="grid grid-cols-[3.25rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-2xl bg-card p-4 shadow-e2 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e3 lg:grid-cols-[3.25rem_minmax(0,1fr)_auto]">
-              <span className="grid size-11 place-items-center rounded-xl bg-accent-050 font-serif text-400 font-bold tabular-nums text-accent-700 ring-1 ring-inset ring-ramp-2">
+              {/* Neutral, not accent (dark-mode final-polish pass, items 1 & 6) — every
+                  row on the board repeating the same blue tile was both "accent
+                  repetition" and "the rank number competing for attention"; the number
+                  itself did not change, only its colour. */}
+              <span className="grid size-11 place-items-center rounded-xl bg-muted font-serif text-400 font-bold tabular-nums text-muted-foreground">
                 {row.rank}
               </span>
 
@@ -531,23 +569,39 @@ function Board({
                 <h2 className="text-300 font-semibold leading-snug">
                   <Link to={`/ideas/${row.ideaId}/evaluation`}>{row.title}</Link>
                 </h2>
-                <p className="mt-0.5 text-200 text-muted-foreground">
+                {/*
+                  Submitter/department only — feasibility moved into its own pill below
+                  (dark-mode final-polish pass, item 5). A row that packs "who, which
+                  team, and its current feasibility" into one run-on sentence made the
+                  metadata line compete with the title for a reader's first pass; a
+                  scanning eye now gets one clean fact here and a second, visually
+                  distinct one on its own line, not a comma-spliced sentence of both.
+                */}
+                <p className="mt-0.5 truncate text-200 text-muted-foreground">
                   <Link to={`/people/${row.submitter.id}`}>{row.submitter.displayName}</Link>
                   {row.department ? ` · ${row.department}` : ""}
-                  {row.feasibilityStatus ? (
-                    <>
-                      {" · "}
-                      <span className="font-semibold text-factor-up">
-                        {FEASIBILITY_LABEL[
-                          row.feasibilityStatus as keyof typeof FEASIBILITY_LABEL
-                        ] ?? row.feasibilityStatus}
-                      </span>
-                    </>
-                  ) : null}
                 </p>
 
+                {row.feasibilityStatus ? (
+                  <div className="mt-1.5">
+                    <StatusPill
+                      kind="FEASIBILITY"
+                      feasibility={row.feasibilityStatus as never}
+                      label={
+                        FEASIBILITY_LABEL[
+                          row.feasibilityStatus as keyof typeof FEASIBILITY_LABEL
+                        ] ?? row.feasibilityStatus
+                      }
+                    />
+                  </div>
+                ) : null}
+
                 {/*
-                  P-2 on the row itself: why this idea is here, without a click.
+                  P-2 on the row itself: why this idea is here, without a click. A top
+                  divider (dark-mode final-polish pass, item 5) gives "why this rank" its
+                  own visual group instead of running straight on from the identity block
+                  above it — the two strongest/limiting-factor figures are the row's own
+                  assessment, not a footnote to who submitted it.
 
                   The canvas draws a five-segment bar labelled "impact · effort · adoption ·
                   cost · headroom". `RankingEntry` carries two explanation items, not five —
@@ -557,7 +611,7 @@ function Board({
                   and would let the full bar be drawn honestly; that is an API decision, not
                   one to make silently here.
                 */}
-                <dl className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                <dl className="mt-2.5 grid gap-x-6 gap-y-1 border-t border-border pt-2.5 sm:grid-cols-2">
                   <FactorPair strength={row.topStrength} constraint={row.topConstraint} />
                 </dl>
               </div>
