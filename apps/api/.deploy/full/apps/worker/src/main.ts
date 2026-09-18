@@ -191,6 +191,9 @@ const discoveryWorker = new Worker<DiscoveryJob>(
     );
     console.log(`[discovery] ${job.data.discoveryQueryId} done in ${Date.now() - started}ms`);
   },
+  // Same "modest until the real rate limit is known" reasoning as the analysis worker
+  // above (A4) — both hold jobs against the same Anthropic account, so the same ceiling
+  // applies here, not a value picked independently.
   { connection: connectionFrom(env.REDIS_URL), concurrency: 2 },
 );
 

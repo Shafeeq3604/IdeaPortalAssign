@@ -20,6 +20,10 @@ import type { z } from "zod";
 
 type JsonSchema = Record<string, unknown>;
 
+/** Same reasoning as clamp.ts's cache: the 6 step schemas are static, so this is safe to
+ * memoize by schema reference instead of redoing the conversion on every AI call. */
+const schemaCache = new WeakMap<z.ZodTypeAny, JsonSchema>();
+
 const UNSUPPORTED_KEYWORDS = [
   "maxItems",
   "minLength",
@@ -62,11 +66,16 @@ function sanitise(node: unknown): unknown {
  * in the prompt and enforced by the Zod parse. This records that it is deliberate.
  */
 export function toProviderSchema<S extends z.ZodTypeAny>(schema: S): JsonSchema {
+  const cached = schemaCache.get(schema);
+  if (cached) return cached;
+
   const generated = zodToJsonSchema(schema, {
     target: "openApi3",
     // Inline every repeated sub-schema. The default emits `$ref: "#/properties/x"`,
     // which the API rejects outright.
     $refStrategy: "none",
   });
-  return sanitise(generated) as JsonSchema;
+  const sanitised = sanitise(generated) as JsonSchema;
+  schemaCache.set(schema, sanitised);
+  return sanitised;
 }

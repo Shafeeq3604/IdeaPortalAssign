@@ -33,9 +33,12 @@ export function registerAccountRoutes(handlers: Map<string, Handler>): void {
     }
 
     const email = parsed.data.email.toLowerCase();
+    // `department` is included up front so the session response below can be built from
+    // this same row — it used to be re-fetched via `findUniqueOrThrow` after sign-in
+    // succeeded, purely for this one field, on the path hit by every login.
     const user = await ctx.db.user.findUnique({
       where: { email },
-      include: { roles: true },
+      include: { roles: true, department: true },
     });
 
     /**
@@ -92,19 +95,14 @@ export function registerAccountRoutes(handlers: Map<string, Handler>): void {
       data: { failedLogins: 0, lockedUntil: null, lastLoginAt: new Date() },
     });
 
-    const full = await ctx.db.user.findUniqueOrThrow({
-      where: { id: user.id },
-      include: { department: true, roles: true },
-    });
-
     const body: SessionResponse = {
       user: {
-        id: full.id,
-        displayName: full.displayName,
-        email: full.email,
-        roles: full.roles.map((r) => r.role as Role) as [Role, ...Role[]],
-        department: full.department
-          ? { id: full.department.id, name: full.department.name }
+        id: user.id,
+        displayName: user.displayName,
+        email: user.email,
+        roles: roles as [Role, ...Role[]],
+        department: user.department
+          ? { id: user.department.id, name: user.department.name }
           : null,
       },
     };

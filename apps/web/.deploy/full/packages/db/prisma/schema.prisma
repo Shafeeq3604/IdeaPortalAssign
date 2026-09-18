@@ -388,6 +388,8 @@ model Attachment {
   uploadedBy    User        @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
   createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
 
+  @@index([ideaVersionId])
+  @@index([uploadedById])
   @@map("attachments")
 }
 
@@ -509,6 +511,7 @@ model Risk {
   potentialImpact String       @map("potential_impact")
   mitigation      String // [SPEC] NOT NULL — FR-10 requires a mitigation for every risk
 
+  @@index([ideaVersionId])
   @@map("risks")
 }
 
@@ -520,6 +523,7 @@ model Dependency {
   description   String
   blocking      Boolean        @default(false)
 
+  @@index([ideaVersionId])
   @@map("dependencies")
 }
 
@@ -645,6 +649,11 @@ model Evaluation {
   rankingEntries  RankingEntry[]
 
   @@unique([ideaVersionId, profileId, engineVersion])
+  // The unique index above leads with `ideaVersionId`, so it gives no help to the query
+  // that drives every ranking recompute — filtered by `profileId` + `engineVersion` across
+  // every current-version idea in the cohort. This index leads with the columns that
+  // filter actually uses.
+  @@index([profileId, engineVersion])
   @@map("evaluations")
 }
 
@@ -681,6 +690,7 @@ model ScoreOverride {
   reason             String // [SPEC] NOT NULL — FR-22
   createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
 
+  @@index([criterionScoreId])
   @@map("score_overrides")
 }
 
@@ -765,6 +775,7 @@ model ImprovementRecommendation {
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
+  @@index([ideaVersionId])
   @@map("improvement_recommendations")
 }
 

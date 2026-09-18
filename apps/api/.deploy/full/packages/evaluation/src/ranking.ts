@@ -107,26 +107,7 @@ export async function recomputeRankings(
     }
   }
 
-  /** The previous run is what makes a delta meaningful (SPEC §8.3 `settle-rank`). */
-  const previousRun = await db.rankingRun.findFirst({
-    where: { profileId },
-    orderBy: { computedAt: "desc" },
-    include: { entries: { select: { ideaId: true, rank: true } } },
-  });
-
   const cohortKey = { profile: config.profile.key, statuses: RANKABLE, scope: "all" };
-
-  const ranking = engine.rank(evaluations, {
-    ideaIdByVersionId,
-    evaluationIdByVersionId,
-    submittedAtByIdeaId,
-    feasibilityByVersionId: feasibilityByVersionId as Record<string, never>,
-    previousRunEntries: previousRun?.entries.map((e) => ({
-      ideaId: e.ideaId, evaluationId: "", rank: e.rank,
-      compositeScore: 0, percentile: 0, previousRank: null, tieBreakApplied: null,
-    })),
-    cohortKey,
-  });
 
   const evaluationByVersionId = new Map(evaluations.map((e) => [e.ideaVersionId, e]));
   const versionIdByEvaluationId = new Map(evaluationRows.map((e) => [e.id, e.ideaVersionId]));
@@ -137,10 +118,36 @@ export async function recomputeRankings(
     return evaluation ? { entry, evaluation } : null;
   };
 
-  const pairs = ranking.entries.map(withEvaluation).filter((p): p is NonNullable<typeof p> => p !== null);
-
   const run = await db.$transaction(
     async (tx) => {
+      /**
+       * The previous run used to be read outside this transaction, then used to compute
+       * `previousRank` deltas for the run created and written here. Two near-simultaneous
+       * recompute triggers could each read the same "previous run" before either had
+       * written its new one, giving both new runs the same stale baseline instead of the
+       * second seeing the first. Reading it on `tx` closes that window: this read is now
+       * part of the same atomic unit as the write that follows it.
+       */
+      const previousRun = await tx.rankingRun.findFirst({
+        where: { profileId },
+        orderBy: { computedAt: "desc" },
+        include: { entries: { select: { ideaId: true, rank: true } } },
+      });
+
+      const ranking = engine.rank(evaluations, {
+        ideaIdByVersionId,
+        evaluationIdByVersionId,
+        submittedAtByIdeaId,
+        feasibilityByVersionId: feasibilityByVersionId as Record<string, never>,
+        previousRunEntries: previousRun?.entries.map((e) => ({
+          ideaId: e.ideaId, evaluationId: "", rank: e.rank,
+          compositeScore: 0, percentile: 0, previousRank: null, tieBreakApplied: null,
+        })),
+        cohortKey,
+      });
+
+      const pairs = ranking.entries.map(withEvaluation).filter((p): p is NonNullable<typeof p> => p !== null);
+
       const created = await tx.rankingRun.create({
         data: {
           profileId,
@@ -210,7 +217,7 @@ export async function recomputeRankings(
         data: { status: "RANKED" },
       });
 
-      return created;
+      return { run: created, cohortSize: pairs.length };
     },
     // A generous ceiling above the expected real duration, not a target — the fix here is
     // fewer round trips (createMany), and this is defense-in-depth on top of that.
@@ -218,9 +225,9 @@ export async function recomputeRankings(
   );
 
   return {
-    runId: run.id,
+    runId: run.run.id,
     profileKey: config.profile.key,
-    cohortSize: pairs.length,
+    cohortSize: run.cohortSize,
     engineVersion: config.engineVersion,
   };
 }

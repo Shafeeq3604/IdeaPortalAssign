@@ -19,6 +19,62 @@ function provenanceOf(a: { model: string; promptVersion: string; errorCode: stri
   } as const;
 }
 
+/**
+ * Shared by `getAnalysisStatus` and `getIdeaAnalysis` — the latter already has the
+ * `aiAnalysis` rows it needs (fetched with different `include`s for its own richer
+ * response), so it calls this directly instead of re-running the query through the
+ * other handler.
+ */
+function buildAnalysisStatus(
+  ideaVersionId: string,
+  // `step` is `string`, not the narrower `@iep/contracts` `AnalysisStep`: the rows this
+  // is called with come straight from Prisma, whose generated enum has an extra
+  // `IMPROVEMENT` value (P5's separate step) that the pipeline's 7-step `AnalysisStep`
+  // doesn't carry — `byStep.get(step)` below only ever looks up the 7 pipeline steps.
+  rows: readonly {
+    step: string;
+    status: string;
+    startedAt: Date | null;
+    finishedAt: Date | null;
+    errorCode: string | null;
+  }[],
+) {
+  const byStep = new Map(rows.map((r) => [r.step, r]));
+
+  // The six steps ALWAYS appear, in order, whether or not they have started. The UI
+  // stepper is determinate (SPEC §8.4) — it cannot be, if steps appear as they go.
+  const steps = PIPELINE_STEPS.map((step: AnalysisStep) => {
+    const r = byStep.get(step);
+    return {
+      step,
+      status: r?.status ?? "PENDING",
+      startedAt: r?.startedAt?.toISOString() ?? null,
+      finishedAt: r?.finishedAt?.toISOString() ?? null,
+      errorCode: r?.errorCode ?? null,
+      usedFallback: Boolean(r?.errorCode),
+    };
+  });
+
+  const done = steps.filter((s) => s.status === "SUCCEEDED").length;
+  const anyFallback = steps.some((s) => s.usedFallback);
+  const overall =
+    done === 0 ? (rows.length > 0 ? "RUNNING" : "PENDING")
+    : done < PIPELINE_STEPS.length ? "RUNNING"
+    : anyFallback ? "PARTIAL"
+    : "SUCCEEDED";
+
+  return {
+    analysisRunId: ideaVersionId,
+    ideaVersionId,
+    overall,
+    steps,
+    startedAt: steps.find((s) => s.startedAt)?.startedAt ?? null,
+    finishedAt: overall === "RUNNING" || overall === "PENDING"
+      ? null
+      : steps.map((s) => s.finishedAt).filter(Boolean).sort().at(-1) ?? null,
+  };
+}
+
 export function registerAnalysisRoutes(handlers: Map<string, Handler>): void {
   handlers.set("getAnalysisStatus", async (request, reply, ctx) => {
     const { ideaId } = request.params as { ideaId: string };
@@ -34,40 +90,7 @@ export function registerAnalysisRoutes(handlers: Map<string, Handler>): void {
     const rows = await ctx.db.aiAnalysis.findMany({
       where: { ideaVersionId: idea.currentVersionId },
     });
-    const byStep = new Map(rows.map((r) => [r.step, r]));
-
-    // The six steps ALWAYS appear, in order, whether or not they have started. The UI
-    // stepper is determinate (SPEC §8.4) — it cannot be, if steps appear as they go.
-    const steps = PIPELINE_STEPS.map((step: AnalysisStep) => {
-      const r = byStep.get(step);
-      return {
-        step,
-        status: r?.status ?? "PENDING",
-        startedAt: r?.startedAt?.toISOString() ?? null,
-        finishedAt: r?.finishedAt?.toISOString() ?? null,
-        errorCode: r?.errorCode ?? null,
-        usedFallback: Boolean(r?.errorCode),
-      };
-    });
-
-    const done = steps.filter((s) => s.status === "SUCCEEDED").length;
-    const anyFallback = steps.some((s) => s.usedFallback);
-    const overall =
-      done === 0 ? (rows.length > 0 ? "RUNNING" : "PENDING")
-      : done < PIPELINE_STEPS.length ? "RUNNING"
-      : anyFallback ? "PARTIAL"
-      : "SUCCEEDED";
-
-    return {
-      analysisRunId: idea.currentVersionId,
-      ideaVersionId: idea.currentVersionId,
-      overall,
-      steps,
-      startedAt: steps.find((s) => s.startedAt)?.startedAt ?? null,
-      finishedAt: overall === "RUNNING" || overall === "PENDING"
-        ? null
-        : steps.map((s) => s.finishedAt).filter(Boolean).sort().at(-1) ?? null,
-    };
+    return buildAnalysisStatus(idea.currentVersionId, rows);
   });
 
   handlers.set("getIdeaAnalysis", async (request, reply, ctx) => {
@@ -102,9 +125,10 @@ export function registerAnalysisRoutes(handlers: Map<string, Handler>): void {
     const useCaseRun = byStep.get("USE_CASES");
     const valueRun = byStep.get("VALUE");
 
-    const getAnalysisStatus = handlers.get("getAnalysisStatus");
-    if (!getAnalysisStatus) throw new Error("getAnalysisStatus was not registered before getIdeaAnalysis");
-    const statusResponse = await getAnalysisStatus(request, reply, ctx);
+    // `analyses` above already has every row `buildAnalysisStatus` needs — calling
+    // through `getAnalysisStatus` here used to re-run its `idea` lookup and its
+    // `aiAnalysis.findMany`, both duplicates of work this handler already did.
+    const statusResponse = buildAnalysisStatus(versionId, analyses);
 
     return {
       ideaId: idea.id,

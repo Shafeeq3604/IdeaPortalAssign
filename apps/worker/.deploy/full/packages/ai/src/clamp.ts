@@ -17,6 +17,15 @@ import type { z } from "zod";
 
 type JsonSchema = Record<string, unknown>;
 
+/**
+ * The 6 step schemas are static module-level constants — `zodToJsonSchema` always
+ * produces the same output for the same `schema` reference, so recomputing it on every
+ * AI call (including every escalation retry) redid real synchronous CPU work for nothing.
+ * Keyed by the schema object itself, not a derived string, since no two distinct schemas
+ * share a reference.
+ */
+const schemaCache = new WeakMap<z.ZodTypeAny, JsonSchema>();
+
 const num = (v: unknown): number | null => (typeof v === "number" ? v : null);
 
 function clampNode(schema: JsonSchema | undefined, value: unknown): unknown {
@@ -62,9 +71,13 @@ function clampNode(schema: JsonSchema | undefined, value: unknown): unknown {
  * not the sanitised copy sent to the provider.
  */
 export function clampToSchema<S extends z.ZodTypeAny>(schema: S, data: unknown): unknown {
-  const full = zodToJsonSchema(schema, {
-    target: "openApi3",
-    $refStrategy: "none",
-  }) as JsonSchema;
+  let full = schemaCache.get(schema);
+  if (!full) {
+    full = zodToJsonSchema(schema, {
+      target: "openApi3",
+      $refStrategy: "none",
+    }) as JsonSchema;
+    schemaCache.set(schema, full);
+  }
   return clampNode(full, data);
 }
