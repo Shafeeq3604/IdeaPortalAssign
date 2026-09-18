@@ -169,9 +169,9 @@ export async function recomputeRankings(
       // Built together, keyed by the same generated id, rather than two separate `.map`s
       // cross-referenced by index — `noUncheckedIndexedAccess` would make that index into
       // entryData a possibly-undefined read for no reason; the pairing is 1:1 by construction.
-      const rows = pairs.map(({ entry, evaluation }) => {
+      const rows = pairs.map(({ entry, evaluation }, index) => {
         const entryId = randomUUID();
-        const peers = nearestPeers(pairs, entry);
+        const peers = nearestPeers(pairs, index);
         const explanation = engine.explain(entry, evaluation, peers, config);
         return {
           entry: {
@@ -230,12 +230,16 @@ export async function recomputeRankings(
  *
  * A comparison against the field's extremes tells you nothing actionable; the ideas you
  * are actually competing with are your neighbours (SPEC §9.4).
+ *
+ * Takes the entry's own index rather than searching for it. `pairs` is built from
+ * `ranking.entries` via `.map().filter()`, both order-preserving, and `entries` is
+ * itself `sorted.map((row, index) => ...)` in the engine (packages/scoring/src/engine.ts)
+ * — so array position already IS rank order, one place removed. The previous version
+ * re-derived that with `all.findIndex(p => p.entry.ideaId === entry.ideaId)` — an O(n)
+ * scan called once per entry, making the whole cohort-wide recompute O(n²). At the
+ * 3,000-idea/30s budget this SPEC §11.6 comment above already targets, that is the
+ * difference between ~3,000 and ~9,000,000 comparisons.
  */
-function nearestPeers<T extends { entry: RankingEntryResult }>(
-  all: readonly T[],
-  entry: RankingEntryResult,
-): T[] {
-  const index = all.findIndex((p) => p.entry.ideaId === entry.ideaId);
-  if (index < 0) return [];
+function nearestPeers<T>(all: readonly T[], index: number): T[] {
   return [all[index - 1], all[index + 1]].filter((p): p is T => p !== undefined);
 }

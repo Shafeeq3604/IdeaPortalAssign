@@ -81,13 +81,19 @@ async function scoresForCurrentVersions(
     }
   }
 
+  /**
+   * `rows.some(...)` per entry used to make this O(entries × rows) — cheap on a normal
+   * paginated page (`rows` bounded to `perPage`), but `listIdeasByRank` below calls this
+   * with `rows` = every matching idea, unpaginated, so it scaled with the FULL cohort on
+   * every `sort=rank` request. A single `ideaId -> currentVersionId` map, built once,
+   * turns the lookup into O(1) per entry.
+   */
+  const currentVersionByIdea = new Map(rows.map((r) => [r.id, r.currentVersionId]));
   const rankByIdea = new Map<string, number>();
   for (const entry of entries) {
     // Only a run entry for the CURRENT version counts. A rank earned by v1 is not the
     // rank of v2, and showing it as one would be a quietly wrong number.
-    const isCurrent = rows.some(
-      (r) => r.id === entry.ideaId && r.currentVersionId === entry.evaluation.ideaVersionId,
-    );
+    const isCurrent = currentVersionByIdea.get(entry.ideaId) === entry.evaluation.ideaVersionId;
     if (isCurrent && !rankByIdea.has(entry.ideaId)) rankByIdea.set(entry.ideaId, entry.rank);
   }
 

@@ -120,9 +120,20 @@ export async function buildFactorSet(
   db: PrismaClient,
   ideaVersionId: string,
 ): Promise<FactorSet | null> {
-  const [version, analyses, feasibility, risks, plan, demandSignals, kpiCount, pilot] =
+  const version = await db.ideaVersion.findUnique({ where: { id: ideaVersionId } });
+  if (!version) return null;
+
+  /**
+   * The three `ideaId`-scoped reads below used to each re-fetch `ideaVersion` a second
+   * time (`select: { ideaId: true }`) purely to get a value `version` above already has
+   * — three redundant round trips on every evaluation, because they were built as
+   * `Promise.all` entries alongside `version`'s own fetch, before its result existed.
+   * Awaiting `version` first (one query, and an early return if it's missing — no
+   * reason to fire the other seven for an idea version that doesn't exist) makes
+   * `version.ideaId` available up front instead.
+   */
+  const [analyses, feasibility, risks, plan, demandSignals, kpiCount, pilot] =
     await Promise.all([
-      db.ideaVersion.findUnique({ where: { id: ideaVersionId } }),
       db.aiAnalysis.findMany({
         where: { ideaVersionId },
         include: { useCases: true, valueFindings: true },
@@ -132,18 +143,11 @@ export async function buildFactorSet(
       }),
       db.risk.findMany({ where: { ideaVersionId } }),
       db.implementationPlan.findUnique({ where: { ideaVersionId }, include: { timeline: true } }),
-      db.ideaVersion
-        .findUnique({ where: { id: ideaVersionId }, select: { ideaId: true } })
-        .then((v) => (v ? db.demandSignal.findMany({ where: { ideaId: v.ideaId } }) : [])),
-      db.ideaVersion
-        .findUnique({ where: { id: ideaVersionId }, select: { ideaId: true } })
-        .then((v) => (v ? db.kpiDefinition.count({ where: { ideaId: v.ideaId } }) : 0)),
-      db.ideaVersion
-        .findUnique({ where: { id: ideaVersionId }, select: { ideaId: true } })
-        .then((v) => (v ? db.pilotRecord.findUnique({ where: { ideaId: v.ideaId } }) : null)),
+      db.demandSignal.findMany({ where: { ideaId: version.ideaId } }),
+      db.kpiDefinition.count({ where: { ideaId: version.ideaId } }),
+      db.pilotRecord.findUnique({ where: { ideaId: version.ideaId } }),
     ]);
 
-  if (!version) return null;
   if (analyses.length === 0 && !feasibility && !plan && risks.length === 0) return null;
 
   const errorByStep = new Map(analyses.map((a) => [a.step, a.errorCode]));

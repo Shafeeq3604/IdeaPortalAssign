@@ -719,6 +719,12 @@ model RankingEntry {
 
   @@unique([runId, ideaId])
   @@unique([runId, rank])
+  // Every idea's ranking history is kept forever (ADR-008), so this table only grows —
+  // and the idea list, the idea history tab, and the evaluation detail page all query
+  // "this idea's ranking entries" by `ideaId` alone (not `runId`-first, which is all the
+  // two unique indexes above cover). Without this, each of those becomes a full scan
+  // that gets slower as more ranking runs accumulate.
+  @@index([ideaId])
   @@map("ranking_entries")
 }
 
