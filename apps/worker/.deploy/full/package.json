@@ -28,7 +28,7 @@
     "deploy:prune": "node scripts/prepare-deploy.mjs",
     "deploy:check": "node scripts/check-deploy-snapshot.mjs",
     "preflight": "node scripts/preflight-docker.mjs",
-    "prepare": "node scripts/install-git-hooks.mjs",
+    "prepare": "node -e \"var fs=require('fs');if(fs.existsSync('scripts/install-git-hooks.mjs')){require('child_process').execFileSync(process.execPath,['scripts/install-git-hooks.mjs'],{stdio:'inherit'})}\"",
     "deps:up": "docker compose -f docker-compose.deps.yml up -d",
     "deps:down": "docker compose -f docker-compose.deps.yml down",
     "openapi:generate": "tsx scripts/generate-openapi.mts",
