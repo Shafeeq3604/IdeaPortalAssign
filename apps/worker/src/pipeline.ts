@@ -1,4 +1,7 @@
-import type { PrismaClient } from "@iep/db";
+import type { Prisma, PrismaClient } from "@iep/db";
+
+/** Every delegate `persistStep` calls exists on both, so it can run inside a transaction. */
+type Db = PrismaClient | Prisma.TransactionClient;
 import { PIPELINE_STEPS, type AnalysisStep } from "@iep/contracts";
 import {
   analyseStep, stepInputHash, stepInputText, systemPromptFor,
@@ -241,29 +244,40 @@ export async function runPipeline(
       });
     }
 
-    await db.aiAnalysis.update({
-      where: { id: analysis.id },
-      data: {
-        // A fallback is a real, usable result — recorded as SUCCEEDED with its source
-        // visible on the children, not as FAILED. The run did produce analysis.
-        status: "SUCCEEDED",
-        provider: provider.name,
-        model: outcome.model ?? "fallback",
-        tier: outcome.tier ?? "B",
-        promptVersion: outcome.promptVersion,
-        inputTokens: outcome.usage?.inputTokens ?? null,
-        outputTokens: outcome.usage?.outputTokens ?? null,
-        cachedInputTokens: outcome.usage?.cachedInputTokens ?? null,
-        costUsdMicros: outcome.usage ? Math.round(outcome.usage.costUsd * 1_000_000) : null,
-        redactionApplied: outcome.redactionApplied,
-        escalatedFromTier: outcome.escalatedFromTier,
-        errorCode: outcome.failureReason,
-        rawPayload: outcome.data as never,
-        finishedAt: new Date(),
-      },
-    });
+    /**
+     * Marking the row SUCCEEDED and writing its children used to be two separate
+     * statements. A crash (or a `persistStep` failure — a constraint violation, a
+     * dropped connection) between them left the row permanently SUCCEEDED with no, or
+     * only partial, child rows — and the idempotency check at the top of this loop
+     * ("already SUCCEEDED — skip") means that step would never be retried, silently.
+     * One transaction makes the two commit together or not at all, the same guarantee
+     * `carryForward` below already gives its own multi-table write.
+     */
+    await db.$transaction(async (tx) => {
+      await tx.aiAnalysis.update({
+        where: { id: analysis.id },
+        data: {
+          // A fallback is a real, usable result — recorded as SUCCEEDED with its source
+          // visible on the children, not as FAILED. The run did produce analysis.
+          status: "SUCCEEDED",
+          provider: provider.name,
+          model: outcome.model ?? "fallback",
+          tier: outcome.tier ?? "B",
+          promptVersion: outcome.promptVersion,
+          inputTokens: outcome.usage?.inputTokens ?? null,
+          outputTokens: outcome.usage?.outputTokens ?? null,
+          cachedInputTokens: outcome.usage?.cachedInputTokens ?? null,
+          costUsdMicros: outcome.usage ? Math.round(outcome.usage.costUsd * 1_000_000) : null,
+          redactionApplied: outcome.redactionApplied,
+          escalatedFromTier: outcome.escalatedFromTier,
+          errorCode: outcome.failureReason,
+          rawPayload: outcome.data as never,
+          finishedAt: new Date(),
+        },
+      });
 
-    await persistStep(db, input.ideaVersionId, analysis.id, step, outcome.data);
+      await persistStep(tx, input.ideaVersionId, analysis.id, step, outcome.data);
+    });
   }
 
   /**
@@ -295,7 +309,7 @@ export async function runPipeline(
  * shortcut here made every field silently undefined.
  */
 async function persistStep(
-  db: PrismaClient,
+  db: Db,
   ideaVersionId: string,
   analysisId: string,
   step: AnalysisStep,
