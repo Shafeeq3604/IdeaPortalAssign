@@ -1,5 +1,6 @@
 import { Queue } from "bullmq";
 import type { AnalysisEnqueuer, RankingEnqueuer } from "../context.js";
+import { captureException } from "./error-tracking.js";
 import { makeQueueConnection } from "./redis-connection.js";
 
 /**
@@ -39,10 +40,14 @@ export function makeAnalysisEnqueuer(
       } catch (error) {
         // Swallowing the failure is deliberate — the idea is already saved. Swallowing it
         // SILENTLY was a bug: the analysis simply never happened and nothing said so.
+        // Reported to Sentry too (ADR-025), not just logged — a queue this consistently
+        // unreachable is an ops problem nobody would otherwise notice until someone asks
+        // why their idea never got analysed.
         logger?.warn(
           { err: error, ideaVersionId: job.ideaVersionId },
           "could not enqueue analysis — the idea is saved but will not be analysed",
         );
+        captureException(error, { tags: { kind: "enqueue-failed", queue: "analysis" } });
         return false;
       }
     },
@@ -86,6 +91,7 @@ export function makeRankingEnqueuer(
           { err: error, reason: job.triggerReason },
           "could not enqueue a ranking recompute — the change is saved but the board is stale",
         );
+        captureException(error, { tags: { kind: "enqueue-failed", queue: "ranking" } });
         return false;
       }
     },

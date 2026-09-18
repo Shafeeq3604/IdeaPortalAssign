@@ -6,6 +6,10 @@ import "@iep/ui/theme.css";
 import "./index.css";
 
 import { AppRouter } from "./AppRouter";
+import { initErrorTracking } from "./app/error-tracking";
+
+// Before anything below can throw (ADR-025).
+initErrorTracking();
 
 const container = document.getElementById("root");
 if (!container) throw new Error("#root not found in index.html");
