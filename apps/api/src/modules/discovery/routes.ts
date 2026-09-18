@@ -22,20 +22,32 @@ export function registerDiscoveryRoutes(handlers: Map<string, Handler>): void {
       data: { userId: actor.userId, query: parsed.data.query, status: "PENDING" },
     });
 
-    // Fire-and-forget, same contract as idea analysis (P3): the query is already saved,
-    // so a queue outage degrades the feature rather than failing the request.
-    await ctx.discovery.enqueue({ discoveryQueryId: row.id });
+    // Same degrade-never-throw contract as idea analysis (P3) — a queue outage never
+    // fails the request, the row is already saved. But "degrade" used to mean the row
+    // sat at PENDING forever with nothing to distinguish it from a job that was simply
+    // still queued: the client has no timeout, so `enqueue()` failing was indistinguishable
+    // from Redis being merely slow, and "Thinking…" never resolved (found live — two rows
+    // from this exact gap, orphaned with no job ever created for them). `discoverQuery`
+    // already has a FAILED status and the page already renders it with a
+    // try-again message; this just uses that existing path instead of staying silent.
+    const enqueued = await ctx.discovery.enqueue({ discoveryQueryId: row.id });
+    const finalRow = enqueued
+      ? row
+      : await ctx.db.discoveryQuery.update({
+          where: { id: row.id },
+          data: { status: "FAILED", errorCode: "QUEUE_UNAVAILABLE", finishedAt: new Date() },
+        });
 
     return {
-      id: row.id,
-      query: row.query,
-      status: row.status,
-      discoveryType: row.discoveryType,
-      summary: row.summary,
+      id: finalRow.id,
+      query: finalRow.query,
+      status: finalRow.status,
+      discoveryType: finalRow.discoveryType,
+      summary: finalRow.summary,
       items: [],
-      errorCode: row.errorCode,
-      createdAt: row.createdAt.toISOString(),
-      finishedAt: null,
+      errorCode: finalRow.errorCode,
+      createdAt: finalRow.createdAt.toISOString(),
+      finishedAt: finalRow.finishedAt?.toISOString() ?? null,
     };
   });
 
