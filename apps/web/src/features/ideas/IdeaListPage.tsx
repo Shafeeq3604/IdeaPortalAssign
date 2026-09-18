@@ -1,8 +1,8 @@
 import * as React from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
-  Archive, ArrowDownUp, ChevronDown, Compass, LayoutGrid, Lightbulb, List, PenSquare, Search,
-  User, X,
+  Archive, ArrowDownUp, ChevronDown, Compass, LayoutGrid, Lightbulb, List, ListChecks,
+  PenSquare, Search, ShieldCheck, User, X,
 } from "lucide-react";
 import {
   Button, EmptyState, ErrorState, Input, Select, SelectContent, SelectItem, SelectTrigger,
@@ -435,6 +435,58 @@ export function IdeaListPage({ scope }: Props) {
             </ul>
           )}
 
+          {/*
+            My ideas, low-volume state (dark-mode final-polish pass, item 7). Someone
+            with one or two ideas gets a two-or-three-card grid sitting in a page laid out
+            for dozens, with most of the viewport left blank below it. The card layout
+            itself is untouched — this is a second, lightweight panel underneath it, and
+            it only ever repeats facts the product already states elsewhere (the AI
+            notice on the submission form, the six-step analysis pipeline shown on an
+            idea's own Overview tab): nothing here is new copy invented for this panel.
+            Scoped tightly so it earns its place rather than filling space for its own
+            sake — "mine" only, a real few-ideas case rather than a filtered-down one
+            (unfiltered, page 1), and gone the moment there is enough on the page that the
+            unused space stops being a problem.
+          */}
+          {scope === "mine" && !search && status.length === 0 && page === 1 && list.data.items.length <= 3 ? (
+            <div className="mt-6 grid gap-3 rounded-2xl border border-dashed border-border bg-muted/40 p-5 sm:grid-cols-2">
+              <div className="flex gap-3">
+                <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                  <ListChecks aria-hidden className="size-4" />
+                </span>
+                <div>
+                  <p className="font-medium">What happens after you submit</p>
+                  <p className="mt-0.5 text-200 text-muted-foreground">
+                    The platform works through six steps — understanding the idea,
+                    finding where it applies, business value, feasibility, risks, and
+                    effort — then scores it against every criterion. You can watch it run
+                    from the idea's own Analysis tab.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                  <ShieldCheck aria-hidden className="size-4" />
+                </span>
+                <div>
+                  <p className="font-medium">Who decides</p>
+                  <p className="mt-0.5 text-200 text-muted-foreground">
+                    AI structures and scores what you wrote; it never decides anything.
+                    A person reviews it from there.
+                  </p>
+                </div>
+              </div>
+              <div className="sm:col-span-2">
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/ideas/new">
+                    <PenSquare aria-hidden className="size-3.5" />
+                    Submit another idea
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           {list.data.meta.totalPages > 1 ? (
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
               <p className="text-200 text-muted-foreground tabular">
@@ -517,9 +569,11 @@ function IdeaTable({ items }: { items: IdeaSummary[] }) {
                   {idea.title}
                 </Link>
                 <span className="mt-0.5 flex items-center gap-1.5 text-200 text-muted-foreground">
+                  {/* Neutral, not accent (dark-mode final-polish pass) — same reasoning
+                      as the grid card's own initials glyph in IdeaCard.tsx. */}
                   <span
                     aria-hidden
-                    className="grid size-4.5 shrink-0 place-items-center rounded-full bg-accent text-100 font-extrabold text-accent-foreground"
+                    className="grid size-4.5 shrink-0 place-items-center rounded-full bg-muted text-100 font-extrabold text-muted-foreground"
                   >
                     {initials(idea.submitter.displayName)}
                   </span>

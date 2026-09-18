@@ -81,7 +81,21 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       className={
         active
           ? "brand-pill brand-pill--railed relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-200 font-semibold text-grad-ink no-underline shadow-e3"
-          : "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-200 font-medium no-underline transition-colors duration-[var(--dur-fast)] hover:bg-muted"
+          : /*
+             * `hover:bg-sidebar-hover`, not `hover:bg-muted` — dark-mode refinement pass.
+             * `--muted` now resolves to the exact same colour as the sidebar's own
+             * background (both point at the "secondary surface" tier), so a hovered row
+             * would have nothing to show. `--sidebar-hover` is the lighter card tone
+             * instead, equal to `--muted` in light mode (no change there), a visible lift
+             * off the rail in dark.
+             *
+             * `text-muted-foreground` (dark-mode final-polish pass, item 8): an inactive
+             * label used to inherit full-strength `--text`, the same weight the ACTIVE
+             * item's white-on-gradient label carries — eight destinations all shouting at
+             * once instead of one. Recedes at rest, `hover:text-foreground` brings it back
+             * to full strength the moment it is actually the thing being looked at.
+             */
+            "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-200 font-medium text-muted-foreground no-underline transition-colors duration-[var(--dur-fast)] hover:bg-sidebar-hover hover:text-foreground"
       }
     >
       {/*
@@ -419,7 +433,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       <div className="md:grid md:grid-cols-[15rem_1fr]">
-        <aside className="brand-rail hidden border-r border-border bg-card md:block">{nav}</aside>
+        {/*
+          `bg-sidebar`, not `bg-card` — dark-mode refinement pass. Equal to `bg-card` in
+          light mode (unchanged there), but its own distinct, deliberately darker surface
+          in dark mode, so the rail reads as related-to-but-different-from the cards
+          sitting in the column beside it, instead of the exact same slate repeated.
+        */}
+        <aside className="brand-rail hidden border-r border-border bg-sidebar md:block">{nav}</aside>
         {navOpen ? (
           <div className="border-b border-border md:hidden" onClick={() => setNavOpen(false)}>
             {nav}

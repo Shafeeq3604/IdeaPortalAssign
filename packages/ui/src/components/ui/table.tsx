@@ -8,14 +8,27 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      // `overflow-x-auto` already let a wide table scroll — the container itself was
-      // never the bug. What was missing is any SIGNAL that it can: the platform default
-      // scrollbar only paints itself in while a trackpad or drag is actively in motion,
-      // so a table that overflows at a laptop's real width (Review queue, People &
-      // access both clip their rightmost column past ~800px) reads as "the column got
-      // cut off," not "scroll right." A thin, permanently-visible scrollbar fixes that
-      // without touching either page's markup.
-      className="relative w-full overflow-x-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
+      /*
+       * `overflow-x-auto` already let a wide table scroll — the container itself was
+       * never the bug. What was missing is any SIGNAL that it can: the thin, permanently-
+       * visible scrollbar (the `[scrollbar-width]`/`[&::-webkit-scrollbar]` rules below)
+       * fixes that in principle, but it sits at the BOTTOM edge of the scroll container —
+       * and a table tall enough to need one at all (Review queue, People & access both
+       * clip their rightmost column on a phone) puts that edge below the fold on first
+       * view. Found live, at phone width: the container really was scrollable
+       * (`scrollWidth` 646 vs `clientWidth` 311), but nothing on screen said so until you
+       * scrolled all the way to the table's own bottom.
+       *
+       * The four `background-image` layers below are the standard CSS-only "scroll
+       * shadow": two gradients attached `local` (they scroll WITH the content and match
+       * `--card`, the surface every table in this product sits on) mask a shadow that is
+       * otherwise always painted at both edges, so the shadow only shows where there is
+       * still something to reveal — gone at rest on the left because there is nothing
+       * behind it, visible on the right the instant a table overflows, and swapping ends
+       * as you scroll. Visible immediately, in the table's own header row, not something
+       * you have to scroll the whole page to discover.
+       */
+      className="relative w-full overflow-x-auto bg-[linear-gradient(to_right,var(--card)_30%,transparent),linear-gradient(to_left,var(--card)_30%,transparent),linear-gradient(to_right,rgb(0_0_0/12%),transparent_12px),linear-gradient(to_left,rgb(0_0_0/12%),transparent_12px)] bg-[length:24px_100%,24px_100%,12px_100%,12px_100%] bg-[position:left,right,left,right] bg-no-repeat [background-attachment:local,local,scroll,scroll] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
     >
       <table
         data-slot="table"

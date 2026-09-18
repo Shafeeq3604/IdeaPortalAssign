@@ -66,6 +66,15 @@
   --text-secondary: var(--ink-500);
   --text-tertiary: var(--ink-400);
 
+  /*
+   * Dark-mode refinement pass (2026-09-18): three new surfaces, defined here as plain
+   * pass-throughs so LIGHT MODE renders identically to before — only the dark blocks below
+   * give them a colour of their own. See those blocks for why each exists.
+   */
+  --sidebar: var(--surface);
+  --sidebar-hover: var(--surface-sunken);
+  --surface-input: transparent;
+
   /* ── Accent: electric blue, on a charcoal ground ──
    *
    * Replaces the indigo/violet identity (visual-flair round, per-user direction): the
@@ -232,6 +241,11 @@
   --container: 1280px;
   --container-wide: 1500px; /* page ceiling on the 1fr workspace beside the 15rem sidebar */
   --content: 960px;
+  /* Idea submission/revision only — a form of short one-thought-per-field textareas reads
+     as cramped and over-tall at the 960px prose measure; ~12% wider gives each answer more
+     breathing room and pulls the perceived scroll length down without stretching body
+     copy the way the full 1500px workspace width would. */
+  --content-form: 1080px;
   --prose: 68ch;
 
   /* ── Motion (SPEC §8.2) ── */
@@ -262,26 +276,81 @@
     --ink-900: #f1f5f9;
     --ink-700: #cbd5e1;
     --ink-500: #94a3b8;
-    --ink-400: #94a3b8;   /* slate-400 — 7.1:1 on the dark canvas */
-    --ink-300: #475569;
-    --ink-200: #334155;
+    /*
+     * Dark-mode refinement pass (2026-09-18): this used to equal --ink-500 exactly, so
+     * "secondary" and "muted" text were the identical colour — every caption, timestamp
+     * and label read at the same weight as real secondary copy, which is part of why the
+     * whole interface felt flat. Muted is now a visibly darker, cooler step of its own
+     * (~5.4:1 on the canvas — still comfortably AA, just recessive rather than equal).
+     */
+    --ink-400: #7e90a9;
+    /*
+     * Same pass: border and border-strong bumped a shade lighter than before, because the
+     * card surface below (--ink-000) also moved lighter — a border that used to separate
+     * a darker card from its background needs to work against a noticeably lighter one now,
+     * or the "hairline" disappears entirely.
+     */
+    --ink-300: #55698a;
+    --ink-200: #3d5372;
     --ink-100: #1e293b;
     --ink-050: #0f172a;   /* slate-900 canvas */
     /*
-     * Design-audit finding: this used to equal --ink-100 exactly, so canvas → secondary
-     * → card had only TWO visible steps in dark mode instead of the three light mode
-     * documents above — cards, the sidebar and the page background all read as the same
-     * near-black, and the border/shadow system that was supposed to carry the rest of
-     * the hierarchy had nothing left to separate. A distinct third step between
-     * --ink-100 and the --ink-200 border restores it.
+     * Surface hierarchy pass (2026-09-18), round two: the previous fix (#26344a → #2f3f59)
+     * solved "card and sidebar are too close in luminance" but did it with a colour that
+     * was still a genuinely saturated mid-blue (~31% HSL saturation) — reported back
+     * directly as "too many blue layers" once page canvas, card, input and the electric-
+     * blue accent were all visible on the same screen. The LIGHTNESS step this card needs
+     * over the sidebar/canvas is unchanged; only the saturation moves, roughly halved
+     * (~18%), so the surface reads as a neutral charcoal-slate with a cool identity rather
+     * than a blue panel competing with the accent for attention. Same hue family as the
+     * rest of the ink ramp on purpose — a fully neutral grey here would read as a
+     * different, ungrounded material next to a still-blue canvas and sidebar.
      */
-    --ink-000: #26344a;   /* a real step above slate-800, still a real step below the slate-700 border */
+    --ink-000: #343d4b;
 
-    --accent-700: #93c5fd;
+    /*
+     * New this pass: the sidebar/header rail is a DISTINCT surface from a primary card,
+     * not the same --surface token wearing two hats. Light mode gets no new colour —
+     * --sidebar equals --surface there, so the light theme is untouched — but dark mode
+     * points it at --ink-100, the step between canvas and card that the light-mode comment
+     * on --ink-100 always described ("secondary surfaces — filter rows, input groups,
+     * sidebar") without the sidebar ever actually reading it.
+     */
+    --sidebar: var(--ink-100);
+    /* The sidebar's own hover state needs to read AGAINST --sidebar, not reuse --muted —
+       --muted now equals --sidebar's own background, which would make a hovered nav row
+       invisible. Point hover at the lighter card tone instead, so hovering a row visibly
+       lifts it off the rail. */
+    --sidebar-hover: var(--ink-000);
+    /*
+     * Inputs get their own recessed surface instead of the transparent fill shadcn ships
+     * by default (which only ever picked up a background under an EXPLICIT dark toggle,
+     * never under the OS "system dark" preference — see the plain rule near the bottom of
+     * this file). Lighter than canvas but darker than the card: an input should read as a
+     * well cut into the card, not another card floating on top of it. Desaturated the same
+     * way and for the same reason as --ink-000 above — this was the fourth blue layer in
+     * the "too much blue" report (canvas, card, input, accent), and unlike the accent it is
+     * never the thing anyone is meant to be looking at.
+     */
+    --surface-input: #212730;
+
+    /*
+     * accent-700 used to be #93c5fd — a fully-saturated pastel sky blue, and it is the
+     * ONE token nearly every "readable accent text" spot in the product shares: badge
+     * ink, category icons, CTA links, every score numeral's gradient start. That is
+     * exactly the "too much cyan" the dark-mode refinement pass was asked to fix, and it
+     * is one token, not forty call sites — softened here to a desaturated slate-blue that
+     * keeps essentially the same contrast (still 7:1+ on the accent tints below) without
+     * reading as neon. --accent-600/--accent-500, the buttons/links/focus-ring shades,
+     * are deliberately UNCHANGED — those are the ones actually reserved for emphasis.
+     */
+    --accent-700: #a3b8d1;
     --accent-600: #60a5fa;
     --accent-500: #3b82f6;
-    --accent-100: #1e3a5f;
-    --accent-050: #16283f;
+    /* Tint backgrounds pulled a little more neutral alongside accent-700, so a badge reads
+       as "a calm chip with a cool tint" rather than "a blue chip" at a glance. */
+    --accent-100: #22334a;
+    --accent-050: #1a2333;
 
     --factor-up: #5fc9b4;
     --factor-up-bg: #12312c;
@@ -329,9 +398,17 @@
     --state-neutral: var(--text-secondary);
     --state-neutral-bg: var(--surface-sunken);
 
-    /* Shadows do not read on a dark ground — borders do the work (SPEC §7.3). */
-    --e-1: none;
-    --e-2: none;
+    /*
+     * Dark-mode refinement pass: e-1/e-2 were `none` on the theory that shadows do not
+     * read on a dark ground — true for a heavy light-mode shadow, but the result was that
+     * most cards (which use e-1/e-2, not e-3) got NO depth cue at all beyond a border, one
+     * layer short of the "restrained shadows" the surface hierarchy calls for. Both are
+     * now a plain, low-opacity black shadow — restrained on purpose, nowhere near the
+     * light-mode e-3/e-4 treatment — so an ordinary card reads as sitting slightly above
+     * the canvas instead of relying on its border alone.
+     */
+    --e-1: 0 1px 2px rgb(0 0 0 / 30%);
+    --e-2: 0 2px 6px -1px rgb(0 0 0 / 35%), 0 1px 2px rgb(0 0 0 / 20%);
     --e-3: 0 8px 16px -4px rgb(0 0 0 / 45%);
     --e-4: 0 16px 32px -8px rgb(0 0 0 / 55%);
   }
@@ -341,18 +418,22 @@
   --ink-900: #f1f5f9;
   --ink-700: #cbd5e1;
   --ink-500: #94a3b8;
-  --ink-400: #94a3b8;   /* slate-400 — 7.1:1 on the dark canvas */
-  --ink-300: #475569;
-  --ink-200: #334155;
+  --ink-400: #7e90a9;   /* muted/tertiary — a distinct, darker step from --ink-500 (see the system-dark block above) */
+  --ink-300: #55698a;
+  --ink-200: #3d5372;
   --ink-100: #1e293b;
   --ink-050: #0f172a;   /* slate-900 canvas */
-  --ink-000: #26344a;   /* same fix as the system-dark block above — a real step above --ink-100, below the --ink-200 border */
+  --ink-000: #343d4b;   /* same surface-hierarchy pass as the system-dark block above — same lightness step, roughly half the saturation */
 
-  --accent-700: #93c5fd;
+  --sidebar: var(--ink-100);
+  --sidebar-hover: var(--ink-000);
+  --surface-input: #212730;
+
+  --accent-700: #a3b8d1;
   --accent-600: #60a5fa;
   --accent-500: #3b82f6;
-  --accent-100: #1e3a5f;
-  --accent-050: #16283f;
+  --accent-100: #22334a;
+  --accent-050: #1a2333;
 
   --factor-up: #5fc9b4;
   --factor-up-bg: #12312c;
@@ -405,8 +486,9 @@
   --state-neutral: var(--text-secondary);
   --state-neutral-bg: var(--surface-sunken);
 
-  --e-1: none;
-  --e-2: none;
+  /* Same fix as the system-dark block above — restrained shadows instead of none. */
+  --e-1: 0 1px 2px rgb(0 0 0 / 30%);
+  --e-2: 0 2px 6px -1px rgb(0 0 0 / 35%), 0 1px 2px rgb(0 0 0 / 20%);
   --e-3: 0 8px 16px -4px rgb(0 0 0 / 45%);
   --e-4: 0 16px 32px -8px rgb(0 0 0 / 55%);
 }
@@ -433,6 +515,75 @@
   --input: var(--border);
   --ring: var(--focus-ring);
   --radius: var(--r-md);
+}
+
+/*
+ * Dark-mode refinement pass (2026-09-18) — two fixes that could not be expressed as a
+ * simple token redefinition, so they live here as plain (unlayered) rules instead. Both
+ * are no-ops in light mode: the first because --surface-input is `transparent` there, the
+ * second because there is no dark-only selector wrapping it.
+ *
+ * 1. Inputs. shadcn's own `Input`/`Textarea`/`Select` ship `bg-transparent … dark:bg-input/30`
+ *    — but this app's dark mode is driven by a token swap (system `prefers-color-scheme` OR
+ *    an explicit `[data-theme]` stamp), not by Tailwind's `dark:` variant, whose custom
+ *    definition (theme.css) only matches the EXPLICIT stamp. The practical effect: toggling
+ *    dark mode in-app gave inputs a faint fill, but the much more common case — a browser
+ *    or OS already set to dark, no in-app toggle ever touched — left every input fully
+ *    transparent, with nothing distinguishing it from the card around it. Targeting the
+ *    shadcn `data-slot` attributes directly, unlayered so it beats the layered utility
+ *    classes regardless of source order (same reasoning as the `body{}` rule above), fixes
+ *    it for both dark states at once without editing any of those three components.
+ */
+[data-slot="input"],
+[data-slot="textarea"],
+[data-slot="select-trigger"] {
+  background-color: var(--surface-input);
+}
+
+/*
+ * 2. Card titles. Every list/board in the product makes its whole card a `<Link>`, with
+ *    the title as that link's accessible name (IdeaCard, the rankings podium and list rows,
+ *    the dashboard leader, a person's idea list, the Compare page's two idea cards) — a
+ *    real, deliberate pattern, not an oversight. But the global `a { color: var(--accent-600) }`
+ *    rule (index.css) does not know the difference between THAT link and a genuine inline
+ *    one, so every card's heading rendered in the brand blue — reported directly as "every
+ *    title is blue" in the dark-mode audit that asked for this pass. `h2, h3 > a` catches
+ *    most of them; `[data-slot="card-title"] > a` catches the rest, because shadcn's own
+ *    `CardTitle` renders a `<div>`, not a heading element, so a title inside one never
+ *    matched the heading selector at all (Compare page, found in the same follow-up pass
+ *    as `.criterion-table-link` below). Either way the title reads as normal text at rest
+ *    and tints toward the accent on hover as its one interactive cue, alongside the whole
+ *    card's own hover lift.
+ *
+ *    `.criterion-table-link` is the same idea applied to a different repeated pattern:
+ *    Evaluation Profiles' weight table and Compare's "Where they differ" table both link
+ *    EVERY row to the same criteria page, so the whole table read as a wall of blue at
+ *    twelve-plus rows — correct per link, but the page didn't read as calmer the way
+ *    Explore Ideas or the Dashboard did. Neither table would be caught by the heading or
+ *    card-title selectors above (they're plain `<Link>`s in a `<TableCell>`), so it needs
+ *    its own class, applied at both call sites.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) :where(h2, h3) > a,
+  :root:not([data-theme="light"]) [data-slot="card-title"] > a,
+  :root:not([data-theme="light"]) .criterion-table-link {
+    color: var(--text);
+  }
+  :root:not([data-theme="light"]) :where(h2, h3) > a:hover,
+  :root:not([data-theme="light"]) [data-slot="card-title"] > a:hover,
+  :root:not([data-theme="light"]) .criterion-table-link:hover {
+    color: var(--accent-600);
+  }
+}
+:root[data-theme="dark"] :where(h2, h3) > a,
+:root[data-theme="dark"] [data-slot="card-title"] > a,
+:root[data-theme="dark"] .criterion-table-link {
+  color: var(--text);
+}
+:root[data-theme="dark"] :where(h2, h3) > a:hover,
+:root[data-theme="dark"] [data-slot="card-title"] > a:hover,
+:root[data-theme="dark"] .criterion-table-link:hover {
+  color: var(--accent-600);
 }
 
 /* ── Base ── */

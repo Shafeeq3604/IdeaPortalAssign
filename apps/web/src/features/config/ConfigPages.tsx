@@ -235,7 +235,21 @@ export function ProfilesPage() {
                           .map((w) => (
                             <TableRow key={w.criterionKey}>
                               <TableCell>
-                                <Link to={`/config/criteria#${w.criterionKey}`}>
+                                {/*
+                                  `criterion-table-link` (dark-mode refinement pass, see
+                                  tokens.css) — every row in this table links to the same
+                                  place, so at fourteen rows per profile the whole table
+                                  read as a wall of blue in dark mode (found live): correct
+                                  individually, but the page didn't benefit from the rest
+                                  of the pass the way Explore Ideas or the Dashboard did.
+                                  Scoped to this class so it does not touch the Audit log
+                                  or People & access tables, where a blue name link is the
+                                  useful thing to scan for.
+                                */}
+                                <Link
+                                  to={`/config/criteria#${w.criterionKey}`}
+                                  className="criterion-table-link"
+                                >
                                   {w.criterionLabel}
                                 </Link>
                               </TableCell>

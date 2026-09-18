@@ -19,23 +19,31 @@ import { ScoreRing } from "../rankings/DashboardHero";
  * The coloured rule across the top of a card.
  *
  * The status already has a pill with an icon and a label, so this is the third cue rather
- * than the only one — nothing here is carried by colour alone (SPEC §7.6). The ramp
- * gradient is reserved for RANKED because that is the one state with a score behind it.
+ * than the only one — nothing here is carried by colour alone (SPEC §7.6).
  *
- * Every status in the enum is listed. A new lifecycle state added to the contract becomes
- * a compile error here rather than silently rendering a grey line nobody chose.
+ * Dark-mode final-polish pass: this used to spend colour (mostly the accent's own blue —
+ * SUBMITTED, EVALUATED and RANKED's three-stop gradient) on the ORDINARY path every idea
+ * takes, so a grid where most cards happen to be ranked read as a wall of blue rules —
+ * exactly the "too many repeated accents" finding. Colour here is now reserved for a
+ * state that actually needs attention or is genuinely exceptional (working, blocked,
+ * needs clarification, under review, implemented) — the plain, expected steps of the
+ * pipeline (submitted → evaluated → ranked → prototype/pilot/production) get the same
+ * quiet neutral rule a draft gets, because the status pill, and — for RANKED — the score
+ * ring right below it, already say so without a second, colour-coded flag. Every status
+ * in the enum is still listed, so a new one added to the contract is a compile error here
+ * rather than a silently-missing rule.
  */
 const RULE: Record<IdeaStatus, string> = {
   DRAFT: "bg-border",
-  SUBMITTED: "bg-state-info",
+  SUBMITTED: "bg-border-strong",
   AI_ANALYSIS: "bg-ai-ink",
   NEEDS_CLARIFICATION: "bg-factor-down",
-  EVALUATED: "bg-ramp-4",
-  RANKED: "bg-gradient-to-r from-ramp-4 via-ramp-5 to-grad-to",
+  EVALUATED: "bg-border-strong",
+  RANKED: "bg-border-strong",
   UNDER_REVIEW: "bg-state-warn",
-  PROTOTYPE_CANDIDATE: "bg-ramp-3",
-  PILOT: "bg-ramp-3",
-  PRODUCTION_CANDIDATE: "bg-ramp-3",
+  PROTOTYPE_CANDIDATE: "bg-border-strong",
+  PILOT: "bg-border-strong",
+  PRODUCTION_CANDIDATE: "bg-border-strong",
   IMPLEMENTED: "bg-state-ok",
   PARKED: "bg-border-strong",
   BLOCKED: "bg-state-danger",
@@ -70,7 +78,10 @@ export function IdeaCard({ idea }: { idea: IdeaSummary }) {
           <div className="flex flex-wrap items-center gap-2">
             <StatusPill kind="LIFECYCLE" status={idea.status} label={STATUS_LABEL[idea.status]} />
             {idea.rank === null ? null : (
-              <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-100 font-bold tabular-nums text-accent-foreground">
+              // Neutral, not accent (dark-mode final-polish pass) — the score ring a few
+              // pixels away already carries the one accent-coloured figure this card
+              // needs; a second blue chip beside it was repetition, not a second fact.
+              <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-100 font-bold tabular-nums text-muted-foreground">
                 Ranked #{idea.rank}
               </span>
             )}
@@ -138,9 +149,11 @@ export function IdeaCard({ idea }: { idea: IdeaSummary }) {
           is what the smaller tier is reserved for (the avatar-initial glyph below).
         */}
         <span className="flex min-w-0 items-center gap-2 text-200 text-muted-foreground">
+          {/* Neutral, not accent — a decorative initials glyph on every single card is
+              exactly the kind of repeated accent this pass was asked to cut. */}
           <span
             aria-hidden
-            className="grid size-6.5 shrink-0 place-items-center rounded-full bg-accent text-100 font-extrabold text-accent-foreground"
+            className="grid size-6.5 shrink-0 place-items-center rounded-full bg-muted text-100 font-extrabold text-muted-foreground"
           >
             {initials(idea.submitter.displayName)}
           </span>
