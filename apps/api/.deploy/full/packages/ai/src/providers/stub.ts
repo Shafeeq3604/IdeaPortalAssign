@@ -52,6 +52,10 @@ const FEASIBILITY_DIMENSIONS = [
   "TECHNICAL", "DATA", "INFRASTRUCTURE", "INTEGRATION", "SECURITY", "PRIVACY",
   "COMPLIANCE", "EXPERTISE", "RESOURCES", "COST", "EXTERNAL_DEPENDENCY",
 ] as const;
+const MARKET_DIMENSIONS = [
+  "MARKET_NEED", "MARKET_OPPORTUNITY", "COMPETITIVE_LANDSCAPE", "COMPETITIVE_ADVANTAGE",
+  "COMMERCIAL_VIABILITY",
+] as const;
 
 /** First sentence of the submission, so stub evidence is grounded in the real text. */
 function firstSentence(text: string): string {
@@ -128,6 +132,16 @@ export class StubProvider implements AiProvider {
             dimension,
             band: pick(BANDS, seed, i),
             rationale: "Assessed from the described problem and its stated frequency.",
+            evidence: [cite],
+          })),
+        };
+
+      case "MARKET_CONTEXT":
+        return {
+          findings: MARKET_DIMENSIONS.map((dimension, i) => ({
+            dimension,
+            band: pick(BANDS, seed, i + 7),
+            rationale: "Assessed from the described problem and what it would replace.",
             evidence: [cite],
           })),
         };

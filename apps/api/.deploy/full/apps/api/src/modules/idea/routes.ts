@@ -274,7 +274,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     const repo = makeIdeaRepo(ctx.db);
     const { title, description, problemStatement, expectedUsers, expectedOutcome,
       existingProcess, existingSolutions, suggestedTechnology, expectedBenefits,
-      estimatedCostNote, references, departmentId, categoryId, submit } = parsed.data;
+      estimatedCostNote, references, useCases, departmentId, categoryId, submit } = parsed.data;
 
     const { ideaId, versionId } = await repo.createWithFirstVersion({
       submitterId: actor.userId,
@@ -289,6 +289,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
         expectedBenefits: expectedBenefits ?? null,
         estimatedCostNote: estimatedCostNote ?? null,
         references: references ?? null,
+        useCases,
       },
     });
 
@@ -314,8 +315,11 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     if (!can(actor, "idea:read", resource).allowed) {
       return sendError(reply, "NOT_FOUND", NOT_FOUND);
     }
-    const feedback = await feedbackForIdeas(ctx, [idea], actor.userId);
-    return toIdeaDetail(idea, actor, feedback.get(idea.id));
+    const [feedback, scores] = await Promise.all([
+      feedbackForIdeas(ctx, [idea], actor.userId),
+      scoresForCurrentVersions(ctx, [idea]),
+    ]);
+    return toIdeaDetail(idea, actor, feedback.get(idea.id), scores.get(idea.id));
   });
 
   handlers.set("updateDraft", async (request, reply, ctx) => {
@@ -351,7 +355,25 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     if (!idea.currentVersionId) {
       throw new Error(`Idea ${idea.id} has no current version — the create-transaction invariant was violated`);
     }
-    await repo.updateDraftVersion(idea.currentVersionId, parsed.data as Record<string, string | null>);
+    // `departmentId`/`categoryId` live on `Idea`, not `IdeaVersion` — `UpdateDraftRequest`
+    // is `IdeaVersionInput.partial()`, which carries them because `IdeaVersionInput` is
+    // also what `createWithFirstVersion` reads them from at creation time. Passed straight
+    // through to `updateDraftVersion` they don't match any `IdeaVersion` column, and
+    // Prisma throws — so split them off onto the row they actually belong to.
+    const { departmentId, categoryId, ...versionFields } = parsed.data;
+    if (departmentId !== undefined || categoryId !== undefined) {
+      await ctx.db.idea.update({
+        where: { id: idea.id },
+        data: {
+          ...(departmentId !== undefined ? { departmentId } : {}),
+          ...(categoryId !== undefined ? { categoryId } : {}),
+        },
+      });
+    }
+    await repo.updateDraftVersion(
+      idea.currentVersionId,
+      versionFields as Record<string, string | readonly string[] | null>,
+    );
     const fresh = await repo.findById(ideaId);
     if (!fresh) throw new Error(`Idea ${ideaId} disappeared between its own update and re-fetch`);
     const feedback = await feedbackForIdeas(ctx, [fresh], actor.userId);
@@ -400,7 +422,9 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
         expectedBenefits: d.expectedBenefits ?? null,
         estimatedCostNote: d.estimatedCostNote ?? null,
         references: d.references ?? null,
+        useCases: d.useCases,
       },
+      requestId: request.id,
     });
 
     await startAnalysis(ctx, ideaId, versionId);
@@ -569,7 +593,10 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
 
     const transitioned = await repo.findById(ideaId);
     if (!transitioned) throw new Error(`Idea ${ideaId} disappeared between its own transition and re-fetch`);
-    const feedback = await feedbackForIdeas(ctx, [transitioned], actor.userId);
-    return toIdeaDetail(transitioned, actor, feedback.get(transitioned.id));
+    const [feedback, scores] = await Promise.all([
+      feedbackForIdeas(ctx, [transitioned], actor.userId),
+      scoresForCurrentVersions(ctx, [transitioned]),
+    ]);
+    return toIdeaDetail(transitioned, actor, feedback.get(transitioned.id), scores.get(transitioned.id));
   });
 }

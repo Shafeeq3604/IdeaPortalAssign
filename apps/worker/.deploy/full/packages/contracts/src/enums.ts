@@ -36,14 +36,28 @@ export const M1_REACHABLE_STATUSES: readonly IdeaStatus[] = [
 ] as const;
 
 export const AnalysisStep = z.enum([
-  "STRUCTURE", "USE_CASES", "VALUE", "FEASIBILITY", "RISK", "EFFORT_TIMELINE",
+  "STRUCTURE", "USE_CASES", "VALUE", "MARKET_CONTEXT", "FEASIBILITY", "RISK", "EFFORT_TIMELINE",
+  // NOTE: schema.prisma's Postgres enum also has an `IMPROVEMENT` member that this type
+  // is missing (flagged by a backend audit; this file's own header says these mirror the
+  // DB "exactly," and nothing currently checks that). NOT added here: nothing in current
+  // source ever constructs or persists an `AiAnalysis` row with that step — the feature
+  // that once did is gone (only stale, uncommitted `dist/` build output still references
+  // it; no `improve.ts` source exists). Adding it here without reviving the rest —
+  // packages/ai's AI_OUTPUT_SCHEMAS, prompts.ts's STEP_AGENT_NAMES/system prompt,
+  // step-inputs.ts's per-step field list all structurally require an entry too, per
+  // `Record<AnalysisStep, ...>` — would mean inventing a prompt and schema for a feature
+  // with no spec here, not fixing a live bug. Left as a real, flagged drift rather than
+  // guessed at. `MARKET_CONTEXT` is the opposite case: added HERE and everywhere else a
+  // `Record<AnalysisStep, ...>` requires it, in the same PR (§14.1 additive amendment;
+  // CONTRACT-LOG.md 2026-09-21) — a live, wired-up step, not a name added in isolation.
   "EXPLANATION",
 ]);
 export type AnalysisStep = z.infer<typeof AnalysisStep>;
 
-/** The six steps of the submission pipeline, in order (SPEC §3.3). Drives the UI stepper. */
+/** The seven steps of the submission pipeline, in order (SPEC §3.3; amended §14.1 to add
+ *  MARKET_CONTEXT — CONTRACT-LOG.md 2026-09-21). Drives the UI stepper. */
 export const PIPELINE_STEPS = [
-  "STRUCTURE", "USE_CASES", "VALUE", "FEASIBILITY", "RISK", "EFFORT_TIMELINE",
+  "STRUCTURE", "USE_CASES", "VALUE", "MARKET_CONTEXT", "FEASIBILITY", "RISK", "EFFORT_TIMELINE",
 ] as const satisfies readonly AnalysisStep[];
 
 export const AnalysisStatus = z.enum(["PENDING", "RUNNING", "SUCCEEDED", "FAILED", "SKIPPED"]);
@@ -93,6 +107,24 @@ export const ValueDimension = z.enum([
   "CUSTOMER_IMPACT", "OPERATIONAL", "PROBLEM_SEVERITY", "PROBLEM_FREQUENCY",
 ]);
 export type ValueDimension = z.infer<typeof ValueDimension>;
+
+/**
+ * Market, competitive and commercial context (platform-transformation brief §4) — is
+ * there real demand, what alternatives exist, and is there a plausible commercial case.
+ *
+ * Deliberately NOT `CriterionGroup.STRATEGIC` below (an existing, already-weighted
+ * scoring group covering Scalability/Strategic alignment/Long-term potential — a
+ * different question). This dimension set is unscored AI analysis, same ADR-005
+ * discipline as `ValueDimension`/`FeasibilityDimension`: an ordinal band plus evidence,
+ * never a number. Turning it into a scored criterion would mean inventing a weight for
+ * four evaluation profiles that nothing in SPEC or REQUIREMENTS specifies — a real
+ * "invent a number not in SPEC" stop, not a decision this file makes silently.
+ */
+export const MarketDimension = z.enum([
+  "MARKET_NEED", "MARKET_OPPORTUNITY", "COMPETITIVE_LANDSCAPE", "COMPETITIVE_ADVANTAGE",
+  "COMMERCIAL_VIABILITY",
+]);
+export type MarketDimension = z.infer<typeof MarketDimension>;
 
 export const FeasibilityDimension = z.enum([
   "TECHNICAL", "DATA", "INFRASTRUCTURE", "INTEGRATION", "SECURITY", "PRIVACY",

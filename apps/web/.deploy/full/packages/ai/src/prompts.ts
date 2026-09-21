@@ -115,6 +115,23 @@ Give every dimension a band, even when the submission says little — use a low 
 rationale that admits the uncertainty. Bands are ordinal labels, not scores; do not try to
 be numerically consistent between them.`,
 
+  MARKET_CONTEXT: `${SHARED_RULES}
+
+TASK — Assess market, competitive and commercial context across all five dimensions.
+Judge whether there is a real need (MARKET_NEED), how significant the opportunity is and
+who benefits (MARKET_OPPORTUNITY), what alternatives or existing solutions already address
+this (COMPETITIVE_LANDSCAPE), what would differentiate this approach from those
+alternatives (COMPETITIVE_ADVANTAGE), and whether a plausible commercial or budgetary case
+exists — cost saved, revenue enabled, or willingness to invest (COMMERCIAL_VIABILITY).
+
+This is an internal employee-idea platform, not a market-facing product launch: "market"
+usually means the organisation's own departments, customers or workflows, and
+"competitive" usually means the existing process, tool or vendor this would replace or
+compete with internally — read the submission for which applies. Give every dimension a
+band even when the submission says little, with a rationale that admits the uncertainty.
+Do not invent a market size, a price point or a revenue figure — describe the opportunity
+and the alternatives in terms of what the submission actually supports.`,
+
   FEASIBILITY: `${SHARED_RULES}
 
 TASK — Assess feasibility.

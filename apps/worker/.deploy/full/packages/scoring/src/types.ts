@@ -108,7 +108,7 @@ export interface RankingEntryResult {
   readonly tieBreakApplied: TieBreakRule | null;
 }
 
-export type TieBreakRule = "FEASIBILITY" | "MATURITY" | "SUBMITTED_EARLIER";
+export type TieBreakRule = "FEASIBILITY" | "MATURITY" | "SUBMITTED_EARLIER" | "ARBITRARY";
 
 export interface RankingResult {
   readonly profileKey: string;

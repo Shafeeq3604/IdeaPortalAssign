@@ -107,6 +107,7 @@ export function toVersionDetail(v: Row) {
     expectedBenefits: v.expectedBenefits ?? null,
     estimatedCostNote: v.estimatedCostNote ?? null,
     references: v.references ?? null,
+    useCases: v.useCases ?? [],
     attachments: (v.attachments ?? []).map((a: Row) => ({
       id: a.id, filename: a.filename, mime: a.mime, bytes: a.bytes,
     })),
@@ -135,6 +136,18 @@ export function toIdeaDetail(
   idea: Row,
   actor: { userId: string; roles: readonly Role[] },
   feedback: { up: number; down: number; myVote: "UP" | "DOWN" | null } = NO_FEEDBACK,
+  /**
+   * Found live while adding the idea-detail "strategic snapshot" strip (frontend): this
+   * always defaulted to null/null via `toIdeaSummary(idea, undefined, ...)` below — the
+   * list endpoint's own `scored` was wired up (see that function's doc comment for the
+   * first time this exact bug happened), but nobody wired it up here too, and nothing on
+   * this page previously rendered `IdeaDetail.compositeScore`/`.rank` directly, so a
+   * RANKED idea's own detail response silently claimed to have neither.
+   */
+  scored: { compositeScore: number | null; rank: number | null } = {
+    compositeScore: null,
+    rank: null,
+  },
 ) {
   const resource = {
     ideaId: idea.id,
@@ -155,7 +168,7 @@ export function toIdeaDetail(
   }).map((t) => t.to);
 
   return {
-    ...toIdeaSummary(idea, undefined, feedback),
+    ...toIdeaSummary(idea, scored, feedback),
     currentVersion: toVersionDetail(idea.currentVersion),
     versionCount: idea._count?.versions ?? 1,
     openRecommendationCount: 0, // P5 supplies this

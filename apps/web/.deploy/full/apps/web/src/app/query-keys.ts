@@ -48,7 +48,7 @@ export const queryKeys = {
   rankings: {
     all: () => ["rankings"] as const,
     list: (filters: Filters) => ["rankings", "list", filters] as const,
-    run: (runId: string) => ["rankings", "run", runId] as const,
+    run: (runId: string, filters: Filters = {}) => ["rankings", "run", runId, filters] as const,
     compare: (ids: readonly string[], profile?: string) =>
       ["rankings", "compare", [...ids].sort(), profile ?? null] as const,
   },
@@ -75,6 +75,13 @@ export const queryKeys = {
     history: () => ["discovery", "history"] as const,
     detail: (discoveryQueryId: string) => ["discovery", "detail", discoveryQueryId] as const,
   },
+
+  /** Platform-transformation brief §7 — conversational idea creation. Standalone: a
+   *  conversation is scratch state, no idea-scoped key touches this either. */
+  ideaCreation: {
+    list: () => ["idea-creation", "list"] as const,
+    detail: (conversationId: string) => ["idea-creation", "detail", conversationId] as const,
+  },
 } as const;
 
 /**
@@ -96,6 +103,12 @@ export const invalidateAfter = {
     queryKeys.ideas.all(),
     queryKeys.review.queue({}),
     queryKeys.admin.audit({}),
+  ],
+  /** Editing a draft in place changes only the idea itself — no version, history, analysis
+   *  or evaluation exists yet to invalidate. */
+  draftEdit: (ideaId: string) => [
+    queryKeys.ideas.detail(ideaId),
+    queryKeys.ideas.all(),
   ],
   newVersion: (ideaId: string) => [
     queryKeys.ideas.detail(ideaId),

@@ -15,4 +15,5 @@ export * from "./schemas/analysis.js";
 export * from "./schemas/evaluation.js";
 export * from "./schemas/review.js";
 export * from "./schemas/discovery.js";
+export * from "./schemas/idea-creation.js";
 export * from "./permissions.js";

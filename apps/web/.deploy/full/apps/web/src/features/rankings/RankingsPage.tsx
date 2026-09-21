@@ -61,7 +61,7 @@ export function RankingsPage({ mode = "current" }: { mode?: "current" | "run" })
 
   const profiles = useProfiles();
   const current = useRankings({ page, profile, rankBand });
-  const historic = useRankingRun(runId);
+  const historic = useRankingRun(runId, { page, rankBand });
   const query = mode === "run" ? historic : current;
 
   const update = (mutate: (next: URLSearchParams) => void) => {

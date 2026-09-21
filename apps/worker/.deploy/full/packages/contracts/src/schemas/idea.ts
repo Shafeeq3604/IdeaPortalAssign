@@ -28,6 +28,10 @@ export const IdeaVersionInput = z.object({
   expectedBenefits: OptionalField.optional(),
   estimatedCostNote: OptionalField.optional(),
   references: OptionalField.optional(),
+  /** First-class, not folded into `description` (platform-transformation brief §7) —
+   *  real structured data future strategic analysis, discovery, filtering, categorisation
+   *  and reporting can read directly rather than re-extracting from prose. */
+  useCases: z.array(z.string().trim().min(1).max(300)).max(10).default([]),
   departmentId: Id.nullable().optional(),
   categoryId: Id.nullable().optional(),
 });
@@ -72,6 +76,7 @@ export const IdeaVersionDetail = IdeaVersionSummary.extend({
   expectedBenefits: z.string().nullable(),
   estimatedCostNote: z.string().nullable(),
   references: z.string().nullable(),
+  useCases: z.array(z.string()),
   attachments: z.array(
     z.object({ id: Id, filename: z.string(), mime: z.string(), bytes: z.number().int() }),
   ),

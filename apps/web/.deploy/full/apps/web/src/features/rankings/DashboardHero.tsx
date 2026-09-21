@@ -4,6 +4,7 @@ import { ArrowRight, ListChecks, TrendingDown, TrendingUp, Trophy } from "lucide
 import { matchRouteId } from "@iep/contracts";
 import type { DashboardResponse, ExplanationItem, ListRankingsResponse } from "@iep/contracts";
 import { canSee, useSession } from "../../app/use-session";
+import { ago } from "../../app/relative-time";
 
 /**
  * The dashboard hero (Idea Platform Redesign — "hero").
@@ -18,17 +19,6 @@ import { canSee, useSession } from "../../app/use-session";
  * that the numbers below them are decorative too. They are replaced with two the engine
  * actually knows: how many ideas are on the board, and what the leader scored.
  */
-
-/** "31 min ago" — the canvas's pulsing freshness chip, from the real timestamp. */
-function ago(iso: string): string {
-  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-  const days = Math.round(hours / 24);
-  return `${days} day${days === 1 ? "" : "s"} ago`;
-}
 
 function greeting(): string {
   const h = new Date().getHours();

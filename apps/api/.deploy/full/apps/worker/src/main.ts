@@ -1,16 +1,19 @@
 import { Worker } from "bullmq";
-import { getPrisma } from "@iep/db";
+import { disconnectPrisma, getPrisma } from "@iep/db";
 import { WorkerEnv, loadEnv } from "@iep/contracts/env";
 import {
   AnthropicProvider, StubProvider, type AiProvider,
   AnthropicDiscoveryProvider, StubDiscoveryProvider, type DiscoveryChatProvider,
+  AnthropicIdeaCreationProvider, StubIdeaCreationProvider, type IdeaCreationProvider,
 } from "@iep/ai";
 import {
-  ANALYSIS_QUEUE, RANKING_QUEUE, DISCOVERY_QUEUE, connectionFrom, makeRankingQueue,
-  type AnalysisJob, type RankingJob, type DiscoveryJob,
+  ANALYSIS_QUEUE, RANKING_QUEUE, DISCOVERY_QUEUE, IDEA_CREATION_QUEUE, connectionFrom,
+  makeRankingQueue,
+  type AnalysisJob, type RankingJob, type DiscoveryJob, type IdeaCreationJob,
 } from "./queue.js";
 import { runPipeline } from "./pipeline.js";
 import { runDiscoveryQuery } from "./discovery.js";
+import { runIdeaCreationTurn } from "./idea-creation.js";
 import { backfillMissingEvaluations, evaluateVersion, recomputeRankings } from "@iep/evaluation";
 import { grantRole } from "@iep/db";
 import { makeObservabilityClient } from "./observability.js";
@@ -71,6 +74,21 @@ function makeDiscoveryProvider(): DiscoveryChatProvider {
 }
 
 const discoveryProvider = makeDiscoveryProvider();
+
+/** Same degrade-to-stub philosophy as the two providers above. */
+function makeIdeaCreationProvider(): IdeaCreationProvider {
+  if (env.AI_PROVIDER === "stub") return new StubIdeaCreationProvider();
+  if (!env.ANTHROPIC_API_KEY) {
+    console.error(
+      "[worker] AI_PROVIDER=anthropic but no ANTHROPIC_API_KEY is set. Idea Creation " +
+        "Agent falling back to its stub provider.",
+    );
+    return new StubIdeaCreationProvider();
+  }
+  return new AnthropicIdeaCreationProvider({ apiKey: env.ANTHROPIC_API_KEY });
+}
+
+const ideaCreationProvider = makeIdeaCreationProvider();
 
 /** iManner LLM observability (opt-in, see packages/contracts/src/env.ts's OBS_* fields). */
 const observability = makeObservabilityClient(env);
@@ -202,9 +220,50 @@ discoveryWorker.on("failed", (job, error) => {
   captureException(error, { queue: "discovery", jobId: job?.id ?? "unknown" });
 });
 
+const ideaCreationWorker = new Worker<IdeaCreationJob>(
+  IDEA_CREATION_QUEUE,
+  async (job) => {
+    const started = Date.now();
+    await runIdeaCreationTurn(
+      {
+        db, provider: ideaCreationProvider, redactionEnabled: env.PII_REDACTION_ENABLED,
+        observability,
+      },
+      job.data,
+    );
+    console.log(`[idea-creation] ${job.data.conversationId} turn done in ${Date.now() - started}ms`);
+  },
+  // Same "modest until the real rate limit is known" reasoning as the other two
+  // provider-calling workers (A4) — all three hold jobs against the same Anthropic account.
+  { connection: connectionFrom(env.REDIS_URL), concurrency: 2 },
+);
+
+ideaCreationWorker.on("failed", (job, error) => {
+  console.error(`[idea-creation] job ${job?.id} failed:`, error.message);
+  captureException(error, { queue: "idea-creation", jobId: job?.id ?? "unknown" });
+  // The queue is `attempts: 1` (a failed turn is cheap to retry by resending the
+  // message), but nothing else ever moves the conversation off `AWAITING_AI` if the job
+  // itself throws — an unhandled DB error, a deleted row, anything `runIdeaCreationTurn`
+  // doesn't catch internally. Without this, `sendIdeaCreationMessage` refuses every
+  // further message (`routes.ts`'s AWAITING_AI guard) and the conversation is stuck with
+  // no way for the person to recover it.
+  const conversationId = job?.data.conversationId;
+  if (conversationId) {
+    db.ideaCreationConversation
+      .updateMany({
+        where: { id: conversationId, status: "AWAITING_AI" },
+        data: { status: "ACTIVE", errorCode: "TURN_FAILED" },
+      })
+      .catch((resetError: unknown) => {
+        console.error(`[idea-creation] could not reset ${conversationId} after a failed turn:`, resetError);
+      });
+  }
+});
+
 console.log(
-  `iep-worker listening on ${ANALYSIS_QUEUE} + ${RANKING_QUEUE} + ${DISCOVERY_QUEUE} · ` +
-    `provider=${provider.name} · discoveryProvider=${discoveryProvider.name} · ` +
+  `iep-worker listening on ${ANALYSIS_QUEUE} + ${RANKING_QUEUE} + ${DISCOVERY_QUEUE} + ` +
+    `${IDEA_CREATION_QUEUE} · provider=${provider.name} · ` +
+    `discoveryProvider=${discoveryProvider.name} · ideaCreationProvider=${ideaCreationProvider.name} · ` +
     `budget=$${env.AI_BUDGET_PER_VERSION_USD}/version · redaction=${env.PII_REDACTION_ENABLED} · ` +
     `iManner observability=${env.OBS_ENABLED ? "enabled" : "disabled"}`,
 );
@@ -235,13 +294,39 @@ if (env.BOOTSTRAP_ADMIN_EMAIL) {
     });
 }
 
+// Guards against a second SIGINT/SIGTERM re-entering the shutdown sequence.
+let shuttingDown = false;
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     void (async () => {
-      await Promise.all([
-        worker.close(), ranker.close(), discoveryWorker.close(), rankingQueue.close(),
-      ]);
-      process.exit(0);
+      try {
+        const [analysisClient, rankerClient, discoveryClient, ideaCreationClient, rankingQueueClient] =
+          await Promise.all([
+            worker.client, ranker.client, discoveryWorker.client, ideaCreationWorker.client,
+            rankingQueue.client,
+          ]);
+        await Promise.allSettled([
+          worker.close(), ranker.close(), discoveryWorker.close(), ideaCreationWorker.close(),
+          rankingQueue.close(),
+        ]);
+        // BullMQ treats a `connection` handed to it as external and does not close it on
+        // `.close()` — five separate ioredis connections (one per worker, one for the
+        // ranking self-enqueue queue) otherwise leak on every graceful shutdown.
+        await Promise.allSettled(
+          [analysisClient, rankerClient, discoveryClient, ideaCreationClient, rankingQueueClient]
+            .map((client) => client.quit()),
+        );
+        await disconnectPrisma();
+      } catch (error) {
+        // Same reasoning as the API's shutdown handler: an unhandled rejection here used
+        // to mean `process.exit(0)` below was never reached and the process hung until
+        // SIGKILL — exactly the scenario (Redis already half-gone) shutdown hits most.
+        console.error("error during shutdown — exiting anyway:", error);
+      } finally {
+        process.exit(0);
+      }
     })();
   });
 }

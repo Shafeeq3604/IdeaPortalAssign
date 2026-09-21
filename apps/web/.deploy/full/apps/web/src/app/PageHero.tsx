@@ -87,9 +87,13 @@ export function PageHero({
  * icon, so the destination is still identifiable at a glance — and drops the rest: no
  * gradient, no dot texture, no serif display type. `<h1>` is a direct child of `.page`
  * here on purpose (index.css's `.page > h1::after` rule), so the same short gradient
- * underline that already marks every plain heading in the product (IdeaShell, the
- * People/Department pages) marks this one too, instead of inventing a second identity
- * mark for "a heading with an icon."
+ * underline that already marks every plain heading in the product (the People/Department
+ * pages) marks this one too, instead of inventing a second identity mark for "a heading
+ * with an icon." IdeaShell is the one deliberate exception, not an example of this
+ * convention: its own comment marks the serif treatment there as the flagship of the
+ * enterprise-polish pass (§12), for the one screen every role lands on to decide
+ * something — this file used to cite it as a "plain heading" example, which stopped
+ * being true the moment that pass shipped.
  */
 export function PageHeading({
   icon: Icon,

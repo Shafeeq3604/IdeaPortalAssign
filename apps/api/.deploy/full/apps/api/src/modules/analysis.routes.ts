@@ -29,8 +29,8 @@ function buildAnalysisStatus(
   ideaVersionId: string,
   // `step` is `string`, not the narrower `@iep/contracts` `AnalysisStep`: the rows this
   // is called with come straight from Prisma, whose generated enum has an extra
-  // `IMPROVEMENT` value (P5's separate step) that the pipeline's 7-step `AnalysisStep`
-  // doesn't carry — `byStep.get(step)` below only ever looks up the 7 pipeline steps.
+  // `IMPROVEMENT` value (P5's separate step) that the pipeline's `AnalysisStep` doesn't
+  // carry — `byStep.get(step)` below only ever looks up the 7 PIPELINE_STEPS.
   rows: readonly {
     step: string;
     status: string;
@@ -41,7 +41,7 @@ function buildAnalysisStatus(
 ) {
   const byStep = new Map(rows.map((r) => [r.step, r]));
 
-  // The six steps ALWAYS appear, in order, whether or not they have started. The UI
+  // The seven steps ALWAYS appear, in order, whether or not they have started. The UI
   // stepper is determinate (SPEC §8.4) — it cannot be, if steps appear as they go.
   const steps = PIPELINE_STEPS.map((step: AnalysisStep) => {
     const r = byStep.get(step);
@@ -108,7 +108,7 @@ export function registerAnalysisRoutes(handlers: Map<string, Handler>): void {
     const [analyses, feasibility, risks, dependencies, plan] = await Promise.all([
       ctx.db.aiAnalysis.findMany({
         where: { ideaVersionId: versionId },
-        include: { proposal: true, useCases: true, valueFindings: true },
+        include: { proposal: true, useCases: true, valueFindings: true, marketFindings: true },
       }),
       ctx.db.feasibilityAssessment.findUnique({
         where: { ideaVersionId: versionId }, include: { findings: true },
@@ -124,6 +124,7 @@ export function registerAnalysisRoutes(handlers: Map<string, Handler>): void {
     const structure = byStep.get("STRUCTURE");
     const useCaseRun = byStep.get("USE_CASES");
     const valueRun = byStep.get("VALUE");
+    const marketRun = byStep.get("MARKET_CONTEXT");
 
     // `analyses` above already has every row `buildAnalysisStatus` needs — calling
     // through `getAnalysisStatus` here used to re-run its `idea` lookup and its
@@ -145,6 +146,9 @@ export function registerAnalysisRoutes(handlers: Map<string, Handler>): void {
       })),
       valueFindings: (valueRun?.valueFindings ?? []).map((v) => ({
         dimension: v.dimension, band: v.band, rationale: v.rationale, evidence: v.evidence,
+      })),
+      marketFindings: (marketRun?.marketFindings ?? []).map((m) => ({
+        dimension: m.dimension, band: m.band, rationale: m.rationale, evidence: m.evidence,
       })),
       feasibility: feasibility
         ? {

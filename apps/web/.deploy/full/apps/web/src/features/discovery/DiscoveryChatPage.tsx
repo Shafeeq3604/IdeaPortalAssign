@@ -150,7 +150,11 @@ function IdeaItem({
 
   const submitAsIdea = () => {
     const sourcesLine = item.sources.length > 0 ? `\n\nSources: ${item.sources.join(", ")}` : "";
-    navigate("/ideas/new", {
+    // Straight to the direct form, not the AI conversation (platform-transformation
+    // brief §7): a Discovery finding is already structured text a person wrote nothing
+    // of yet, so it goes to the same review → edit → submit form it always has, keeping
+    // its current, already-good UX, rather than being re-run through a second AI pass.
+    navigate("/ideas/new/manual", {
       state: {
         prefill: structured
           ? {

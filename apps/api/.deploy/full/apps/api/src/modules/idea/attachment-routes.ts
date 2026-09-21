@@ -1,5 +1,5 @@
 import {
-  MAX_ATTACHMENTS_PER_VERSION, MAX_ATTACHMENT_BYTES, can,
+  MAX_ATTACHMENTS_PER_VERSION, MAX_ATTACHMENT_BYTES, EDITABLE, can,
 } from "@iep/contracts";
 import type { Attachment, IdeaStatus } from "@iep/contracts";
 import type { Handler } from "../../server.js";
@@ -25,9 +25,6 @@ import { storeUpload } from "./attachments.js";
  * before anything new is sent to a provider. The files are stored, listed and downloadable
  * by people; the pipeline does not read them.
  */
-
-/** A version accepts attachments only while its idea is still being written. */
-const EDITABLE: readonly IdeaStatus[] = ["DRAFT"];
 
 export function registerAttachmentRoutes(handlers: Map<string, Handler>): void {
   handlers.set("listAttachments", async (request, reply, ctx) => {

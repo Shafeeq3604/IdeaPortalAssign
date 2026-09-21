@@ -86,11 +86,13 @@ export async function persistEvaluation(
       priorOverrides.map((o) => [o.criterionScore.criterionId, o]),
     );
 
+    let overridesReapplied = 0;
     for (const score of result.criterionScores) {
       const criterionId = criterionIdByKey.get(score.criterionKey);
       if (!criterionId) continue; // a criterion the catalogue no longer has
 
       const override = latestByCriterion.get(criterionId);
+      if (override) overridesReapplied += 1;
       const normalized = override ? Number(override.newNormalized) : score.normalized;
 
       await tx.criterionScore.upsert({
@@ -121,6 +123,20 @@ export async function persistEvaluation(
       });
     }
 
+    /**
+     * A criterion deactivated since a PREVIOUS evaluation of this same version leaves
+     * its old `CriterionScore` row sitting under this `evaluationId` — the loop above
+     * only touches criteria `result.criterionScores` still has (i.e. currently active,
+     * per `engine.evaluate()`'s own filtering), so that row was never updated OR
+     * deleted. The composite below used to sum every stored row unconditionally,
+     * silently including that orphaned contribution in a score the current run never
+     * intended to produce. Deleting it here keeps "what's stored" in sync with "what
+     * this run actually scored" before the sum below reads it back.
+     */
+    await tx.criterionScore.deleteMany({
+      where: { evaluationId: evaluation.id, criterionId: { notIn: [...criterionIdByKey.values()] } },
+    });
+
     // With overrides re-applied the composite has moved, so it is recomputed from what
     // was actually stored rather than from what the engine originally returned.
     const stored = await tx.criterionScore.findMany({
@@ -138,7 +154,7 @@ export async function persistEvaluation(
       evaluationId: evaluation.id,
       compositeScore: composite,
       maturityLevel: result.maturityLevel,
-      overridesReapplied: latestByCriterion.size,
+      overridesReapplied,
     };
   });
 }

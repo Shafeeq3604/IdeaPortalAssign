@@ -256,7 +256,11 @@ function classifyMaturity(c: CompletenessInput): MaturityLevel {
   const level5 = c.hasImplementationPlan && c.hasRisks && c.hasKpis;
   const level4 = c.hasEvidenceOfDemand || c.hasPrototypeEvidence;
   const level3 = c.hasUseCases && c.hasSuggestedTechnology;
-  const level2 = c.hasProblemStatement && c.hasExpectedUsers;
+  // `hasExpectedOutcome` sits in `CompletenessInput` right alongside these other two
+  // (types.ts) and factors.ts computes it purely to gate this level — it was dropped
+  // from this condition, letting an idea with no stated expected outcome still clear
+  // level 2 (and everything built on top of it) on problem statement and users alone.
+  const level2 = c.hasProblemStatement && c.hasExpectedUsers && c.hasExpectedOutcome;
 
   if (level5 && level4 && level3 && level2) return 5;
   if (level4 && level3 && level2) return 4;
@@ -307,8 +311,12 @@ function rank(
     if (a.submittedAt !== b.submittedAt) {
       return { d: a.submittedAt < b.submittedAt ? -1 : 1, rule: "SUBMITTED_EARLIER" };
     }
-    // Final fallback so ordering is total, not merely mostly-defined.
-    return { d: a.ideaId < b.ideaId ? -1 : 1, rule: "SUBMITTED_EARLIER" };
+    // Final fallback so ordering is total, not merely mostly-defined — reached only when
+    // score, feasibility, maturity AND submittedAt are all identical. This used to report
+    // `rule: "SUBMITTED_EARLIER"` here too, which fed `explain()`'s note below a false
+    // claim ("the earlier submission was placed first") when submission time was in fact
+    // tied and id order, not time, decided it.
+    return { d: a.ideaId < b.ideaId ? -1 : 1, rule: "ARBITRARY" };
   };
 
   const sorted = [...rows].sort((a, b) => compare(a, b).d);
@@ -447,6 +455,8 @@ function explain(
           FEASIBILITY: "Tied on score; placed by the stronger feasibility assessment.",
           MATURITY: "Tied on score and feasibility; placed by the higher maturity level.",
           SUBMITTED_EARLIER: "Tied on score, feasibility and maturity; the earlier submission was placed first.",
+          ARBITRARY:
+            "Tied on score, feasibility, maturity and submission time; ordered arbitrarily to keep the list stable.",
         }[entry.tieBreakApplied];
 
   return { strengths, constraints, peerComparisons, tieBreakNote };

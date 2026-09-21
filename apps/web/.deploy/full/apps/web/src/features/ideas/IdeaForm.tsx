@@ -23,8 +23,14 @@ export type { IdeaFormValues };
 
 const FIELD_NAMES = Object.keys(IdeaFormSchema.shape);
 
+/** Every plain-string field — excludes `useCases` (`string[]`, its own dedicated
+ *  control, not the generic `register()`-and-`<Textarea>` path every other field uses). */
+type StringFieldName = {
+  readonly [K in keyof IdeaFormValues]-?: IdeaFormValues[K] extends string | undefined ? K : never;
+}[keyof IdeaFormValues];
+
 interface Field {
-  readonly name: keyof IdeaFormValues;
+  readonly name: StringFieldName;
   readonly label: string;
   readonly help: string;
   /** Shown as placeholder text — a worked example, not a default value, so it disappears
@@ -143,6 +149,13 @@ interface Props {
    * them focus.
    */
   readonly wizard?: boolean;
+  /**
+   * Hides the secondary "Save as draft" action. For a form with only one meaningful save
+   * action — editing an already-draft idea's fields in place, where "submit" is a
+   * separate action elsewhere on the page, not a second button here that would just
+   * duplicate the primary one.
+   */
+  readonly singleAction?: boolean;
 }
 
 /** The one review/optional step tacked on after the three required ones. */
@@ -150,7 +163,7 @@ const REVIEW_STEP_TITLE = "Additional information";
 
 export function IdeaForm({
   defaultValues, requireChangeSummary = false, submitLabel, onSubmit, serverError, busy, extra,
-  wizard = false,
+  wizard = false, singleAction = false,
 }: Props) {
   const schema = requireChangeSummary
     ? IdeaFormSchema.extend({
@@ -160,7 +173,10 @@ export function IdeaForm({
 
   const form = useForm<IdeaFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { title: "", description: "", problemStatement: "", expectedUsers: "", expectedOutcome: "", ...defaultValues },
+    defaultValues: {
+      title: "", description: "", problemStatement: "", expectedUsers: "", expectedOutcome: "",
+      useCases: [], ...defaultValues,
+    },
     mode: "onBlur",
   });
 
@@ -190,6 +206,11 @@ export function IdeaForm({
    */
   const [step, setStep] = React.useState(0);
   const totalSteps = REQUIRED_SECTIONS.length + 1;
+  // The optional accordion (wizard mode) starts collapsed by design, but an invalid
+  // optional field — `useCases` included — then hides its own error inside a closed
+  // panel with no way to open it except noticing nothing happened on Submit. Force it
+  // open once that's true; manual toggling afterward still works via `onValueChange`.
+  const [optionalOpen, setOptionalOpen] = React.useState(false);
   const goBack = () => setStep((s) => Math.max(0, s - 1));
   const goNext = async () => {
     // `step` never leaves [0, REQUIRED_SECTIONS.length] by construction (goBack/goNext
@@ -244,6 +265,60 @@ export function IdeaForm({
       </div>
     );
   };
+
+  /**
+   * Use cases (platform-transformation brief §7) — a real `string[]` field, not free
+   * text folded into `description`. `register()` binds an uncontrolled DOM input
+   * straight to its RHF value, which works for every other field here because they are
+   * all plain strings; an array has no honest single DOM value to bind to, so this is
+   * local display state (one line per entry) kept in sync with the actual array value
+   * via `setValue` on every change, rather than forcing the field through `register`.
+   */
+  const [useCasesText, setUseCasesText] = React.useState(
+    () => (form.getValues("useCases") ?? []).join("\n"),
+  );
+  // An array field has no single `.message` the way a string field's error does — a
+  // too-long single line lands as a per-item error, going over the 10-line cap lands as
+  // one on the array itself. Either way, this was rendered nowhere: the control sat
+  // inside a collapsed accordion with no error text, so an invalid entry made "Submit"
+  // silently do nothing.
+  const useCasesError = form.formState.errors.useCases;
+  const useCasesErrorMessage = useCasesError?.message
+    ?? (Array.isArray(useCasesError) ? useCasesError.find((e) => e?.message)?.message : undefined);
+  const renderUseCases = () => (
+    <div className="space-y-2">
+      <Label htmlFor="field-useCases">Use cases</Label>
+      <p className="text-200 text-muted-foreground">
+        Specific situations this would help with, one per line. Real, structured detail —
+        not a summary — for later analysis, discovery and reporting to use directly.
+      </p>
+      <Textarea
+        id="field-useCases"
+        rows={4}
+        placeholder={
+          "e.g. Approve a claim in one click from the email notification\n" +
+          "e.g. Flag a claim automatically when a receipt is missing"
+        }
+        aria-invalid={Boolean(useCasesErrorMessage)}
+        className={CONTROL}
+        value={useCasesText}
+        onChange={(e) => {
+          setUseCasesText(e.target.value);
+          form.setValue(
+            "useCases",
+            e.target.value.split("\n").map((s) => s.trim()).filter(Boolean),
+            { shouldDirty: true },
+          );
+        }}
+      />
+      {useCasesErrorMessage ? (
+        <p role="alert" className="text-200 text-destructive">{useCasesErrorMessage}</p>
+      ) : null}
+    </div>
+  );
+
+  const hasOptionalError =
+    Boolean(useCasesErrorMessage) || OPTIONAL_FIELDS.some((f) => form.formState.errors[f.name]);
 
   const onFinalStep = !wizard || step === REQUIRED_SECTIONS.length;
   const showSection = (index: number) => !wizard || step === index;
@@ -353,7 +428,12 @@ export function IdeaForm({
            * unlike revision (`wizard` off), where these can already hold real answers and
            * hiding them would read as the page losing someone's work.
            */
-          <Accordion type="single" collapsible>
+          <Accordion
+            type="single"
+            collapsible
+            value={optionalOpen || hasOptionalError ? "optional" : ""}
+            onValueChange={(v) => setOptionalOpen(v === "optional")}
+          >
             <AccordionItem value="optional" className="border-0">
               <AccordionTrigger className="rounded-2xl border border-dashed border-border bg-muted/50 px-6 py-4 hover:no-underline">
                 <div className="text-left">
@@ -365,6 +445,7 @@ export function IdeaForm({
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-6 rounded-b-2xl border border-t-0 border-dashed border-border px-6 pb-6">
+                {renderUseCases()}
                 {OPTIONAL_FIELDS.map(renderField)}
               </AccordionContent>
             </AccordionItem>
@@ -385,6 +466,7 @@ export function IdeaForm({
                 gives the analysis more to work with, and raises the maturity level.
               </p>
             </div>
+            {renderUseCases()}
             {OPTIONAL_FIELDS.map(renderField)}
           </section>
         )
@@ -444,7 +526,7 @@ export function IdeaForm({
                 <Button type="button" variant="outline" onClick={goBack}>Back</Button>
               ) : null}
               <Button type="submit" disabled={busy}>{busy ? "Saving…" : submitLabel}</Button>
-              {!requireChangeSummary ? (
+              {!requireChangeSummary && !singleAction ? (
                 <Button
                   type="button"
                   variant="outline"

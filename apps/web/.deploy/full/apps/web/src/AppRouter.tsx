@@ -8,6 +8,7 @@ import { RouteErrorBoundary } from "./app/error-boundary";
 import { RequireAuth } from "./app/session";
 import { canSee, useSession } from "./app/use-session";
 import { useDocumentTitle } from "./app/use-document-title";
+import { RouteAnnouncer } from "./app/use-route-announcer";
 import { LoginPage } from "./features/auth/LoginPage";
 import { SignupPage } from "./features/auth/SignupPage";
 import { IdeaListPage } from "./features/ideas/IdeaListPage";
@@ -42,6 +43,7 @@ import { RankingsPage } from "./features/rankings/RankingsPage";
  */
 
 const SubmitIdeaPage = lazy(() => import("./features/ideas/SubmitIdeaPage").then((m) => ({ default: m.SubmitIdeaPage })));
+const IdeaCreationPage = lazy(() => import("./features/idea-creation/IdeaCreationPage").then((m) => ({ default: m.IdeaCreationPage })));
 const ReviseIdeaPage = lazy(() => import("./features/ideas/ReviseIdeaPage").then((m) => ({ default: m.ReviseIdeaPage })));
 const VersionPage = lazy(() => import("./features/ideas/VersionPage").then((m) => ({ default: m.VersionPage })));
 const ReviewTab = lazy(() => import("./features/review/ReviewTab").then((m) => ({ default: m.ReviewTab })));
@@ -140,7 +142,11 @@ function Shell() {
           <Routes>
             <Route path="/ideas" element={<IdeaListPage scope="all" />} />
             <Route path="/me/ideas" element={<IdeaListPage scope="mine" />} />
-            <Route path="/ideas/new" element={<SubmitIdeaPage />} />
+            {/* Platform-transformation brief §7: the AI-native conversational flow is now
+                the primary entry point (brief §2); the direct form stays available at
+                its own path for compatibility/fallback, not as an equal alternative. */}
+            <Route path="/ideas/new" element={<IdeaCreationPage />} />
+            <Route path="/ideas/new/manual" element={<SubmitIdeaPage />} />
             <Route path="/ideas/:ideaId/overview" element={<OverviewTab />} />
             <Route path="/ideas/:ideaId/analysis" element={<AnalysisTab />} />
             <Route path="/ideas/:ideaId/evaluation" element={<EvaluationTab />} />
@@ -186,6 +192,7 @@ export function AppRouter() {
             hook lives here instead — one level up, so every route gets it regardless of
             auth state, rather than duplicating the call inside both branches. */}
         <DocumentTitle />
+        <RouteAnnouncer />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />

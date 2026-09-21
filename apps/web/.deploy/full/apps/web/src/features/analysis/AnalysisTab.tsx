@@ -3,15 +3,17 @@ import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Card, CardContent,
   CardHeader, CardTitle, EmptyState, ErrorState, EvidenceList, Provenance, Skeleton, StatusPill,
 } from "@iep/ui";
-import type { Band, ScoreSource, ValueDimension, ValueFinding } from "@iep/contracts";
-import { ValueDimension as ValueDimensionEnum } from "@iep/contracts";
+import type {
+  Band, MarketDimension, MarketFinding, ScoreSource, ValueDimension, ValueFinding,
+} from "@iep/contracts";
+import { MarketDimension as MarketDimensionEnum, ValueDimension as ValueDimensionEnum } from "@iep/contracts";
 import { IdeaShell } from "../ideas/IdeaShell";
 import { AnalysisProgress } from "./AnalysisProgress";
 import {
   BAND_LABEL, BAND_STEPS, DEPENDENCY_KIND_LABEL, EFFORT_LABEL, FEASIBILITY_DIMENSION_LABEL,
-  FEASIBILITY_LABEL, HORIZON_LABEL, REQUIREMENT_KIND_LABEL, RISK_CATEGORY_LABEL,
-  RISK_LEVEL_LABEL, TIMELINE_PHASE_LABEL, USER_COUNT_LABEL, USE_CASE_KIND_LABEL,
-  VALUE_DIMENSION_LABEL, provenanceState, useAnalysis, validatedByOf,
+  FEASIBILITY_LABEL, HORIZON_LABEL, MARKET_DIMENSION_LABEL, REQUIREMENT_KIND_LABEL,
+  RISK_CATEGORY_LABEL, RISK_LEVEL_LABEL, TIMELINE_PHASE_LABEL, USER_COUNT_LABEL,
+  USE_CASE_KIND_LABEL, VALUE_DIMENSION_LABEL, provenanceState, useAnalysis, validatedByOf,
 } from "./api";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
@@ -49,7 +51,9 @@ function allSame<Item, T>(items: readonly Item[], pick: (item: Item) => T): T | 
   return items.every((item) => JSON.stringify(pick(item)) === first) ? pick(items[0]!) : null;
 }
 
-function sharedAcrossDimensions(findings: readonly ValueFinding[]): {
+function sharedAcrossDimensions(
+  findings: readonly (ValueFinding | MarketFinding)[],
+): {
   rationale: string | null;
   evidence: readonly string[] | null;
 } {
@@ -109,7 +113,7 @@ export function AnalysisTab() {
         const source: ScoreSource = a.run.steps.some((s) => s.usedFallback) ? "FALLBACK" : "AI";
         const hasAnything =
           a.proposal || a.useCases.length > 0 || a.valueFindings.length > 0 ||
-          a.feasibility || a.risks.length > 0 || a.plan;
+          a.marketFindings.length > 0 || a.feasibility || a.risks.length > 0 || a.plan;
 
         if (!hasAnything) {
           return (
@@ -132,8 +136,10 @@ export function AnalysisTab() {
         const direct = a.useCases.filter((u) => u.kind === "DIRECT");
         const indirect = a.useCases.filter((u) => u.kind === "INDIRECT");
         const byDimension = new Map(a.valueFindings.map((v) => [v.dimension, v]));
+        const byMarketDimension = new Map(a.marketFindings.map((m) => [m.dimension, m]));
 
         const shared = sharedAcrossDimensions(a.valueFindings);
+        const marketShared = sharedAcrossDimensions(a.marketFindings);
         const sharedFinding = allSame(a.feasibility?.findings ?? [], (f) => f.finding);
 
         return (
@@ -315,13 +321,88 @@ export function AnalysisTab() {
                     {shared.rationale ? (
                       <p className="mt-4 border-t border-border pt-3 text-200">
                         <span className="text-100 font-medium uppercase tracking-wider text-muted-foreground">
-                          Reasoning for all nine{" "}
+                          {/* Same fix as the market-context card below: `shared` is exact
+                              equality across whatever was actually assessed
+                              (`a.valueFindings`), which can be fewer than all nine
+                              dimensions on a partial/fallback run. */}
+                          {a.valueFindings.length === ValueDimensionEnum.options.length
+                            ? "Reasoning for all nine"
+                            : `Reasoning shared across ${a.valueFindings.length} assessed`}{" "}
                         </span>
                         {shared.rationale}
                       </p>
                     ) : null}
                     {shared.evidence ? (
                       <EvidenceList evidence={shared.evidence} source={source} />
+                    ) : null}
+                  </Provenance>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {/*
+              ── Market & competitive context (platform-transformation brief §4) ──
+              Same composed-grid treatment as Business value above: five dimensions,
+              each an ordinal band plus evidence. Deliberately unscored (MarketDimension's
+              own doc comment) — this describes the opportunity, it does not rank it, so it
+              reads before Feasibility as more of the "what is this, really" picture rather
+              than after it as though it fed the score.
+            */}
+            {a.marketFindings.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-serif">Market & competitive context</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Provenance state="AI_UNVALIDATED">
+                    <p className="mb-3 text-100 text-muted-foreground">
+                      Whether there is a real need, what already addresses it, and whether a
+                      commercial or budgetary case exists. Describing the opportunity, not
+                      scoring it — nothing here feeds the composite score.
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {MarketDimensionEnum.options.map((dim: MarketDimension) => {
+                        const f = byMarketDimension.get(dim);
+                        return (
+                          <div key={dim} className="rounded-xl border border-border bg-card p-3.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <h4 className="text-200 font-medium">
+                                {MARKET_DIMENSION_LABEL[dim]}
+                              </h4>
+                              {!f ? (
+                                <span className="text-100 text-muted-foreground">
+                                  Not assessed
+                                </span>
+                              ) : null}
+                            </div>
+                            {f ? <div className="mt-1.5"><BandMeter band={f.band} /></div> : null}
+                            {f && !marketShared.rationale ? (
+                              <p className="mt-1.5 text-100 text-muted-foreground">{f.rationale}</p>
+                            ) : null}
+                            {f && !marketShared.evidence ? (
+                              <EvidenceList evidence={f.evidence} source={source} />
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {marketShared.rationale ? (
+                      <p className="mt-4 border-t border-border pt-3 text-200">
+                        <span className="text-100 font-medium uppercase tracking-wider text-muted-foreground">
+                          {/* `marketShared` is exact-equality across whatever was actually
+                              assessed (`a.marketFindings`), which can be fewer than all
+                              five dimensions on a partial/fallback run — "all five" was
+                              claimed even when only two of them shared this reasoning. */}
+                          {a.marketFindings.length === MarketDimensionEnum.options.length
+                            ? "Reasoning for all five"
+                            : `Reasoning shared across ${a.marketFindings.length} assessed`}{" "}
+                        </span>
+                        {marketShared.rationale}
+                      </p>
+                    ) : null}
+                    {marketShared.evidence ? (
+                      <EvidenceList evidence={marketShared.evidence} source={source} />
                     ) : null}
                   </Provenance>
                 </CardContent>

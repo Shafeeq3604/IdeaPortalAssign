@@ -3,11 +3,12 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
-  DialogTitle, ErrorState, Label, Skeleton, StatusPill, Textarea,
+  DialogTitle, ErrorState, Label, ScoreDisplay, Skeleton, StatusPill, Textarea,
 } from "@iep/ui";
 import { ROUTES } from "@iep/contracts";
 import { STATUS_LABEL, useIdea, useTransition } from "./api";
 import { VoteButtons } from "../feedback/VoteButtons";
+import { MATURITY_LABEL } from "../evaluation/api";
 import { useSession } from "../../app/use-session";
 import type { IdeaDetail } from "@iep/contracts";
 
@@ -120,6 +121,54 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
           ) : null}
         </span>
       </div>
+
+      {/*
+        The strategic snapshot (leadership audit finding): the composite score, rank,
+        maturity, and any open recommendations were each a fact that lived on a
+        DIFFERENT tab — a reader had to open Evaluation to learn the score existed at all,
+        then Analysis to learn whether anything was still open against it. This repeats
+        exactly what `IdeaShell` already fetches (no second request) as one quiet line
+        that sits above every tab, so the idea's own headline numbers are never more than
+        a glance away regardless of which tab happens to be open. It disappears entirely
+        before there is anything real to show — no placeholder dashes for an idea that
+        has not been evaluated yet.
+      */}
+      {idea.compositeScore !== null ? (
+        <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg border border-border bg-muted/40 px-3.5 py-2.5">
+          <span className="text-100 font-medium uppercase tracking-widest text-muted-foreground">
+            Strategic snapshot
+          </span>
+          <Link
+            to={`/ideas/${ideaId}/evaluation`}
+            className="inline-flex items-center gap-1.5 no-underline hover:underline"
+          >
+            <ScoreDisplay value={idea.compositeScore} size="sm" animate={false} />
+            <span className="text-100 text-muted-foreground">composite score</span>
+          </Link>
+          {idea.rank !== null ? (
+            <Link
+              to={`/ideas/${ideaId}/evaluation`}
+              className="text-200 font-medium no-underline hover:underline"
+            >
+              Ranked #{idea.rank}
+            </Link>
+          ) : null}
+          {idea.maturityLevel !== null ? (
+            <span className="text-200 text-muted-foreground">
+              {MATURITY_LABEL[idea.maturityLevel]}
+            </span>
+          ) : null}
+          {idea.openRecommendationCount > 0 ? (
+            <Link
+              to={`/ideas/${ideaId}/analysis`}
+              className="text-200 font-medium text-accent-700 no-underline hover:underline"
+            >
+              {idea.openRecommendationCount} open recommendation
+              {idea.openRecommendationCount === 1 ? "" : "s"}
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
 
       {/*
         Reactions and actions share one compact row, so an idea's context (what it is,

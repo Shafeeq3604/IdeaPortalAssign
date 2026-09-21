@@ -45,7 +45,13 @@ describe("queryKeys", () => {
   it("builds ranking keys, sorting compare ids so the two orderings share a cache entry", () => {
     expect(queryKeys.rankings.all()).toEqual(["rankings"]);
     expect(queryKeys.rankings.list({ page: 1 })).toEqual(["rankings", "list", { page: 1 }]);
-    expect(queryKeys.rankings.run("run-1")).toEqual(["rankings", "run", "run-1"]);
+    expect(queryKeys.rankings.run("run-1")).toEqual(["rankings", "run", "run-1", {}]);
+    // page/rankBand belong in the key: a historic run's query used to be keyed on runId
+    // alone, so paging or switching rank bands changed the URL but never the query key,
+    // and the same page/band stayed on screen.
+    expect(queryKeys.rankings.run("run-1", { page: 2, rankBand: "top10" })).toEqual([
+      "rankings", "run", "run-1", { page: 2, rankBand: "top10" },
+    ]);
     expect(queryKeys.rankings.compare(["b", "a"])).toEqual([
       "rankings", "compare", ["a", "b"], null,
     ]);
@@ -114,5 +120,10 @@ describe("invalidateAfter", () => {
   it("builds discovery keys, standalone from every idea-scoped key (SPC-001)", () => {
     expect(queryKeys.discovery.history()).toEqual(["discovery", "history"]);
     expect(queryKeys.discovery.detail("dq-1")).toEqual(["discovery", "detail", "dq-1"]);
+  });
+
+  it("builds idea-creation keys, standalone from every idea-scoped key (brief §7)", () => {
+    expect(queryKeys.ideaCreation.list()).toEqual(["idea-creation", "list"]);
+    expect(queryKeys.ideaCreation.detail("conv-1")).toEqual(["idea-creation", "detail", "conv-1"]);
   });
 });

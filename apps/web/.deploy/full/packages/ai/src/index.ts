@@ -15,3 +15,8 @@ export {
   StubDiscoveryProvider, AnthropicDiscoveryProvider, DISCOVERY_SYSTEM_PROMPT,
   type DiscoveryChatProvider, type DiscoveryChatResult, type DiscoveryResultItem,
 } from "./discovery.js";
+export {
+  StubIdeaCreationProvider, AnthropicIdeaCreationProvider, IDEA_CREATION_SYSTEM_PROMPT,
+  type IdeaCreationProvider, type IdeaCreationTurnResult, type IdeaCreationTurnPatch,
+  type IdeaCreationTurnInput, type IdeaCreationTurnUsage,
+} from "./idea-creation.js";

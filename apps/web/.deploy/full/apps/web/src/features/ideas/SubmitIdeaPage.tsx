@@ -9,18 +9,27 @@ import { PageHeading } from "../../app/PageHero";
 import { IdeaForm, type IdeaFormValues } from "./IdeaForm";
 import { useCreateIdea } from "./api";
 
-/** Handed off by the Discovery Agent's "Submit as idea" action (state, not the URL — this
- * is one-time initialization for a form the human still fills in and submits by hand,
- * not filter/tab state that Back should restore). SPC-23: a structured discovery item
- * fills the same three required sections a human would — deliberately never the
- * optional "Anything else" fields, which stay blank for the human to add if they choose. */
-interface DiscoveryPrefill {
+/**
+ * Handed off by either the Discovery Agent's "Submit as idea" action or the AI-native
+ * idea-creation conversation's "Review my idea" action (state, not the URL — this is
+ * one-time initialization for a form the human still fills in and submits by hand, not
+ * filter/tab state that Back should restore). SPC-23: a structured discovery item fills
+ * the same three required sections a human would; the conversation's own draft additionally
+ * carries `useCases` (platform-transformation brief §7 — first-class end to end, not
+ * folded into `description`) — deliberately never the optional "Anything else" fields
+ * either way, which stay blank for the human to add if they choose.
+ */
+interface Prefill {
   readonly title?: string;
   readonly problemStatement?: string;
   readonly description?: string;
   readonly expectedUsers?: string;
   readonly expectedOutcome?: string;
+  readonly useCases?: string[];
 }
+
+/** Which flow produced the prefill — only what the banner's own copy needs to say. */
+type PrefillSource = "discovery" | "idea-creation";
 
 const ACCEPT = ATTACHMENT_TYPES.map((t) => `${t.extension},${t.mime}`).join(",");
 const TYPE_NAMES = ATTACHMENT_TYPES.map((t) => t.label).join(", ");
@@ -35,7 +44,9 @@ function formatBytes(bytes: number): string {
 export function SubmitIdeaPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const prefill = (location.state as { prefill?: DiscoveryPrefill } | null)?.prefill;
+  const state = location.state as { prefill?: Prefill; prefillSource?: PrefillSource } | null;
+  const prefill = state?.prefill;
+  const prefillSource = state?.prefillSource ?? "discovery";
   const create = useCreateIdea();
   const [files, setFiles] = React.useState<File[]>([]);
   const [fileProblem, setFileProblem] = React.useState<string | null>(null);
@@ -162,8 +173,9 @@ export function SubmitIdeaPage() {
             <Sparkles className="size-4" />
           </span>
           <p className="pt-1">
-            Pre-filled from a Discovery Agent finding — review it, fill in the rest, and
-            submit only once it reads the way you'd actually put it.
+            {prefillSource === "idea-creation"
+              ? "Pre-filled from your conversation with the idea agent — review it, fill in the rest, and submit only once it reads the way you'd actually put it."
+              : "Pre-filled from a Discovery Agent finding — review it, fill in the rest, and submit only once it reads the way you'd actually put it."}
           </p>
         </div>
       ) : null}

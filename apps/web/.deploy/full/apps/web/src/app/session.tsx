@@ -33,7 +33,10 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
         <main className="page page--narrow" aria-busy="true" aria-live="polite">
           <span className="sr-only">Checking your session…</span>
           <div className="mx-auto mt-16 flex max-w-sm flex-col items-center gap-3 text-center" aria-hidden="true">
-            <span className="size-8 animate-spin rounded-full border-2 border-accent-200 border-t-accent-600" />
+            {/* `border-accent-200` isn't a real stop on this scale (only 050/100/600/700
+                exist — theme.css) — it silently failed to apply, so the ring half of
+                this spinner rendered with no color at all. */}
+            <span className="size-8 animate-spin rounded-full border-2 border-accent-100 border-t-accent-600" />
             <p className="text-200 text-muted-foreground">Just a moment…</p>
           </div>
         </main>

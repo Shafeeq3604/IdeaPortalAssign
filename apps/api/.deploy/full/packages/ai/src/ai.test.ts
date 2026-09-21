@@ -240,7 +240,9 @@ describe("analyseStep — the redact → call → validate → escalate → fall
   const stub = new StubProvider();
 
   it("produces valid, schema-conforming output for every pipeline step", async () => {
-    for (const step of ["STRUCTURE", "USE_CASES", "VALUE", "FEASIBILITY", "RISK", "EFFORT_TIMELINE"] as const) {
+    for (const step of [
+      "STRUCTURE", "USE_CASES", "VALUE", "MARKET_CONTEXT", "FEASIBILITY", "RISK", "EFFORT_TIMELINE",
+    ] as const) {
       const out = await analyseStep(stub, { ...baseInput, step });
       expect(out.source, step).toBe("AI");
       const parsed = AI_OUTPUT_SCHEMAS[step].safeParse(out.data);
@@ -353,7 +355,9 @@ describe("model routing", () => {
   });
 
   it("every pipeline step has an enabled route", () => {
-    for (const step of ["STRUCTURE", "USE_CASES", "VALUE", "FEASIBILITY", "RISK", "EFFORT_TIMELINE"]) {
+    for (const step of [
+      "STRUCTURE", "USE_CASES", "VALUE", "MARKET_CONTEXT", "FEASIBILITY", "RISK", "EFFORT_TIMELINE",
+    ]) {
       expect(DEFAULT_ROUTES.some((r) => r.storyKey === step && r.enabled), step).toBe(true);
     }
   });

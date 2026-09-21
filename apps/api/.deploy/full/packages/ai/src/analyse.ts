@@ -50,7 +50,7 @@ const routeFor = (step: AnalysisStep, routes: readonly ModelRoute[]): ModelRoute
 
 /** Steps whose evidence must trace back to the submission. */
 const GROUND_EVIDENCE: ReadonlySet<AnalysisStep> = new Set([
-  "USE_CASES", "VALUE", "FEASIBILITY", "RISK",
+  "USE_CASES", "VALUE", "MARKET_CONTEXT", "FEASIBILITY", "RISK",
 ]);
 
 export async function analyseStep(
@@ -61,7 +61,14 @@ export async function analyseStep(
   const schema = AI_OUTPUT_SCHEMAS[input.step];
   const fallbackFn = FALLBACKS[input.step as keyof typeof FALLBACKS];
 
-  const fallback = (reason: string, issues: readonly ValidationIssue[] = []): AnalyseOutcome => ({
+  const fallback = (
+    reason: string,
+    issues: readonly ValidationIssue[] = [],
+    // Real spend from a call that was actually made before falling back — a validation
+    // failure (and a refusal) still bills tokens, and dropping that here let real cost
+    // slip past the budget cap this function exists to enforce.
+    usage: AiUsage | null = null,
+  ): AnalyseOutcome => ({
     step: input.step,
     data: fallbackFn ? fallbackFn({ fields: input.fields }) : {},
     source: "FALLBACK",
@@ -70,7 +77,7 @@ export async function analyseStep(
     escalatedFromTier: null,
     promptVersion: PROMPT_VERSION,
     redactionApplied: false,
-    usage: null,
+    usage,
     failureReason: reason,
     validationIssues: issues,
   });
@@ -95,8 +102,8 @@ export async function analyseStep(
     activeRoute: ModelRoute,
   ): Promise<
     | { kind: "ok"; data: unknown; usage: AiUsage; model: string; tier: ModelTier }
-    | { kind: "invalid"; issues: readonly ValidationIssue[] }
-    | { kind: "failed"; reason: string }
+    | { kind: "invalid"; issues: readonly ValidationIssue[]; usage: AiUsage }
+    | { kind: "failed"; reason: string; usage: AiUsage | null }
   > => {
     const result = await provider.complete<unknown>({
       storyKey: input.step,
@@ -119,6 +126,10 @@ export async function analyseStep(
           : r.kind === "UNAVAILABLE" ? `provider unavailable (${r.status ?? "no status"})`
           : r.kind === "BUDGET_EXCEEDED" ? `budget exceeded (${r.scope})`
           : `output rejected: ${r.issues.join("; ")}`,
+        // Set only when the provider actually billed for this failure (currently just a
+        // refusal — see AnthropicProvider). Most other failure kinds never reached a
+        // billable response at all.
+        usage: result.usage ?? null,
       };
     }
 
@@ -131,7 +142,10 @@ export async function analyseStep(
       sourceText: input.ideaText,
       groundEvidence: GROUND_EVIDENCE.has(input.step),
     });
-    if (!validated.ok) return { kind: "invalid", issues: validated.issues };
+    // A validation failure still means a real, billed call happened — `result.usage`
+    // is real spend, not a zero, and has to travel with the failure or it silently
+    // disappears from the per-version budget this whole function enforces.
+    if (!validated.ok) return { kind: "invalid", issues: validated.issues, usage: result.usage };
 
     return {
       kind: "ok",
@@ -157,9 +171,15 @@ export async function analyseStep(
    * Escalate ONE tier on a validation failure — cheap path first, quality floor intact
    * (SPEC §12.1.2). A transport failure is not escalated: a bigger model does not fix a
    * dead connection, and retrying it just doubles the wait before the fallback.
+   *
+   * The budget is re-checked here too, against what the first attempt actually spent —
+   * it was previously checked only once, before the FIRST call. A step that had a sliver
+   * of budget left could still escalate to the more expensive tier and spend well past
+   * the per-version cap in a single step; this makes the same "fails closed before a
+   * call" rule from the top of this function apply to the escalation call too.
    */
   const higher = TIER_ABOVE[route.tier];
-  if (first.kind === "invalid" && higher) {
+  if (first.kind === "invalid" && higher && input.budgetRemainingUsd - first.usage.costUsd > 0) {
     const escalated: ModelRoute = {
       ...route,
       tier: higher,
@@ -180,11 +200,13 @@ export async function analyseStep(
       };
     }
     // Name the actual issues. "Validation failed" alone gives a debugger nothing, and
-    // this string is what lands in ai_analyses.error_code for later inspection.
+    // this string is what lands in ai_analyses.error_code for later inspection. Both
+    // real calls' usage travels with the fallback, not just the first's.
     return fallback(
       `validation failed at tier ${route.tier} and again at ${higher}: ` +
         `${first.issues.map((i) => i.detail).join("; ").slice(0, 400)}`,
       first.issues,
+      sumUsage(first.usage, second.usage),
     );
   }
 
@@ -193,5 +215,20 @@ export async function analyseStep(
       ? `output failed validation: ${first.issues.map((i) => i.detail).join("; ").slice(0, 400)}`
       : first.reason,
     first.kind === "invalid" ? first.issues : [],
+    first.usage,
   );
+}
+
+/** Adds two usage readings from real calls, treating an absent one as zero. */
+function sumUsage(a: AiUsage | null, b: AiUsage | null): AiUsage | null {
+  if (!a && !b) return null;
+  const zero: AiUsage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, costUsd: 0 };
+  const x = a ?? zero;
+  const y = b ?? zero;
+  return {
+    inputTokens: x.inputTokens + y.inputTokens,
+    outputTokens: x.outputTokens + y.outputTokens,
+    cachedInputTokens: x.cachedInputTokens + y.cachedInputTokens,
+    costUsd: x.costUsd + y.costUsd,
+  };
 }

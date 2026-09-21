@@ -536,6 +536,18 @@ export function UsersPage() {
           escapeTo={{ label: "Back to ideas", to: "/ideas" }}
           renderLink={link}
         />
+      ) : query.data.items.length === 0 ? (
+        // AuditPage's own equivalent branch a few lines up already covers "genuinely
+        // empty" — this page can't be that (the signed-in admin is always a row), so a
+        // zero-row table here only ever means the search/role filter matched nobody. That
+        // used to render as a table with just a header row and no explanation, which
+        // reads as broken, not as "no matches."
+        <EmptyState
+          title="No one matches this search"
+          description="Try a different name or email, or clear the role filter."
+          action={{ label: "Clear filters", to: "/admin/users" }}
+          renderLink={link}
+        />
       ) : (
         // `overflow-hidden` on the CARD, not just the scroll wrapper inside it: without
         // it the header row's square `bg-muted` corners sit flush against the card's

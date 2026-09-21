@@ -82,13 +82,30 @@ export function registerEvaluationRoutes(handlers: Map<string, Handler>): void {
 
     let ranking = null;
     if (entry) {
-      const siblings = await ctx.db.rankingEntry.findMany({
-        where: { runId: entry.runId },
-        select: { ideaId: true, rank: true, compositeScore: true, idea: { select: { currentVersion: { select: { title: true } } } } },
-      });
+      /**
+       * Every entry in the run used to be fetched here just to build a title lookup and
+       * check for a tie — a full-cohort join on a page every submitter and reviewer
+       * visits routinely, scaling with the run's size (SPEC §11.6 targets ~3,000).
+       *
+       * `explanation.peerComparisons` only ever names the two RANK-ADJACENT entries
+       * (nearestPeers in packages/evaluation/src/ranking.ts), and a tie can only ever be
+       * with a rank-adjacent entry too: `engine.ts`'s sort keys score first, so any two
+       * entries sharing a composite score end up in one contiguous run of ranks — this
+       * entry is tied with someone if and only if it's tied with rank-1 or rank+1
+       * (transitively true even inside a longer tied block, since a shared score value
+       * chains through the whole block). Fetching just those two rows, plus a `count()`
+       * for `cohortSize`, covers everything the code below actually uses.
+       */
+      const [neighbours, cohortSize] = await Promise.all([
+        ctx.db.rankingEntry.findMany({
+          where: { runId: entry.runId, rank: { in: [entry.rank - 1, entry.rank + 1] } },
+          select: { ideaId: true, rank: true, compositeScore: true, idea: { select: { currentVersion: { select: { title: true } } } } },
+        }),
+        ctx.db.rankingEntry.count({ where: { runId: entry.runId } }),
+      ]);
 
       const titleByIdeaId = new Map(
-        siblings.map((s) => [s.ideaId, s.idea.currentVersion?.title ?? "Another idea"]),
+        neighbours.map((s) => [s.ideaId, s.idea.currentVersion?.title ?? "Another idea"]),
       );
 
       ranking = {
@@ -96,12 +113,12 @@ export function registerEvaluationRoutes(handlers: Map<string, Handler>): void {
         rank: entry.rank,
         previousRank: entry.previousRank,
         percentile: Number(entry.percentile),
-        cohortSize: siblings.length,
+        cohortSize,
         computedAt: entry.run.computedAt.toISOString(),
         explanation: presentExplanation(
           entry.explanation,
           titleByIdeaId,
-          tieBreakNoteFor(siblings, entry.rank, entry.compositeScore),
+          tieBreakNoteFor(neighbours, entry.rank, entry.compositeScore),
         ),
       };
     }

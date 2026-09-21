@@ -28,6 +28,11 @@ const FEASIBILITY_DIMENSIONS = [
   "COMPLIANCE", "EXPERTISE", "RESOURCES", "COST", "EXTERNAL_DEPENDENCY",
 ] as const;
 
+const MARKET_DIMENSIONS = [
+  "MARKET_NEED", "MARKET_OPPORTUNITY", "COMPETITIVE_LANDSCAPE", "COMPETITIVE_ADVANTAGE",
+  "COMMERCIAL_VIABILITY",
+] as const;
+
 /** AI-01 — completeness heuristic. No model needed to notice a blank field. */
 export function fallbackStructure(input: FallbackInput) {
   const f = input.fields;
@@ -81,6 +86,19 @@ export function fallbackUseCases(input: FallbackInput) {
 export function fallbackValue() {
   return {
     findings: VALUE_DIMENSIONS.map((dimension) => ({
+      dimension,
+      band: "MODERATE" as const,
+      rationale: NOT_ANALYSED,
+      evidence: [NOT_ANALYSED],
+    })),
+  };
+}
+
+/** MARKET_CONTEXT — neutral bands across every dimension, visibly unanalysed. Same
+ *  pattern as `fallbackValue`. */
+export function fallbackMarketContext() {
+  return {
+    findings: MARKET_DIMENSIONS.map((dimension) => ({
       dimension,
       band: "MODERATE" as const,
       rationale: NOT_ANALYSED,
@@ -157,6 +175,7 @@ export const FALLBACKS = {
   STRUCTURE: fallbackStructure,
   USE_CASES: fallbackUseCases,
   VALUE: fallbackValue,
+  MARKET_CONTEXT: fallbackMarketContext,
   FEASIBILITY: fallbackFeasibility,
   RISK: fallbackRisk,
   EFFORT_TIMELINE: fallbackEffortTimeline,

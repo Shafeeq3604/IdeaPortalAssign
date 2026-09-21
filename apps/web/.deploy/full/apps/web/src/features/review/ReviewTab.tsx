@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import {
   Badge, Button, Card, CardContent, CardHeader, CardTitle, ErrorState, Input, Label,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Skeleton, Textarea,
@@ -141,11 +141,21 @@ function SelfSubmittedNotice({ idea }: { idea: IdeaDetail }) {
   );
 }
 
+/** What ReviewQueuePage's row link carries so a decision doesn't dead-end back at the
+ *  breadcrumb — absent for anyone who opened this tab any other way (a direct link, the
+ *  idea's own nav), which is fine: the fallback is simply "back to the queue" with no
+ *  specific next idea named. */
+interface QueueContext {
+  readonly nextIdeaId: string | null;
+  readonly queueUrl: string;
+}
+
 function DecisionForm({ ideaId }: { ideaId: string }) {
   const [decision, setDecision] = React.useState<ReviewDecision>("VALIDATED");
   const [comment, setComment] = React.useState("");
   const [touched, setTouched] = React.useState(false);
   const create = useCreateReview(ideaId);
+  const queueContext = useLocation().state as QueueContext | null;
 
   // FR-23 is enforced by the API and by a DB CHECK. Mirroring it here is about telling
   // the reviewer before they lose their typing, not about being the guard.
@@ -209,9 +219,29 @@ function DecisionForm({ ideaId }: { ideaId: string }) {
             </p>
           ) : null}
           {create.isSuccess ? (
-            <p role="status" className="text-100 text-factor-up">
-              Recorded. It appears in the history below and in the audit trail.
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p role="status" className="text-100 text-factor-up">
+                Recorded. It appears in the history below and in the audit trail.
+              </p>
+              {queueContext ? (
+                queueContext.nextIdeaId ? (
+                  <Link
+                    to={`/ideas/${queueContext.nextIdeaId}/review`}
+                    state={{ nextIdeaId: null, queueUrl: queueContext.queueUrl } satisfies QueueContext}
+                    className="text-100 font-semibold text-accent-700 hover:underline"
+                  >
+                    Next idea in the queue →
+                  </Link>
+                ) : (
+                  <Link
+                    to={queueContext.queueUrl}
+                    className="text-100 font-semibold text-accent-700 hover:underline"
+                  >
+                    Back to the queue →
+                  </Link>
+                )
+              ) : null}
+            </div>
           ) : null}
 
           <Button type="submit" disabled={create.isPending}>

@@ -59,7 +59,7 @@ export const ROUTES: readonly RouteDef[] = [
 
   { id: "ideas", path: "/ideas", title: "Ideas", roles: ALL, backPath: "/", renders: ["Idea", "IdeaCategory"],
     searchParams: ["status", "department", "category", "q", "sort", "page"] },
-  { id: "ideas.new", path: "/ideas/new", title: "Submit an idea", roles: ALL, backPath: "/ideas", renders: ["IdeaVersion", "Attachment"] },
+  { id: "ideas.new", path: "/ideas/new", title: "Create an idea", roles: ALL, backPath: "/ideas", renders: [] },
   { id: "me.ideas", path: "/me/ideas", title: "My ideas", roles: ALL, backPath: "/", renders: ["Idea"] },
 
   { id: "idea.overview", path: "/ideas/:ideaId/overview", title: "Overview", roles: ALL, backPath: "/ideas",
@@ -117,6 +117,19 @@ export const ROUTES: readonly RouteDef[] = [
    * just not yet part of the formal entity-relationship contract.
    */
   { id: "discovery", path: "/discovery", title: "Discover", roles: ALL, backPath: "/", renders: ["DiscoveryQuery"] },
+
+  /**
+   * Platform-transformation brief §7 — additive amendment (SPEC §14.1), same shape as the
+   * Discovery entry just above: not part of RELATIONSHIPS (locked to SPEC §6.2's 46 rows),
+   * a real reachable route instead. `ideas.new` (above) now renders the AI-native
+   * conversational creation experience — the primary entry point (brief §2). This is its
+   * compatibility/fallback path: the direct form, unchanged, for anyone who wants it, and
+   * where the conversation's own "Review my idea" and Discovery's "Submit as idea" both
+   * still land — `IdeaVersion`/`Attachment` moved here from `ideas.new`, since this is the
+   * route that actually creates them now.
+   */
+  { id: "ideas.new.manual", path: "/ideas/new/manual", title: "Submit an idea (direct form)", roles: ALL,
+    backPath: "/ideas/new", renders: ["IdeaVersion", "Attachment"] },
 ];
 
 /** The 46 relationships of SPEC §6.2, in order. */

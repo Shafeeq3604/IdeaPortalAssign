@@ -134,7 +134,7 @@ export function CommandPalette({ className }: { className?: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Search ideas, or jump to a page"
-        className={`flex h-8 w-9 shrink-0 items-center justify-center gap-2 rounded-md border px-0 text-100 transition-colors md:w-full md:justify-start md:px-2.5 ${className ?? ""}`}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-md border px-0 text-100 transition-colors sm:h-8 sm:w-9 md:w-full md:justify-start md:px-2.5 ${className ?? ""}`}
       >
         <Search aria-hidden className="size-4 shrink-0" />
         <span className="hidden flex-1 truncate text-left md:inline">

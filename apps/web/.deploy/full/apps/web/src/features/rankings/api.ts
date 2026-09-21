@@ -32,12 +32,22 @@ export function useRankings(filters: BoardFilters) {
   });
 }
 
-export function useRankingRun(runId: string) {
+export function useRankingRun(
+  runId: string,
+  filters: { readonly page?: number; readonly rankBand?: string | undefined } = {},
+) {
   return useQuery({
-    queryKey: queryKeys.rankings.run(runId),
-    queryFn: () => api<ListRankingsResponse>(`/rankings/${runId}`),
+    // `getRankingRun` (apps/api) reads and applies `page`/`rankBand` for a historic run
+    // exactly like `getRankings` does for the live board — this key used to carry only
+    // `runId`, so paging or switching rank bands on a historic run changed the URL but
+    // never produced a new query key, and the same page-1/all-band response stayed on
+    // screen.
+    queryKey: queryKeys.rankings.run(runId, filters),
+    queryFn: () => api<ListRankingsResponse>(`/rankings/${runId}${qs({ ...filters })}`),
     enabled: Boolean(runId),
-    // An immutable snapshot (ADR-008) cannot change, so refetching one is pure waste.
+    // An immutable snapshot (ADR-008) cannot change, so refetching the SAME page/band is
+    // pure waste — but each distinct (page, rankBand) is its own query key above, so this
+    // only avoids a refetch of a page already fetched, not a switch to a different one.
     staleTime: Infinity,
   });
 }

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LayoutDashboard, ListChecks, Settings, User } from "lucide-react";
+import { toast } from "sonner";
 import {
   Badge, Button, Card, CardContent, Checkbox, Dialog, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle, Input, Label, Select, SelectContent, SelectItem,
@@ -198,6 +199,7 @@ export function AddUserDialog() {
     onSuccess: () => {
       invalidate();
       setOpen(false);
+      toast.success(`"${displayName.trim()}" was added.`);
       setDisplayName("");
       setEmail("");
       setInitialPassword("");
@@ -342,6 +344,11 @@ function EditUserForm({ user, onClose }: { user: AdminUser; onClose: () => void 
   );
   const [isActive, setIsActive] = React.useState(user.isActive);
   const [newPassword, setNewPassword] = React.useState("");
+  // Deactivating locks someone out immediately — bundled into the same generic "Save
+  // changes" as a department move or a role tweak, that was one careless click away from
+  // happening by accident. This asks once, specifically, before the mutation fires,
+  // without introducing a second dialog component: it just swaps what this one shows.
+  const [confirmingDeactivate, setConfirmingDeactivate] = React.useState(false);
 
   const save = useMutation({
     mutationFn: () =>
@@ -357,10 +364,50 @@ function EditUserForm({ user, onClose }: { user: AdminUser; onClose: () => void 
     onSuccess: () => {
       invalidate();
       onClose();
+      toast.success(`Changes to ${user.displayName} were saved.`);
     },
   });
 
   const message = errorMessage(save.error);
+
+  if (confirmingDeactivate) {
+    return (
+      <>
+        <DialogHeader>
+          <DialogTitle>Deactivate {user.displayName}?</DialogTitle>
+          <DialogDescription>
+            They will be signed out and cannot sign in again until an administrator turns
+            this back on. Everything they have submitted stays exactly as it is.
+          </DialogDescription>
+        </DialogHeader>
+
+        {message ? (
+          <p role="alert" className="text-200 text-destructive">
+            {message}
+          </p>
+        ) : null}
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setConfirmingDeactivate(false)}
+            disabled={save.isPending}
+          >
+            Go back
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => save.mutate()}
+            disabled={save.isPending}
+          >
+            {save.isPending ? "Deactivating…" : "Deactivate account"}
+          </Button>
+        </DialogFooter>
+      </>
+    );
+  }
 
   return (
     <>
@@ -373,6 +420,10 @@ function EditUserForm({ user, onClose }: { user: AdminUser; onClose: () => void 
         className="space-y-5"
         onSubmit={(event) => {
           event.preventDefault();
+          if (isActive === false && user.isActive === true) {
+            setConfirmingDeactivate(true);
+            return;
+          }
           save.mutate();
         }}
       >

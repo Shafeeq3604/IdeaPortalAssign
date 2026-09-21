@@ -1,5 +1,5 @@
 import { recomputeRankings } from "@iep/evaluation";
-import { ExplanationItem, matchRouteId } from "@iep/contracts";
+import { ExplanationItem, can, matchRouteId } from "@iep/contracts";
 import type { IdeaStatus } from "@iep/contracts";
 import type { Handler } from "../../server.js";
 import { requireActor, sendError } from "../../server.js";
@@ -239,6 +239,19 @@ export function registerRankingRoutes(handlers: Map<string, Handler>): void {
 
     if (ideas.length !== ids.length) {
       return sendError(reply, "NOT_FOUND", "One of those ideas does not exist or is not visible");
+    }
+
+    // Every other idea-scoped read checks `idea:read` per idea before returning its
+    // data. This one used to skip it entirely — any authenticated user could pass
+    // another idea's id, including one not yet visible to their role under
+    // RANKED_ONWARD/EVALUATED_ONWARD (permissions.ts), and get its scores and evidence.
+    const actor = requireActor(request);
+    for (const idea of ideas) {
+      if (!can(actor, "idea:read", {
+        ideaId: idea.id, submitterId: idea.submitterId, status: idea.status as IdeaStatus,
+      }).allowed) {
+        return sendError(reply, "NOT_FOUND", "One of those ideas does not exist or is not visible");
+      }
     }
 
     const rankByIdea = new Map((run?.entries ?? []).map((e) => [e.ideaId, e.rank]));

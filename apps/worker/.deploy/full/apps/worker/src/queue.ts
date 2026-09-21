@@ -91,3 +91,20 @@ export const DISCOVERY_QUEUE = "iep.discovery";
 export interface DiscoveryJob {
   readonly discoveryQueryId: string;
 }
+
+/**
+ * The idea-creation queue (platform-transformation brief §7).
+ *
+ * One job per conversational turn — a fresh conversation and every subsequent message
+ * each enqueue their own job, processed in order per conversation (the worker reads the
+ * full message history fresh each time, so a turn is a pure function of what is
+ * persisted, the same "sound because it's given exactly what it declares" reasoning
+ * `step-inputs.ts` applies to the analysis pipeline). No retry on failure, same
+ * reasoning as discovery: a failed turn is cheap for the employee to retry by sending
+ * their message again, and a silent automatic retry would spend model cost unasked.
+ */
+export const IDEA_CREATION_QUEUE = "iep.idea-creation";
+
+export interface IdeaCreationJob {
+  readonly conversationId: string;
+}

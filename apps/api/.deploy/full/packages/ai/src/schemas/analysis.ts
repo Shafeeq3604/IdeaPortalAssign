@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
-  Band, DependencyKind, EffortClass, FeasibilityDimension, FeasibilityStatus, Horizon, RiskCategory, RiskLevel, TimelinePhase, UseCaseKind, UserCountBand,
+  Band, DependencyKind, EffortClass, FeasibilityDimension, FeasibilityStatus, Horizon,
+  MarketDimension, RiskCategory, RiskLevel, TimelinePhase, UseCaseKind, UserCountBand,
   ValueDimension, RequirementKind,
 } from "@iep/contracts";
 
@@ -82,6 +83,28 @@ export const ValueOutput = z
     { message: "each of the 9 value dimensions must appear exactly once" },
   );
 export type ValueOutput = z.infer<typeof ValueOutput>;
+
+// ──────────────────── MARKET_CONTEXT · MARKET, COMPETITIVE & COMMERCIAL (Tier A) ────────────────────
+// Added §14.1 (additive amendment, CONTRACT-LOG.md 2026-09-21) — platform-transformation
+// brief §4. Same shape and discipline as AI-03 · VALUE: five dimensions, each an ordinal
+// band with evidence, never a number. This is judgement (assessing market need,
+// competitive pressure and commercial viability from limited information), so it sits at
+// Tier A alongside VALUE/FEASIBILITY/RISK, not Tier B.
+
+export const MarketOutput = z
+  .object({
+    findings: z
+      .array(
+        z.object({ dimension: MarketDimension, band: Band, rationale: shortText, evidence }).strict(),
+      )
+      .length(5), // all five dimensions, every time
+  })
+  .strict()
+  .refine(
+    (v) => new Set(v.findings.map((f) => f.dimension)).size === 5,
+    { message: "each of the 5 market dimensions must appear exactly once" },
+  );
+export type MarketOutput = z.infer<typeof MarketOutput>;
 
 // ───────────────────────────── AI-04 · FEASIBILITY (Tier A) ─────────────────────────────
 
@@ -212,6 +235,7 @@ export const AI_OUTPUT_SCHEMAS = {
   STRUCTURE: StructureOutput,
   USE_CASES: UseCaseOutput,
   VALUE: ValueOutput,
+  MARKET_CONTEXT: MarketOutput,
   FEASIBILITY: FeasibilityOutput,
   RISK: RiskOutput,
   EFFORT_TIMELINE: EffortTimelineOutput,

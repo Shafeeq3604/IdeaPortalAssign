@@ -6,6 +6,7 @@ import * as A from "./schemas/analysis.js";
 import * as E from "./schemas/evaluation.js";
 import * as R from "./schemas/review.js";
 import * as D from "./schemas/discovery.js";
+import * as IC from "./schemas/idea-creation.js";
 
 /**
  * The API endpoint registry (P0 deliverables 2b + 3). FROZEN AT P0.
@@ -57,6 +58,7 @@ const IdeaParams = z.object({ ideaId: C.Id });
 const VersionParams = z.object({ ideaId: C.Id, versionNo: z.coerce.number().int().min(1) });
 const RunParams = z.object({ runId: C.Id });
 const DiscoveryQueryParams = z.object({ discoveryQueryId: C.Id });
+const IdeaCreationConversationParams = z.object({ conversationId: C.Id });
 
 const OWN = ["idea:read:own"] as const;
 const READ = ["idea:read"] as const;
@@ -68,6 +70,7 @@ const USERS = ["user:manage"] as const;
 const CONFIG_WRITE = ["config:write"] as const;
 const RECOMPUTE = ["ranking:recompute"] as const;
 const DISCOVERY = ["discovery:use"] as const;
+const IDEA_CREATE = ["idea:create"] as const;
 
 export const ENDPOINTS: readonly EndpointDef[] = [
   /* ── meta ── */
@@ -159,7 +162,7 @@ export const ENDPOINTS: readonly EndpointDef[] = [
   },
   {
     operationId: "getAnalysisStatus", method: "GET", path: "/ideas/{ideaId}/analysis/status", tag: "analysis",
-    summary: "Six-step run state for the determinate stepper (SPEC §8.4).",
+    summary: "Seven-step run state for the determinate stepper (SPEC §8.4).",
     access: { requires: [...OWN] }, params: IdeaParams, response: A.AnalysisRunStatus,
     successStatus: 200, errors: ["NOT_FOUND"],
   },
@@ -366,6 +369,47 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     operationId: "listDiscoveryQueries", method: "GET", path: "/discovery/queries", tag: "discovery",
     summary: "The signed-in user's own discovery history (SPC-15 — never another user's).",
     access: { requires: [...DISCOVERY] }, response: D.ListDiscoveryQueriesResponse,
+    successStatus: 200, errors: [],
+  },
+
+  /* ── AI-native idea creation (platform-transformation brief §7) — own domain, no idea linkage until handoff ── */
+  {
+    operationId: "createIdeaCreationConversation", method: "POST", path: "/idea-creation/conversations",
+    tag: "idea-creation",
+    summary: "Start a conversation with the idea-creation agent. An opening message is optional.",
+    access: { requires: [...IDEA_CREATE] }, body: IC.CreateIdeaCreationConversationRequest,
+    response: IC.IdeaCreationConversation, successStatus: 202, errors: ["VALIDATION_FAILED"],
+  },
+  {
+    operationId: "getIdeaCreationConversation", method: "GET",
+    path: "/idea-creation/conversations/{conversationId}", tag: "idea-creation",
+    summary: "Poll one conversation's messages and its current structured draft.",
+    access: { requires: [...IDEA_CREATE] }, params: IdeaCreationConversationParams,
+    response: IC.IdeaCreationConversation, successStatus: 200, errors: ["NOT_FOUND"],
+  },
+  {
+    operationId: "sendIdeaCreationMessage", method: "POST",
+    path: "/idea-creation/conversations/{conversationId}/messages", tag: "idea-creation",
+    summary: "Send the employee's next turn. The AI's reply is produced asynchronously.",
+    access: { requires: [...IDEA_CREATE] }, params: IdeaCreationConversationParams,
+    body: IC.SendIdeaCreationMessageRequest, response: IC.IdeaCreationConversation,
+    successStatus: 202, errors: ["VALIDATION_FAILED", "NOT_FOUND"],
+  },
+  {
+    operationId: "updateIdeaCreationDraft", method: "PATCH",
+    path: "/idea-creation/conversations/{conversationId}/draft", tag: "idea-creation",
+    summary:
+      "The employee's own correction to the draft, independent of any AI turn — always " +
+      "wins over the AI's inference (brief §4).",
+    access: { requires: [...IDEA_CREATE] }, params: IdeaCreationConversationParams,
+    body: IC.UpdateIdeaCreationDraftRequest, response: IC.IdeaCreationConversation,
+    successStatus: 200, errors: ["VALIDATION_FAILED", "NOT_FOUND"],
+  },
+  {
+    operationId: "listIdeaCreationConversations", method: "GET", path: "/idea-creation/conversations",
+    tag: "idea-creation",
+    summary: "The signed-in user's own conversations, newest first — never another user's.",
+    access: { requires: [...IDEA_CREATE] }, response: IC.ListIdeaCreationConversationsResponse,
     successStatus: 200, errors: [],
   },
 ];

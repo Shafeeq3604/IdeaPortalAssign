@@ -6,7 +6,7 @@ import { PIPELINE_STEPS, type AnalysisStep } from "@iep/contracts";
 import {
   analyseStep, stepInputHash, stepInputText, systemPromptFor,
   type AiProvider, type ModelRoute,
-  type StructureOutput, type UseCaseOutput, type ValueOutput,
+  type StructureOutput, type UseCaseOutput, type ValueOutput, type MarketOutput,
   type FeasibilityOutput, type RiskOutput, type EffortTimelineOutput,
 } from "@iep/ai";
 import type { ObservabilityClient } from "./observability.js";
@@ -16,6 +16,7 @@ const STEP_AGENT_NAMES: Record<AnalysisStep, string> = {
   STRUCTURE: "Idea Structuring",
   USE_CASES: "Use Case Generation",
   VALUE: "Value Assessment",
+  MARKET_CONTEXT: "Market & Competitive Assessment",
   FEASIBILITY: "Feasibility Assessment",
   RISK: "Risk Assessment",
   EFFORT_TIMELINE: "Effort & Timeline Estimation",
@@ -38,7 +39,8 @@ const NO_CALL_REASONS = new Set([
 ]);
 
 /**
- * The six-step analysis pipeline (SPEC §3.3).
+ * The seven-step analysis pipeline (SPEC §3.3; amended §14.1 to add MARKET_CONTEXT —
+ * CONTRACT-LOG.md 2026-09-21).
  *
  * Ordered, idempotent, and resilient by design:
  *
@@ -46,8 +48,8 @@ const NO_CALL_REASONS = new Set([
  *    a step that already succeeded for this hash is skipped.
  *  - **Partial failure is normal.** A failed step falls back and the run continues. The
  *    idea stays rankable, which is the acceptance criterion (SPEC §9.3).
- *  - **Budget is tracked across the run**, not per call, so six cheap steps cannot add up
- *    past the per-version cap.
+ *  - **Budget is tracked across the run**, not per call, so seven cheap steps cannot add
+ *    up past the per-version cap.
  */
 
 export interface PipelineDeps {
@@ -94,7 +96,7 @@ function fieldsOf(version: {
   title: string; description: string; problemStatement: string; expectedUsers: string;
   expectedOutcome: string; existingProcess: string | null; existingSolutions: string | null;
   suggestedTechnology: string | null; expectedBenefits: string | null;
-  estimatedCostNote: string | null; references: string | null;
+  estimatedCostNote: string | null; references: string | null; useCases: readonly string[];
 }): Record<string, string | null> {
   return {
     title: version.title,
@@ -108,6 +110,10 @@ function fieldsOf(version: {
     expectedBenefits: version.expectedBenefits,
     estimatedCostNote: version.estimatedCostNote,
     references: version.references,
+    // Joined into one field like every other input here — `stepInputText`/`stepInputHash`
+    // work over `Record<string, string | null>`, not arbitrary shapes. The submitter's
+    // OWN stated use cases (distinct from the AI's own USE_CASES step output).
+    useCases: version.useCases.length > 0 ? version.useCases.map((u) => `- ${u}`).join("\n") : null,
   };
 }
 
@@ -143,12 +149,25 @@ export async function runPipeline(
   const previous = await db.ideaVersion.findFirst({
     where: { ideaId: input.ideaId, versionNo: { lt: version.versionNo } },
     orderBy: { versionNo: "desc" },
-    include: { analyses: { include: { proposal: true, useCases: true, valueFindings: true } } },
+    include: { analyses: true },
   });
   const previousFields = previous ? fieldsOf(previous) : null;
   let carried = 0;
 
   await db.idea.update({ where: { id: input.ideaId }, data: { status: "AI_ANALYSIS" } });
+
+  /**
+   * One query for every step's idempotency check, not one per step. `ideaVersionId` is
+   * the same value across the whole loop below, so the 6 `findUnique` calls this used to
+   * be were 6 round trips to ask the same question about the same version — exactly the
+   * kind of per-iteration DB call `previous.analyses` a few lines up already avoids for
+   * the carry-forward lookup.
+   */
+  const existingByStep = new Map(
+    (await db.aiAnalysis.findMany({ where: { ideaVersionId: input.ideaVersionId } })).map(
+      (a) => [a.step, a] as const,
+    ),
+  );
 
   let spent = 0;
   let fallbacks = 0;
@@ -156,9 +175,7 @@ export async function runPipeline(
 
   for (const step of PIPELINE_STEPS) {
     // Skip work already done for this exact content (idempotency, SPEC §3.3).
-    const existing = await db.aiAnalysis.findUnique({
-      where: { ideaVersionId_step: { ideaVersionId: input.ideaVersionId, step } },
-    });
+    const existing = existingByStep.get(step);
     if (existing?.status === "SUCCEEDED") continue;
 
     /**
@@ -283,8 +300,15 @@ export async function runPipeline(
   /**
    * A run that leaned on the fallback is PARTIAL, and the idea needs a human look —
    * but it is still evaluated and still rankable.
+   *
+   * FAILED means total outage, compared against `ran` (what actually executed this
+   * time), not `PIPELINE_STEPS.length`. A carried-forward or already-SUCCEEDED step
+   * increments neither `ran` nor `fallbacks`, so on a revision the old comparison against
+   * the fixed step count could never be true — a total outage on every step that DID run
+   * (say, 3 of 7, the rest carried forward from before) reported PARTIAL/EVALUATED
+   * instead of FAILED/NEEDS_CLARIFICATION.
    */
-  const overall = fallbacks === 0 ? "SUCCEEDED" : fallbacks === PIPELINE_STEPS.length ? "FAILED" : "PARTIAL";
+  const overall = fallbacks === 0 ? "SUCCEEDED" : fallbacks === ran && ran > 0 ? "FAILED" : "PARTIAL";
 
   await db.idea.update({
     where: { id: input.ideaId },
@@ -348,6 +372,21 @@ async function persistStep(
       const p = data as ValueOutput;
       await db.valueFinding.deleteMany({ where: { aiAnalysisId: analysisId } });
       await db.valueFinding.createMany({
+        data: p.findings.map((f) => ({
+          aiAnalysisId: analysisId,
+          dimension: f.dimension,
+          band: f.band,
+          rationale: f.rationale,
+          evidence: f.evidence,
+        })),
+      });
+      return;
+    }
+
+    case "MARKET_CONTEXT": {
+      const p = data as MarketOutput;
+      await db.marketFinding.deleteMany({ where: { aiAnalysisId: analysisId } });
+      await db.marketFinding.createMany({
         data: p.findings.map((f) => ({
           aiAnalysisId: analysisId,
           dimension: f.dimension,
@@ -458,11 +497,8 @@ async function persistStep(
 async function carryForward(
   db: PrismaClient,
   source: {
-    id: string; provider: string; model: string; tier: "A" | "B" | "C";
+    provider: string; model: string; tier: "A" | "B" | "C";
     promptVersion: string; redactionApplied: boolean; rawPayload: unknown;
-    proposal: Record<string, unknown> | null;
-    useCases: Record<string, unknown>[];
-    valueFindings: Record<string, unknown>[];
   },
   ideaVersionId: string,
   step: AnalysisStep,
@@ -494,33 +530,17 @@ async function carryForward(
       },
     });
 
-    if (source.proposal) {
-      const { id: _id, aiAnalysisId: _parent, ...rest } = source.proposal as Record<string, unknown>;
-      await tx.aiStructuredProposal.upsert({
-        where: { aiAnalysisId: analysis.id },
-        update: rest as never,
-        create: { aiAnalysisId: analysis.id, ...(rest as object) } as never,
-      });
-    }
-
-    if (source.useCases.length > 0) {
-      await tx.useCase.deleteMany({ where: { aiAnalysisId: analysis.id } });
-      await tx.useCase.createMany({
-        data: source.useCases.map((u) => {
-          const { id: _id, aiAnalysisId: _parent, ...rest } = u;
-          return { aiAnalysisId: analysis.id, ...(rest as object) };
-        }) as never,
-      });
-    }
-
-    if (source.valueFindings.length > 0) {
-      await tx.valueFinding.deleteMany({ where: { aiAnalysisId: analysis.id } });
-      await tx.valueFinding.createMany({
-        data: source.valueFindings.map((v) => {
-          const { id: _id, aiAnalysisId: _parent, ...rest } = v;
-          return { aiAnalysisId: analysis.id, ...(rest as object) };
-        }) as never,
-      });
-    }
+    /**
+     * `rawPayload` is exactly the JSON `persistStep` already knows how to turn into
+     * child rows for every step type — it's the same value a fresh run passes it as
+     * `outcome.data`. This used to hand-copy only STRUCTURE/USE_CASES/VALUE's rows
+     * (keyed off `analysis.id`) and silently carried forward NOTHING for
+     * FEASIBILITY/RISK/EFFORT_TIMELINE (keyed off `ideaVersionId` directly) — the
+     * analysis row still landed SUCCEEDED, so the idempotency check above skipped it
+     * forever, leaving a revised idea with a permanently blank Feasibility/Risk/Effort
+     * tab. Routing through the one function that already knows every step's shape
+     * fixes all seven at once instead of hand-copying three of them here too.
+     */
+    await persistStep(tx, ideaVersionId, analysis.id, step, source.rawPayload);
   });
 }

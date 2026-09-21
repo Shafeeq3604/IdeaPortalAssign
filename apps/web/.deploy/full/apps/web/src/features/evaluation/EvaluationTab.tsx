@@ -135,6 +135,19 @@ export function EvaluationTab() {
                   <Link to="/config/profiles">{e.profile.name}</Link> profile on{" "}
                   {new Date(e.computedAt).toLocaleString()}.
                 </p>
+
+                {/*
+                  Analysis links forward to this tab ("the numbers are on the Evaluation
+                  tab") but nothing pointed back — someone landing here first (from the
+                  Dashboard or Rankings board) had no way to reach the AI's own read of the
+                  idea, only the evidence quotes each criterion cites from it. This is the
+                  other half of that one pointer.
+                */}
+                <p className="text-100 text-muted-foreground">
+                  This score is computed from the idea's{" "}
+                  <Link to={`/ideas/${ideaId}/analysis`}>AI analysis</Link> — the value,
+                  feasibility, and risk findings each criterion below cites.
+                </p>
               </CardContent>
             </Card>
 
