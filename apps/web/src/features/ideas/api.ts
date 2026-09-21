@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CreateIdeaRequest, CreateVersionRequest, IdeaDetail, IdeaHistoryResponse,
   IdeaStatus, ListIdeasQuery, ListIdeasResponse, ListVersionsResponse, TransitionRequest,
+  UpdateDraftRequest,
 } from "@iep/contracts";
 import { api } from "../../app/api-client";
 import { invalidateAfter, queryKeys } from "../../app/query-keys";
@@ -37,6 +38,11 @@ export type IdeaSort = ListIdeasQuery["sort"];
 
 export interface IdeaListFilters {
   readonly page?: number;
+  /** Already a real, validated query param server-side (`PageQuery`, default 25, max
+   *  100) — just never exposed here. A dashboard glancing at "the 5 most recent" ideas
+   *  has no reason to fetch and discard the other 20 the default page size would bring
+   *  back. */
+  readonly perPage?: number;
   readonly status?: readonly IdeaStatus[] | undefined;
   readonly submitterId?: string | undefined;
   readonly q?: string | undefined;
@@ -87,6 +93,20 @@ export function useCreateIdea() {
     mutationFn: (body: CreateIdeaRequest) =>
       api<{ ideaId: string }>("/ideas", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: queryKeys.ideas.all() }),
+  });
+}
+
+/** Edit a DRAFT or NEEDS_CLARIFICATION idea in place (`idea:edit`) — no new version. */
+export function useUpdateDraft(ideaId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: UpdateDraftRequest) =>
+      api<IdeaDetail>(`/ideas/${ideaId}`, { method: "PATCH", body: JSON.stringify(body) }),
+    onSuccess: () => {
+      for (const key of invalidateAfter.draftEdit(ideaId)) {
+        void qc.invalidateQueries({ queryKey: key });
+      }
+    },
   });
 }
 

@@ -238,10 +238,12 @@ Submission returns `202` immediately with an analysis-run id. Six ordered steps 
 separate idempotent jobs keyed on `sha256(idea_version.content)`, so retries and partial
 failures never duplicate work or spend:
 
-`STRUCTURE -> USE_CASES -> VALUE -> FEASIBILITY -> RISK -> EFFORT_TIMELINE`
+`STRUCTURE -> USE_CASES -> VALUE -> MARKET_CONTEXT -> FEASIBILITY -> RISK -> EFFORT_TIMELINE`
 then, in-process and synchronous: `EVALUATE -> RANK -> EXPLAIN`.
+(Amended §14.1 to add `MARKET_CONTEXT` — CONTRACT-LOG.md 2026-09-21. Unscored: it
+contributes nothing to `EVALUATE`, same discipline as every other AI finding.)
 
-The UI shows a **determinate six-step stepper** driven by real job events (§8.4), not a
+The UI shows a **determinate seven-step stepper** driven by real job events (§8.4), not a
 fake progress bar. If a step fails after 3 retries with exponential backoff, the run is
 marked `PARTIAL`, the idea moves to `NEEDS_CLARIFICATION`, and the non-AI fallback (§12.3)
 supplies the missing factors so the idea remains rankable.
@@ -1084,7 +1086,7 @@ if a criterion cannot be executed by a test, it does not belong here.
 
 ## 9.3 F-03 Analysis Pipeline & Progress (FR-03..FR-11, NFR-06)
 
-- Given a submitted idea, when analysis starts, then the Overview shows a six-step
+- Given a submitted idea, when analysis starts, then the Overview shows a seven-step
   determinate stepper and each step's real state, updated within 2s of the job event.
 - Given analysis completes, when the user views the idea, then all of: structured proposal,
   ≥1 direct use case, all 9 value dimensions banded, a feasibility status with per-dimension
@@ -1593,7 +1595,7 @@ middleware, app shell, `ui` primitives.
 ### Phase 3 — AI Analysis Pipeline
 Worker, BullMQ topology, `AiProvider` + `AnthropicProvider` + `StubProvider`, prompts and
 schemas for AI-01..AI-07, redaction, validators, retries, `PARTIAL` handling, fallbacks,
-SSE progress, the six-step stepper.
+SSE progress, the seven-step stepper.
 **Depends on:** P0 — `idea_versions` schema, AI output schemas, `AiProvider` interface,
 fixture corpus · P2 — real `idea_versions` rows *(can be developed against the P0 fixture
 corpus and integrated when P2 lands — start in parallel, integrate after)*.

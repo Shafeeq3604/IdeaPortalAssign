@@ -215,11 +215,11 @@ assert and hard to prove.
 
 **Submit an idea**. Fill the five required fields and submit.
 
-You land on the idea with a **six-step stepper**. It shows all six steps from the first
+You land on the idea with a **seven-step stepper**. It shows all seven steps from the first
 paint, with real per-step state — not a spinner and not a synthetic percentage. With the
 stub it finishes in about a second; against the real model it takes a couple of minutes.
 
-Watch the terminal: `[analysis] … SUCCEEDED · 6 steps, 0 fallback`.
+Watch the terminal: `[analysis] … SUCCEEDED · 7 steps, 0 fallback`.
 
 ### 2 · Read the analysis — *Analysis tab*
 

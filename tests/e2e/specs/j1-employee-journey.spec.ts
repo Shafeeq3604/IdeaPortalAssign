@@ -45,16 +45,28 @@ async function signInAs(page: Page, name: RegExp): Promise<void> {
   await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
 }
 
+/**
+ * `SubmitIdeaPage` renders `IdeaForm` in `wizard` mode (design-review finding: five
+ * textareas on arrival read as a compliance form) — one required section's fields are
+ * visible at a time, gated behind "Continue", ending on the optional/review step where
+ * "Submit for analysis" actually lives. This steps through all three required sections
+ * and leaves the caller on that final step.
+ */
 async function fillIdea(page: Page, title: string): Promise<void> {
   await page.locator("#field-title").fill(title);
   await page.locator("#field-problemStatement").fill(
     "Staff retype receipt totals by hand and finance rejects about 15% of claims for transcription errors.",
   );
+  await page.getByRole("button", { name: /^Continue$/ }).click();
+
   await page.locator("#field-description").fill(
     "Read the receipt image and fill in amount, date and vendor automatically when a claim is created.",
   );
+  await page.getByRole("button", { name: /^Continue$/ }).click();
+
   await page.locator("#field-expectedUsers").fill("Everyone who claims expenses, plus the finance review team.");
   await page.locator("#field-expectedOutcome").fill("Claims take less time and typo rejections drop to near zero.");
+  await page.getByRole("button", { name: /^Continue$/ }).click();
 }
 
 test.describe("J-1 employee journey", () => {
@@ -62,15 +74,22 @@ test.describe("J-1 employee journey", () => {
     await signInAs(page, /Erin Employee/i);
 
     /* ── the form refuses an empty submission, per field ── */
-    await page.goto("/ideas/new");
-    await page.getByRole("button", { name: /Submit for analysis/i }).click();
-    await expect(page).toHaveURL(/\/ideas\/new/);
-    // Five required fields (FR-02), each told individually what is wrong.
-    await expect(page.getByRole("alert")).toHaveCount(5);
+    // `/ideas/new` is now the AI-native conversation (platform-transformation brief §7);
+    // this journey exercises the direct, human-filled form, which lives at its own
+    // fallback route.
+    await page.goto("/ideas/new/manual");
+    // Wizard mode (FR-02) shows one required section at a time — "Continue" validates
+    // only the two fields on THIS step and refuses to advance until both are answered.
+    await page.getByRole("button", { name: /^Continue$/ }).click();
+    await expect(page.getByRole("alert")).toHaveCount(2);
+    await expect(page).toHaveURL(/\/ideas\/new\/manual/);
 
     /* ── a complete submission lands on the idea ── */
     const title = unique("Receipt OCR");
     await fillIdea(page, title);
+    // Optional fields sit behind a collapsed accordion on the final wizard step (design-
+    // review: a fresh submission never has anything in these yet).
+    await page.getByRole("button", { name: /Additional details \(optional\)/i }).click();
     await page.locator("#field-suggestedTechnology").fill("The document OCR service IT already licenses.");
     await page.getByRole("button", { name: /Submit for analysis/i }).click();
 
@@ -119,7 +138,10 @@ test.describe("J-1 employee journey", () => {
     await expect(page.getByRole("link", { name: "Version 2" })).toBeVisible();
         // P8 replaced the version list with the Timeline, which words v1 differently.
     await expect(page.getByText("The first version, as submitted.")).toBeVisible();
-    await expect(page.getByText(/Named the OCR service/)).toBeVisible();
+    // The same change summary text legitimately appears twice — the Timeline's own entry,
+    // and the status lane's audit reason ("Revised: <summary>") below it — so `.first()`
+    // rather than an ambiguous strict-mode match on either.
+    await expect(page.getByText(/Named the OCR service/).first()).toBeVisible();
 
     // The status lane is recorded — an unlogged transition is impossible (FR-23).
     await expect(page.getByText(/Submitted/).first()).toBeVisible();
@@ -137,22 +159,22 @@ test.describe("J-1 employee journey", () => {
   test("analysis progress is determinate from the first paint (F-03, SPEC §8.4)", async ({ page }) => {
     await signInAs(page, /Erin Employee/i);
 
-    await page.goto("/ideas/new");
+    await page.goto("/ideas/new/manual");
     const title = unique("Determinate stepper");
     await fillIdea(page, title);
     await page.getByRole("button", { name: /Submit for analysis/i }).click();
     await expect(page).toHaveURL(new RegExp(String.raw`/ideas/[0-9a-f-]+/overview`));
 
-    /* ── all six steps exist immediately, before any of them has run ──
+    /* ── all seven steps exist immediately, before any of them has run ──
        This is the assertion that separates a determinate stepper from a spinner with
        ambitions: the total is known at time zero, so nothing about it can be synthetic. */
     const stepper = page.getByRole("group", { name: "Analysis progress" });
     await expect(stepper).toBeVisible();
-    await expect(stepper.getByRole("listitem")).toHaveCount(6);
+    await expect(stepper.getByRole("listitem")).toHaveCount(7);
 
     // A real count against a real total — never a percentage (SPEC §8.4).
     const bar = stepper.getByRole("progressbar");
-    await expect(bar).toHaveAttribute("aria-valuemax", "6");
+    await expect(bar).toHaveAttribute("aria-valuemax", "7");
     await expect(bar).not.toContainText("%");
 
     /* ── and the Analysis tab is reachable, not a placeholder ── */
@@ -249,14 +271,8 @@ test.describe("J-1 employee journey", () => {
   }) => {
     await signInAs(page, /Erin Employee/i);
 
-    await page.goto("/ideas/new");
-    await page.locator("#field-title").fill(`Attachment journey ${Date.now()}`);
-    await page
-      .locator("#field-description")
-      .fill("A description long enough to pass the submission validation checks.");
-    await page.locator("#field-problemStatement").fill("A weekly task is done by hand.");
-    await page.locator("#field-expectedUsers").fill("The team that does it.");
-    await page.locator("#field-expectedOutcome").fill("It takes less time.");
+    await page.goto("/ideas/new/manual");
+    await fillIdea(page, `Attachment journey ${Date.now()}`);
 
     // A DRAFT, not a submission: a submitted version's attachments are fixed (§4.3).
     await page.getByRole("button", { name: "Save as draft" }).click();

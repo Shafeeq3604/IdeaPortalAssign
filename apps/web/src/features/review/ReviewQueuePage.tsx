@@ -153,7 +153,7 @@ export function ReviewQueuePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {query.data.items.map((item) => (
+                  {query.data.items.map((item, index) => (
                     <TableRow key={item.ideaId} className={`group ${waitingBorder(item.waitingDays)}`}>
                       <TableCell>
                         <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-100 font-bold text-foreground">
@@ -224,6 +224,14 @@ export function ReviewQueuePage() {
                           to={`/ideas/${item.ideaId}/review`}
                           aria-label={`Open review for ${item.title}`}
                           className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-100 font-semibold text-muted-foreground no-underline transition-colors duration-[var(--dur-fast)] group-hover:text-accent-700 hover:bg-accent-050 hover:text-accent-700"
+                          // Carried so a reviewer who records a decision can jump straight
+                          // to the next waiting idea instead of a manual round trip back
+                          // through the queue for every single item (P6/J-2 frames this as
+                          // an oldest-first queue meant to be worked through in a stretch).
+                          state={{
+                            nextIdeaId: query.data.items[index + 1]?.ideaId ?? null,
+                            queueUrl: `/review?${params.toString()}`,
+                          }}
                         >
                           <span className="hidden sm:inline">Open</span>
                           <ArrowRight aria-hidden className="size-4" />

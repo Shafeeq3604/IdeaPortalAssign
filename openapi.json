@@ -430,6 +430,182 @@
         ],
         "additionalProperties": false
       },
+      "CreateIdeaCreationConversationRequest": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateIdeaCreationConversationResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "AWAITING_AI",
+              "HANDED_OFF"
+            ]
+          },
+          "turnCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "draft": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "nullable": true
+              },
+              "problemStatement": {
+                "type": "string",
+                "nullable": true
+              },
+              "proposedSolution": {
+                "type": "string",
+                "nullable": true
+              },
+              "targetUsers": {
+                "type": "string",
+                "nullable": true
+              },
+              "useCases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "expectedOutcome": {
+                "type": "string",
+                "nullable": true
+              },
+              "fieldStatus": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "problemStatement",
+                  "proposedSolution",
+                  "targetUsers",
+                  "expectedOutcome"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "enum": [
+                      "CONFIRMED",
+                      "INFERRED",
+                      "MISSING"
+                    ]
+                  },
+                  "problemStatement": {
+                    "$ref": "#/components/schemas/definitions/CreateIdeaCreationConversationResponse/properties/draft/properties/fieldStatus/properties/title"
+                  },
+                  "proposedSolution": {
+                    "$ref": "#/components/schemas/definitions/CreateIdeaCreationConversationResponse/properties/draft/properties/fieldStatus/properties/title"
+                  },
+                  "targetUsers": {
+                    "$ref": "#/components/schemas/definitions/CreateIdeaCreationConversationResponse/properties/draft/properties/fieldStatus/properties/title"
+                  },
+                  "expectedOutcome": {
+                    "$ref": "#/components/schemas/definitions/CreateIdeaCreationConversationResponse/properties/draft/properties/fieldStatus/properties/title"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "missingInformation": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              }
+            },
+            "required": [
+              "title",
+              "problemStatement",
+              "proposedSolution",
+              "targetUsers",
+              "expectedOutcome",
+              "fieldStatus"
+            ],
+            "additionalProperties": false
+          },
+          "suggestedReplies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "readyToReview": {
+            "type": "boolean"
+          },
+          "errorCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/CreateIdeaCreationConversationResponse/properties/id"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "USER",
+                    "AI"
+                  ]
+                },
+                "content": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "role",
+                "content",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "turnCount",
+          "draft",
+          "readyToReview",
+          "errorCode",
+          "messages",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
       "CreateIdeaRequest": {
         "type": "object",
         "properties": {
@@ -473,6 +649,16 @@
           },
           "references": {
             "$ref": "#/components/schemas/definitions/CreateIdeaRequest/properties/existingProcess"
+          },
+          "useCases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            },
+            "maxItems": 10,
+            "default": []
           },
           "departmentId": {
             "type": "string",
@@ -756,6 +942,16 @@
           "references": {
             "$ref": "#/components/schemas/definitions/CreateVersionRequest/properties/existingProcess"
           },
+          "useCases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            },
+            "maxItems": 10,
+            "default": []
+          },
           "departmentId": {
             "type": "string",
             "format": "uuid",
@@ -941,6 +1137,7 @@
                     "STRUCTURE",
                     "USE_CASES",
                     "VALUE",
+                    "MARKET_CONTEXT",
                     "FEASIBILITY",
                     "RISK",
                     "EFFORT_TIMELINE",
@@ -1051,11 +1248,45 @@
           "generatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "runId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "computedAt": {
+                  "$ref": "#/components/schemas/definitions/GetDashboardResponse/properties/generatedAt"
+                },
+                "cohortSize": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "topScore": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "nullable": true
+                }
+              },
+              "required": [
+                "runId",
+                "computedAt",
+                "cohortSize",
+                "topScore"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 12
           }
         },
         "required": [
           "tiles",
-          "generatedAt"
+          "generatedAt",
+          "history"
         ],
         "additionalProperties": false
       },
@@ -1217,6 +1448,7 @@
                         "STRUCTURE",
                         "USE_CASES",
                         "VALUE",
+                        "MARKET_CONTEXT",
                         "FEASIBILITY",
                         "RISK",
                         "EFFORT_TIMELINE",
@@ -1485,6 +1717,40 @@
                     "type": "string"
                   },
                   "minItems": 1
+                }
+              },
+              "required": [
+                "dimension",
+                "band",
+                "rationale",
+                "evidence"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "marketFindings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dimension": {
+                  "type": "string",
+                  "enum": [
+                    "MARKET_NEED",
+                    "MARKET_OPPORTUNITY",
+                    "COMPETITIVE_LANDSCAPE",
+                    "COMPETITIVE_ADVANTAGE",
+                    "COMMERCIAL_VIABILITY"
+                  ]
+                },
+                "band": {
+                  "$ref": "#/components/schemas/definitions/GetIdeaAnalysisResponse/properties/valueFindings/items/properties/band"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "evidence": {
+                  "$ref": "#/components/schemas/definitions/GetIdeaAnalysisResponse/properties/valueFindings/items/properties/evidence"
                 }
               },
               "required": [
@@ -1781,10 +2047,176 @@
           "proposal",
           "useCases",
           "valueFindings",
+          "marketFindings",
           "feasibility",
           "risks",
           "dependencies",
           "plan"
+        ],
+        "additionalProperties": false
+      },
+      "GetIdeaCreationConversationResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "AWAITING_AI",
+              "HANDED_OFF"
+            ]
+          },
+          "turnCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "draft": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "nullable": true
+              },
+              "problemStatement": {
+                "type": "string",
+                "nullable": true
+              },
+              "proposedSolution": {
+                "type": "string",
+                "nullable": true
+              },
+              "targetUsers": {
+                "type": "string",
+                "nullable": true
+              },
+              "useCases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "expectedOutcome": {
+                "type": "string",
+                "nullable": true
+              },
+              "fieldStatus": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "problemStatement",
+                  "proposedSolution",
+                  "targetUsers",
+                  "expectedOutcome"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "enum": [
+                      "CONFIRMED",
+                      "INFERRED",
+                      "MISSING"
+                    ]
+                  },
+                  "problemStatement": {
+                    "$ref": "#/components/schemas/definitions/GetIdeaCreationConversationResponse/properties/draft/properties/fieldStatus/properties/title"
+                  },
+                  "proposedSolution": {
+                    "$ref": "#/components/schemas/definitions/GetIdeaCreationConversationResponse/properties/draft/properties/fieldStatus/properties/title"
+                  },
+                  "targetUsers": {
+                    "$ref": "#/components/schemas/definitions/GetIdeaCreationConversationResponse/properties/draft/properties/fieldStatus/properties/title"
+                  },
+                  "expectedOutcome": {
+                    "$ref": "#/components/schemas/definitions/GetIdeaCreationConversationResponse/properties/draft/properties/fieldStatus/properties/title"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "missingInformation": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              }
+            },
+            "required": [
+              "title",
+              "problemStatement",
+              "proposedSolution",
+              "targetUsers",
+              "expectedOutcome",
+              "fieldStatus"
+            ],
+            "additionalProperties": false
+          },
+          "suggestedReplies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "readyToReview": {
+            "type": "boolean"
+          },
+          "errorCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/GetIdeaCreationConversationResponse/properties/id"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "USER",
+                    "AI"
+                  ]
+                },
+                "content": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "role",
+                "content",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "turnCount",
+          "draft",
+          "readyToReview",
+          "errorCode",
+          "messages",
+          "createdAt",
+          "updatedAt"
         ],
         "additionalProperties": false
       },
@@ -2632,6 +3064,12 @@
                 "type": "string",
                 "nullable": true
               },
+              "useCases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
               "attachments": {
                 "type": "array",
                 "items": {
@@ -2677,6 +3115,7 @@
               "expectedBenefits",
               "estimatedCostNote",
               "references",
+              "useCases",
               "attachments"
             ],
             "additionalProperties": false
@@ -3279,6 +3718,12 @@
             "type": "string",
             "nullable": true
           },
+          "useCases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "attachments": {
             "type": "array",
             "items": {
@@ -3324,6 +3769,7 @@
           "expectedBenefits",
           "estimatedCostNote",
           "references",
+          "useCases",
           "attachments"
         ],
         "additionalProperties": false
@@ -3658,6 +4104,54 @@
                 "status",
                 "discoveryType",
                 "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "ListIdeaCreationConversationsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ACTIVE",
+                    "AWAITING_AI",
+                    "HANDED_OFF"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "turnCount": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "status",
+                "title",
+                "turnCount",
+                "updatedAt"
               ],
               "additionalProperties": false
             }
@@ -5038,6 +5532,185 @@
         ],
         "additionalProperties": false
       },
+      "SendIdeaCreationMessageRequest": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "SendIdeaCreationMessageResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "AWAITING_AI",
+              "HANDED_OFF"
+            ]
+          },
+          "turnCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "draft": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "nullable": true
+              },
+              "problemStatement": {
+                "type": "string",
+                "nullable": true
+              },
+              "proposedSolution": {
+                "type": "string",
+                "nullable": true
+              },
+              "targetUsers": {
+                "type": "string",
+                "nullable": true
+              },
+              "useCases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "expectedOutcome": {
+                "type": "string",
+                "nullable": true
+              },
+              "fieldStatus": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "problemStatement",
+                  "proposedSolution",
+                  "targetUsers",
+                  "expectedOutcome"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "enum": [
+                      "CONFIRMED",
+                      "INFERRED",
+                      "MISSING"
+                    ]
+                  },
+                  "problemStatement": {
+                    "$ref": "#/components/schemas/definitions/SendIdeaCreationMessageResponse/properties/draft/properties/fieldStatus/properties/title"
+                  },
+                  "proposedSolution": {
+                    "$ref": "#/components/schemas/definitions/SendIdeaCreationMessageResponse/properties/draft/properties/fieldStatus/properties/title"
+                  },
+                  "targetUsers": {
+                    "$ref": "#/components/schemas/definitions/SendIdeaCreationMessageResponse/properties/draft/properties/fieldStatus/properties/title"
+                  },
+                  "expectedOutcome": {
+                    "$ref": "#/components/schemas/definitions/SendIdeaCreationMessageResponse/properties/draft/properties/fieldStatus/properties/title"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "missingInformation": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              }
+            },
+            "required": [
+              "title",
+              "problemStatement",
+              "proposedSolution",
+              "targetUsers",
+              "expectedOutcome",
+              "fieldStatus"
+            ],
+            "additionalProperties": false
+          },
+          "suggestedReplies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "readyToReview": {
+            "type": "boolean"
+          },
+          "errorCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/SendIdeaCreationMessageResponse/properties/id"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "USER",
+                    "AI"
+                  ]
+                },
+                "content": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "role",
+                "content",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "turnCount",
+          "draft",
+          "readyToReview",
+          "errorCode",
+          "messages",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
       "SetIdeaFeedbackRequest": {
         "type": "object",
         "properties": {
@@ -5470,6 +6143,12 @@
                 "type": "string",
                 "nullable": true
               },
+              "useCases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
               "attachments": {
                 "type": "array",
                 "items": {
@@ -5515,6 +6194,7 @@
               "expectedBenefits",
               "estimatedCostNote",
               "references",
+              "useCases",
               "attachments"
             ],
             "additionalProperties": false
@@ -5627,6 +6307,16 @@
           },
           "references": {
             "$ref": "#/components/schemas/definitions/UpdateDraftRequest/properties/existingProcess"
+          },
+          "useCases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            },
+            "maxItems": 10,
+            "default": []
           },
           "departmentId": {
             "type": "string",
@@ -5879,6 +6569,12 @@
                 "type": "string",
                 "nullable": true
               },
+              "useCases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
               "attachments": {
                 "type": "array",
                 "items": {
@@ -5924,6 +6620,7 @@
               "expectedBenefits",
               "estimatedCostNote",
               "references",
+              "useCases",
               "attachments"
             ],
             "additionalProperties": false
@@ -5990,6 +6687,203 @@
           "versionCount",
           "openRecommendationCount",
           "permissions"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateIdeaCreationDraftRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "problemStatement": {
+            "type": "string",
+            "nullable": true
+          },
+          "proposedSolution": {
+            "type": "string",
+            "nullable": true
+          },
+          "targetUsers": {
+            "type": "string",
+            "nullable": true
+          },
+          "useCases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedOutcome": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateIdeaCreationDraftResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "AWAITING_AI",
+              "HANDED_OFF"
+            ]
+          },
+          "turnCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "draft": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "nullable": true
+              },
+              "problemStatement": {
+                "type": "string",
+                "nullable": true
+              },
+              "proposedSolution": {
+                "type": "string",
+                "nullable": true
+              },
+              "targetUsers": {
+                "type": "string",
+                "nullable": true
+              },
+              "useCases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "expectedOutcome": {
+                "type": "string",
+                "nullable": true
+              },
+              "fieldStatus": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "problemStatement",
+                  "proposedSolution",
+                  "targetUsers",
+                  "expectedOutcome"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "enum": [
+                      "CONFIRMED",
+                      "INFERRED",
+                      "MISSING"
+                    ]
+                  },
+                  "problemStatement": {
+                    "$ref": "#/components/schemas/definitions/UpdateIdeaCreationDraftResponse/properties/draft/properties/fieldStatus/properties/title"
+                  },
+                  "proposedSolution": {
+                    "$ref": "#/components/schemas/definitions/UpdateIdeaCreationDraftResponse/properties/draft/properties/fieldStatus/properties/title"
+                  },
+                  "targetUsers": {
+                    "$ref": "#/components/schemas/definitions/UpdateIdeaCreationDraftResponse/properties/draft/properties/fieldStatus/properties/title"
+                  },
+                  "expectedOutcome": {
+                    "$ref": "#/components/schemas/definitions/UpdateIdeaCreationDraftResponse/properties/draft/properties/fieldStatus/properties/title"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "missingInformation": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              }
+            },
+            "required": [
+              "title",
+              "problemStatement",
+              "proposedSolution",
+              "targetUsers",
+              "expectedOutcome",
+              "fieldStatus"
+            ],
+            "additionalProperties": false
+          },
+          "suggestedReplies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "readyToReview": {
+            "type": "boolean"
+          },
+          "errorCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/UpdateIdeaCreationDraftResponse/properties/id"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "USER",
+                    "AI"
+                  ]
+                },
+                "content": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "role",
+                "content",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "turnCount",
+          "draft",
+          "readyToReview",
+          "errorCode",
+          "messages",
+          "createdAt",
+          "updatedAt"
         ],
         "additionalProperties": false
       },
@@ -7666,6 +8560,384 @@
         }
       }
     },
+    "/idea-creation/conversations": {
+      "post": {
+        "operationId": "createIdeaCreationConversation",
+        "summary": "Start a conversation with the idea-creation agent. An opening message is optional.",
+        "tags": [
+          "idea-creation"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:create"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateIdeaCreationConversationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIdeaCreationConversationRequest"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listIdeaCreationConversations",
+        "summary": "The signed-in user's own conversations, newest first — never another user's.",
+        "tags": [
+          "idea-creation"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:create"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListIdeaCreationConversationsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/idea-creation/conversations/{conversationId}": {
+      "get": {
+        "operationId": "getIdeaCreationConversation",
+        "summary": "Poll one conversation's messages and its current structured draft.",
+        "tags": [
+          "idea-creation"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:create"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetIdeaCreationConversationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/idea-creation/conversations/{conversationId}/draft": {
+      "patch": {
+        "operationId": "updateIdeaCreationDraft",
+        "summary": "The employee's own correction to the draft, independent of any AI turn — always wins over the AI's inference (brief §4).",
+        "tags": [
+          "idea-creation"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:create"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateIdeaCreationDraftResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIdeaCreationDraftRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/idea-creation/conversations/{conversationId}/messages": {
+      "post": {
+        "operationId": "sendIdeaCreationMessage",
+        "summary": "Send the employee's next turn. The AI's reply is produced asynchronously.",
+        "tags": [
+          "idea-creation"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:create"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendIdeaCreationMessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendIdeaCreationMessageRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/ideas": {
       "get": {
         "operationId": "listIdeas",
@@ -8165,7 +9437,7 @@
     "/ideas/{ideaId}/analysis/status": {
       "get": {
         "operationId": "getAnalysisStatus",
-        "summary": "Six-step run state for the determinate stepper (SPEC §8.4).",
+        "summary": "Seven-step run state for the determinate stepper (SPEC §8.4).",
         "tags": [
           "analysis"
         ],

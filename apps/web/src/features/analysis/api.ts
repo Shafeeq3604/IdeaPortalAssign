@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import type {
   AnalysisRunStatus, AnalysisStep, Band, DependencyKind, EffortClass,
-  FeasibilityDimension, FeasibilityStatus, Horizon, IdeaAnalysisResponse, Provenance,
-  RequirementKind, RiskCategory, RiskLevel, TimelinePhase, UseCaseKind, UserCountBand,
-  ValueDimension,
+  FeasibilityDimension, FeasibilityStatus, Horizon, IdeaAnalysisResponse, MarketDimension,
+  Provenance, RequirementKind, RiskCategory, RiskLevel, TimelinePhase, UseCaseKind,
+  UserCountBand, ValueDimension,
 } from "@iep/contracts";
 import { api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
@@ -70,6 +70,7 @@ export const STEP_LABEL: Record<AnalysisStep, string> = {
   STRUCTURE: "Understanding the idea",
   USE_CASES: "Finding where it applies",
   VALUE: "Assessing business value",
+  MARKET_CONTEXT: "Assessing market & competitive context",
   FEASIBILITY: "Checking feasibility",
   RISK: "Identifying risks",
   EFFORT_TIMELINE: "Estimating effort and timeline",
@@ -106,6 +107,14 @@ export const VALUE_DIMENSION_LABEL: Record<ValueDimension, string> = {
   OPERATIONAL: "Operational improvement",
   PROBLEM_SEVERITY: "Severity of the problem",
   PROBLEM_FREQUENCY: "How often it happens",
+};
+
+export const MARKET_DIMENSION_LABEL: Record<MarketDimension, string> = {
+  MARKET_NEED: "Market need",
+  MARKET_OPPORTUNITY: "Opportunity size",
+  COMPETITIVE_LANDSCAPE: "Competitive landscape",
+  COMPETITIVE_ADVANTAGE: "Competitive advantage",
+  COMMERCIAL_VIABILITY: "Commercial viability",
 };
 
 export const FEASIBILITY_DIMENSION_LABEL: Record<FeasibilityDimension, string> = {

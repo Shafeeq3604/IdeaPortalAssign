@@ -108,7 +108,22 @@ export class AnthropicProvider implements AiProvider {
         const category =
           (response as unknown as { stop_details?: { category?: string | null } }).stop_details
             ?.category ?? null;
-        return { ok: false, reason: { kind: "REFUSAL", category } };
+        // A refusal still bills real input/output tokens — dropping them here made that
+        // spend invisible to the per-version budget cap this call exists to respect.
+        return {
+          ok: false,
+          reason: { kind: "REFUSAL", category },
+          usage: {
+            inputTokens: response.usage.input_tokens,
+            outputTokens: response.usage.output_tokens,
+            cachedInputTokens: response.usage.cache_read_input_tokens ?? 0,
+            costUsd: estimateCostUsd(
+              request.route.tier,
+              response.usage.input_tokens,
+              response.usage.output_tokens,
+            ),
+          },
+        };
       }
 
       const text = response.content

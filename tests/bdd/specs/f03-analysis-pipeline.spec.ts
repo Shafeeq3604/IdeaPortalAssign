@@ -96,7 +96,7 @@ const guard = () => {
 };
 
 describe("F-03 · analysing a submitted idea", () => {
-  it("Given a submitted idea, When the pipeline runs, Then all six steps are recorded", async () => {
+  it("Given a submitted idea, When the pipeline runs, Then all seven steps are recorded", async () => {
     guard();
     const { ideaId, versionId, hash } = await givenASubmittedIdea();
 

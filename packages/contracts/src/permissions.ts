@@ -131,8 +131,14 @@ const RANKED_ONWARD: readonly IdeaStatus[] = [
 ];
 const EVALUATED_ONWARD: readonly IdeaStatus[] = ["EVALUATED", ...RANKED_ONWARD];
 
-/** Content is editable only while the idea is still the author's to change. */
-const EDITABLE: readonly IdeaStatus[] = ["DRAFT", "NEEDS_CLARIFICATION"];
+/**
+ * Content is editable only while the idea is still the author's to change.
+ *
+ * Exported so other modules whose own rule is "editable" (attachments — see
+ * attachment-routes.ts) can share this exact set instead of redeclaring their own copy
+ * that can silently drift from it.
+ */
+export const EDITABLE: readonly IdeaStatus[] = ["DRAFT", "NEEDS_CLARIFICATION"];
 
 /**
  * The single resource-authorization decision point.

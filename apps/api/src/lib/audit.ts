@@ -22,6 +22,7 @@ export type Tx = Prisma.TransactionClient;
 
 export type AuditAction =
   | "idea.transition"
+  | "idea.revise"
   | "idea.review"
   | "score.override"
   | "ranking.recompute"

@@ -31,13 +31,21 @@ export function contentHash(input: Readonly<Record<string, unknown>>): string {
  * everything else still an open record — removes the assertions instead of trusting
  * them by hand at each access.
  */
-type IdeaFields = Record<string, string | null> & {
+type IdeaFields = {
   title: string;
   description: string;
   problemStatement: string;
   expectedUsers: string;
   expectedOutcome: string;
-};
+  /** Not `string | null` like the rest — the one structured (array) field here.
+   *  Optional, unlike the five above it: callers that predate this field (existing
+   *  tests/fixtures) still construct `IdeaFields` without it. */
+  useCases?: readonly string[];
+} & Partial<Record<
+  "existingProcess" | "existingSolutions" | "suggestedTechnology" | "expectedBenefits" |
+    "estimatedCostNote" | "references",
+  string | null
+>>;
 
 export function scopeToWhere(scope: IdeaScope): Prisma.IdeaWhereInput {
   if (scope.all) return {};
@@ -212,6 +220,7 @@ export function makeIdeaRepo(db: PrismaClient) {
             expectedBenefits: input.fields["expectedBenefits"] ?? null,
             estimatedCostNote: input.fields["estimatedCostNote"] ?? null,
             references: input.fields["references"] ?? null,
+            useCases: [...(input.fields.useCases ?? [])],
           },
         });
 
@@ -230,7 +239,10 @@ export function makeIdeaRepo(db: PrismaClient) {
     },
 
     /** Edit a draft in place. Only reachable while the idea is still the author's. */
-    async updateDraftVersion(versionId: string, fields: Record<string, string | null>) {
+    async updateDraftVersion(
+      versionId: string,
+      fields: Record<string, string | readonly string[] | null>,
+    ) {
       const data: Prisma.IdeaVersionUpdateInput = { contentHash: contentHash(fields) };
       for (const [k, v] of Object.entries(fields)) {
         if (v !== undefined) (data as Record<string, unknown>)[k] = v;
@@ -245,8 +257,14 @@ export function makeIdeaRepo(db: PrismaClient) {
       changeSummary: string;
       fields: IdeaFields;
       addressesRecommendationIds: readonly string[];
+      requestId?: string | null;
     }) {
       return db.$transaction(async (tx) => {
+        const current = await tx.idea.findUniqueOrThrow({
+          where: { id: input.ideaId },
+          select: { status: true, submittedAt: true },
+        });
+
         const last = await tx.ideaVersion.findFirst({
           where: { ideaId: input.ideaId },
           orderBy: { versionNo: "desc" },
@@ -272,13 +290,56 @@ export function makeIdeaRepo(db: PrismaClient) {
             expectedBenefits: input.fields["expectedBenefits"] ?? null,
             estimatedCostNote: input.fields["estimatedCostNote"] ?? null,
             references: input.fields["references"] ?? null,
+            useCases: [...(input.fields.useCases ?? [])],
           },
         });
 
         await tx.idea.update({
           where: { id: input.ideaId },
-          data: { currentVersionId: version.id, status: "SUBMITTED", submittedAt: new Date() },
+          data: {
+            currentVersionId: version.id,
+            status: "SUBMITTED",
+            // Same guard as `transition()`: a revision from an idea already once
+            // submitted (RANKED, UNDER_REVIEW, ...) must not move the original
+            // submission date — only a first-ever submission stamps it.
+            ...(current.submittedAt === null ? { submittedAt: new Date() } : {}),
+          },
         });
+
+        /**
+         * FR-29: every status change is recorded, not just the ones made through
+         * `transition()`. `idea:revise` is deliberately allowed from any non-DRAFT
+         * status (permissions.ts) — a RANKED or UNDER_REVIEW idea can be revised and
+         * always lands back at SUBMITTED — but that status change used to happen with
+         * no `status_history` row and no audit row at all, silently contradicting
+         * lifecycle.ts's own stated invariant that there is no code path that changes
+         * status except through its table. This isn't routed through `canTransition`
+         * itself: revision intentionally has no entry in that FROZEN table (it is not
+         * a reviewer/system move, it's the author starting a new analysis cycle), but
+         * the change it makes still has to be visible in the same two places every
+         * other status change is.
+         */
+        if (current.status !== "SUBMITTED") {
+          await tx.statusHistory.create({
+            data: {
+              ideaId: input.ideaId,
+              fromStatus: current.status,
+              toStatus: "SUBMITTED",
+              actorId: input.authorId,
+              reason: `Revised: ${input.changeSummary}`,
+            },
+          });
+          await writeAudit(tx, {
+            actorId: input.authorId,
+            action: "idea.revise",
+            entityType: "idea",
+            entityId: input.ideaId,
+            before: { status: current.status },
+            after: { status: "SUBMITTED", versionNo },
+            reason: input.changeSummary,
+            requestId: input.requestId ?? null,
+          });
+        }
 
         // Recommendations the author claims to have addressed. P5 confirms on re-evaluation;
         // marking them here would assert an outcome the engine has not measured yet.
@@ -313,13 +374,21 @@ export function makeIdeaRepo(db: PrismaClient) {
          *
          * Guarded on the CURRENT value rather than on `from`, so a later return to
          * SUBMITTED — after clarification, say — keeps the original date. When somebody
-         * first submitted an idea is not a thing that should move.
+         * first submitted an idea is not a thing that should move. This used to set it
+         * unconditionally on every move to SUBMITTED, contradicting this exact comment —
+         * a return trip through NEEDS_CLARIFICATION silently overwrote the original date.
          */
+        const current = await tx.idea.findUniqueOrThrow({
+          where: { id: input.ideaId },
+          select: { submittedAt: true },
+        });
         await tx.idea.update({
           where: { id: input.ideaId },
           data: {
             status: input.to,
-            ...(input.to === "SUBMITTED" ? { submittedAt: { set: new Date() } } : {}),
+            ...(input.to === "SUBMITTED" && current.submittedAt === null
+              ? { submittedAt: new Date() }
+              : {}),
           },
         });
         await tx.statusHistory.create({

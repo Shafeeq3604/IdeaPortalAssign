@@ -1,7 +1,7 @@
 import { Queue } from "bullmq";
 import type { AnalysisEnqueuer, RankingEnqueuer } from "../context.js";
 import { captureException } from "./error-tracking.js";
-import { makeQueueConnection } from "./redis-connection.js";
+import { makeQueueConnection, withEnqueueTimeout } from "./redis-connection.js";
 
 /**
  * The API's side of the analysis queue.
@@ -18,8 +18,12 @@ export function makeAnalysisEnqueuer(
   redisUrl: string,
   logger?: EnqueuerLogger,
 ): AnalysisEnqueuer & { close(): Promise<void> } {
+  // Captured so `close()` below can `quit()` it directly — BullMQ treats a connection
+  // handed to it as external and does not close it on `Queue.close()`, so without this
+  // every enqueuer leaks its Redis connection on every graceful shutdown.
+  const connection = makeQueueConnection(redisUrl);
   const queue = new Queue("iep.analysis", {
-    connection: makeQueueConnection(redisUrl),
+    connection,
     defaultJobOptions: {
       attempts: 3,
       backoff: { type: "exponential", delay: 2_000 },
@@ -33,9 +37,9 @@ export function makeAnalysisEnqueuer(
         // jobId = version + content hash: re-submitting identical content is deduplicated
         // by BullMQ itself, before a single token is spent.
         // Separator is "--": BullMQ rejects a custom id containing a colon.
-        await queue.add("analyse", job, {
+        await withEnqueueTimeout(queue.add("analyse", job, {
           jobId: `${job.ideaVersionId}--${job.contentHash.slice(0, 16)}`,
-        });
+        }));
         return true;
       } catch (error) {
         // Swallowing the failure is deliberate — the idea is already saved. Swallowing it
@@ -51,7 +55,10 @@ export function makeAnalysisEnqueuer(
         return false;
       }
     },
-    close: () => queue.close(),
+    close: async () => {
+      await queue.close();
+      await connection.quit();
+    },
   };
 }
 
@@ -69,8 +76,9 @@ export function makeRankingEnqueuer(
   redisUrl: string,
   logger?: EnqueuerLogger,
 ): RankingEnqueuer & { close(): Promise<void> } {
+  const connection = makeQueueConnection(redisUrl);
   const queue = new Queue("iep.ranking", {
-    connection: makeQueueConnection(redisUrl),
+    connection,
     defaultJobOptions: {
       attempts: 2,
       backoff: { type: "exponential", delay: 2_000 },
@@ -81,7 +89,7 @@ export function makeRankingEnqueuer(
   return {
     async enqueue(job) {
       try {
-        await queue.add("recompute", job);
+        await withEnqueueTimeout(queue.add("recompute", job));
         return true;
       } catch (error) {
         // The override itself already committed. Losing the recompute means a stale
@@ -95,7 +103,10 @@ export function makeRankingEnqueuer(
         return false;
       }
     },
-    close: () => queue.close(),
+    close: async () => {
+      await queue.close();
+      await connection.quit();
+    },
   };
 }
 

@@ -99,6 +99,7 @@ function makeApp() {
     analysis: { enqueue: async () => true },
     ranking: { enqueue: async () => true },
     discovery: { enqueue: async () => true },
+    ideaCreation: { enqueue: async () => true },
     attachments: new LocalDiskBackend(storageDir),
   };
   return buildServer(ctx);

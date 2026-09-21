@@ -213,7 +213,10 @@ describe("contract invariants that outlive the schema files", () => {
 
   it("ADR-005 — no score/rank/weight field appears in an AI analysis schema", () => {
     const s = openapi.components.schemas as Record<string, unknown>;
-    for (const name of ["StructuredProposal", "UseCase", "ValueFinding", "FeasibilityAssessment", "Risk"]) {
+    for (const name of [
+      "StructuredProposal", "UseCase", "ValueFinding", "MarketFinding",
+      "FeasibilityAssessment", "Risk",
+    ]) {
       const json = JSON.stringify(s[name] ?? {});
       for (const banned of ['"score"', '"rank"', '"weight"', '"compositeScore"', '"normalized"']) {
         expect(json, `${name} must not carry ${banned} (ADR-005)`).not.toContain(banned);

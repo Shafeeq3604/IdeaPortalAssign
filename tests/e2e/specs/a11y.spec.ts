@@ -49,7 +49,11 @@ const PAGES: readonly { name: string; path: string; public?: boolean }[] = [
   { name: "sign-in", path: "/login", public: true },
   { name: "sign-up", path: "/signup", public: true },
   { name: "idea list", path: "/ideas" },
-  { name: "submission form", path: "/ideas/new" },
+  // Platform-transformation brief §7: `/ideas/new` is now the AI-native conversational
+  // creation experience (the primary entry point); the unchanged direct form moved to
+  // its own fallback route, which needs the same coverage it always had.
+  { name: "idea creation (AI conversation)", path: "/ideas/new" },
+  { name: "submission form (direct)", path: "/ideas/new/manual" },
   { name: "discovery agent", path: "/discovery" },
   { name: "rankings", path: "/rankings" },
   { name: "dashboard", path: "/dashboard" },

@@ -54,6 +54,7 @@ const FIELDS = {
   problemStatement: "A problem worth stating.",
   expectedUsers: "The people affected.",
   expectedOutcome: "What would change.",
+  useCases: [] as string[],
 };
 
 async function makeIdea(submit = false) {

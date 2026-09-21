@@ -21,6 +21,18 @@ export const IdeaFormSchema = z.object({
   expectedBenefits: z.string().trim().max(2_000).optional(),
   estimatedCostNote: z.string().trim().max(2_000).optional(),
   references: z.string().trim().max(2_000).optional(),
+  /**
+   * First-class, structured (platform-transformation brief §7) — not folded into
+   * `description`. Mirrors the contract's `IdeaVersionInput.useCases`.
+   *
+   * No `.default()`/`.optional()` here (unlike the contract schema): the pairing
+   * doesn't work with `zodResolver`'s input/output typing (an optional-with-default
+   * array field infers as `string[] | undefined` on input but `string[]` on output,
+   * which `useForm<IdeaFormValues>` can't reconcile). `defaultValues` below always
+   * seeds a real `[]`, so "always present, possibly empty" is enforced by the form's
+   * own initial state instead.
+   */
+  useCases: z.array(z.string().trim().min(1).max(300)).max(10),
   /** Present only when revising. Required from v2 onward (FR-24). */
   changeSummary: z.string().trim().max(2_000).optional(),
 });

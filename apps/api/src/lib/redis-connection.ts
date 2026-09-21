@@ -21,3 +21,21 @@ export function makeQueueConnection(redisUrl: string): IORedis {
     // the whole API at startup during testing, not just the queue).
   });
 }
+
+/**
+ * `maxRetriesPerRequest: null` above is required, not optional — but it also means a
+ * `queue.add()` issued while Redis is unreachable never rejects on its own: ioredis just
+ * holds the command on its offline queue and retries quietly, forever. Every enqueuer's
+ * `try/catch` is supposed to degrade to `false` rather than let a submission hang, and
+ * without this race that contract silently breaks exactly when it matters most — the
+ * request just hangs until the client's own timeout instead.
+ */
+export function withEnqueueTimeout<T>(promise: Promise<T>, ms = 2_000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`queue.add did not complete within ${ms}ms`)), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error: unknown) => { clearTimeout(timer); reject(error as Error); },
+    );
+  });
+}

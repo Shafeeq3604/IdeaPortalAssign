@@ -2,7 +2,7 @@ import * as React from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Archive, ArrowDownUp, ChevronDown, Compass, LayoutGrid, Lightbulb, List, ListChecks,
-  PenSquare, Search, ShieldCheck, User, X,
+  PenSquare, Rocket, Search, ShieldCheck, User, X,
 } from "lucide-react";
 import {
   Button, EmptyState, ErrorState, Input, Select, SelectContent, SelectItem, SelectTrigger,
@@ -39,6 +39,23 @@ const VISIBLE_STATUSES = [
   // `as const satisfies`, not a `readonly IdeaStatus[]` annotation. The annotation widens the
   // element type back to the whole enum, so FILTER_TONE below then demands a tone for all
   // fifteen statuses — while `satisfies` still checks each entry IS a real status.
+] as const satisfies readonly IdeaStatus[];
+
+/**
+ * The four post-decision statuses, as one filter rather than four more pills.
+ *
+ * Same gap ARCHIVED had before its own toggle below: these are real statuses
+ * (`OutcomeTrack` on the Dashboard already counts and links to each of them
+ * individually), but nothing on THIS page — the one built for exploring the board — could
+ * reach "what's moving toward being built" as a single question. Grouped under one label
+ * rather than added as four individual pills, which would double this row's width for a
+ * set of statuses most ideas never reach.
+ */
+const IMPLEMENTATION_STATUSES = [
+  "PROTOTYPE_CANDIDATE",
+  "PILOT",
+  "PRODUCTION_CANDIDATE",
+  "IMPLEMENTED",
 ] as const satisfies readonly IdeaStatus[];
 
 /** The at-rest tone of each filter pill — the tint of the state it selects. */
@@ -199,6 +216,16 @@ export function IdeaListPage({ scope }: Props) {
       }
     });
 
+  const implementationOn = IMPLEMENTATION_STATUSES.every((s) => status.includes(s));
+  const toggleImplementation = () =>
+    update((next) => {
+      const now = next.getAll("status").filter(isStatus);
+      next.delete("status");
+      const withoutGroup = now.filter((v) => !(IMPLEMENTATION_STATUSES as readonly IdeaStatus[]).includes(v));
+      const nextStatuses = implementationOn ? withoutGroup : [...withoutGroup, ...IMPLEMENTATION_STATUSES];
+      for (const v of nextStatuses) next.append("status", v);
+    });
+
   /** An explicit choice always wins over the "rank once Ranked is filtered for" default
    * above — picking "Newest first" while looking at Ranked ideas is a real, sortable
    * decision, not a state that default should silently override. */
@@ -292,6 +319,26 @@ export function IdeaListPage({ scope }: Props) {
         })}
 
         <span aria-hidden className="mx-1 hidden h-5 w-px shrink-0 bg-border sm:inline-block" />
+
+        {/*
+          One pill for four statuses (PROTOTYPE_CANDIDATE/PILOT/PRODUCTION_CANDIDATE/
+          IMPLEMENTED) — "what's moving toward being built", the one lens the platform-
+          transformation brief asks for that this page had no way to answer at all.
+        */}
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-pressed={implementationOn}
+          onClick={toggleImplementation}
+          className={
+            implementationOn
+              ? "brand-pill rounded-full font-semibold text-grad-ink hover:text-grad-ink"
+              : "rounded-full font-medium text-muted-foreground hover:bg-muted"
+          }
+        >
+          <Rocket aria-hidden className="size-3.5" />
+          Implementation
+        </Button>
 
         {/*
           Archived ideas were reachable only by hand-editing the URL: no chip, and

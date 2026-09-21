@@ -36,6 +36,15 @@ export interface DiscoveryEnqueuer {
   enqueue(job: { discoveryQueryId: string }): Promise<boolean>;
 }
 
+/**
+ * Platform-transformation brief §7 — same degrade-never-throw contract as the other
+ * three enqueuers: a conversation turn is always saved even if the queue cannot
+ * process it right away.
+ */
+export interface IdeaCreationEnqueuer {
+  enqueue(job: { conversationId: string }): Promise<boolean>;
+}
+
 export interface AppContext {
   readonly env: ApiEnv;
   readonly db: PrismaClient;
@@ -44,5 +53,6 @@ export interface AppContext {
   readonly analysis: AnalysisEnqueuer;
   readonly ranking: RankingEnqueuer;
   readonly discovery: DiscoveryEnqueuer;
+  readonly ideaCreation: IdeaCreationEnqueuer;
   readonly attachments: AttachmentBackend;
 }

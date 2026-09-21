@@ -1,8 +1,8 @@
 import { z } from "zod";
 import {
   AnalysisStatus, AnalysisStep, Band, DependencyKind, EffortClass, FeasibilityDimension,
-  FeasibilityStatus, Horizon, RequirementKind, RiskCategory, RiskLevel, TimelinePhase,
-  UseCaseKind, UserCountBand, ValueDimension,
+  FeasibilityStatus, Horizon, MarketDimension, RequirementKind, RiskCategory, RiskLevel,
+  TimelinePhase, UseCaseKind, UserCountBand, ValueDimension,
 } from "../enums.js";
 import { Id, Provenance, Timestamp } from "./common.js";
 
@@ -70,6 +70,16 @@ export const ValueFinding = z.object({
   evidence: Evidence,
 });
 export type ValueFinding = z.infer<typeof ValueFinding>;
+
+/** Same shape as `ValueFinding` — see `MarketDimension`'s own comment for why this is
+ *  unscored AI analysis, not a new weighted criterion. */
+export const MarketFinding = z.object({
+  dimension: MarketDimension,
+  band: Band,
+  rationale: z.string(),
+  evidence: Evidence,
+});
+export type MarketFinding = z.infer<typeof MarketFinding>;
 
 export const FeasibilityFinding = z.object({
   dimension: FeasibilityDimension,
@@ -150,6 +160,7 @@ export const IdeaAnalysisResponse = z.object({
   proposal: StructuredProposal.nullable(),
   useCases: z.array(UseCase),
   valueFindings: z.array(ValueFinding),
+  marketFindings: z.array(MarketFinding),
   feasibility: FeasibilityAssessment.nullable(),
   risks: z.array(Risk),
   dependencies: z.array(Dependency),

@@ -63,6 +63,7 @@ async function main(): Promise<void> {
       problemStatement: `Handling ${domain} manually costs time and produces avoidable errors.`,
       expectedUsers: "Staff who currently do this by hand.",
       expectedOutcome: "Less manual work and fewer mistakes.",
+      useCases: [] as string[],
     };
 
     const { ideaId, versionId } = await makeIdeaRepo(db).createWithFirstVersion({

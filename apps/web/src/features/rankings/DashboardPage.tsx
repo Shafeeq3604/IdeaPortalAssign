@@ -3,11 +3,13 @@ import { Link } from "react-router-dom";
 import {
   CheckCircle2, Flag, FlaskConical, Hourglass, Layers, ParkingSquare, Rocket, Sparkles, Trophy,
 } from "lucide-react";
-import { ErrorState, Skeleton } from "@iep/ui";
+import { ErrorState, Skeleton, StatusPill } from "@iep/ui";
 import type { DashboardResponse, ListRankingsResponse } from "@iep/contracts";
 import { useDashboard, useRankings } from "./api";
 import { DashboardHero, Spotlight } from "./DashboardHero";
 import { useCountUp } from "../../app/use-count-up";
+import { ago } from "../../app/relative-time";
+import { STATUS_LABEL, useIdeaList } from "../ideas/api";
 
 /** A KPI tile's own count, ticking up to its value (visual-richness pass) — reserved for
  * these five headline figures, not every score on the board (that would animate 20-30
@@ -84,6 +86,8 @@ function Tiles() {
       <PipelineTiles tiles={query.data.tiles} board={board.data} />
 
       <Spotlight board={board.data} />
+
+      <RecentActivity />
 
       <OutcomeTrack tiles={query.data.tiles} />
 
@@ -383,6 +387,79 @@ const initials = (name: string): string =>
     .map((w) => w[0] ?? "")
     .join("")
     .toUpperCase();
+
+/* ══════════════════════════════════════════════════════════════════
+ * Activity — what moved most recently, not just what the board counts.
+ * ══════════════════════════════════════════════════════════════════ */
+
+/**
+ * The five most recently touched ideas across the whole board (`/ideas?sort=recent`,
+ * the same endpoint and sort Explore already offers — nothing new on the server, just a
+ * tighter `perPage` than that page's own default).
+ *
+ * The pipeline tiles above answer "how many, at each stage, right now" — a snapshot with
+ * no sense of motion. This answers the different question a dashboard is also for: "what
+ * just happened." `updatedAt` is a real, already-returned field, not a fabricated
+ * "trending" signal — recency is the one kind of activity this product can currently
+ * measure honestly. A per-idea velocity/engagement ranking would need real signals this
+ * API does not yet compute (flagged in the platform-transformation audit); this does not
+ * pretend to be that.
+ */
+function RecentActivity() {
+  const recent = useIdeaList({ sort: "recent", perPage: 5 });
+
+  if (recent.isPending) {
+    return (
+      <section className="mt-8">
+        <h2 className="font-serif text-500 font-semibold">Activity</h2>
+        <div className="mt-3.5 space-y-2" aria-busy="true">
+          {Array.from({ length: 5 }, (_, i) => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  // Quiet on failure — the pipeline tiles above already carry this page's headline
+  // numbers, so a second error banner for a secondary section is not worth the alarm.
+  if (recent.isError || recent.data.items.length === 0) return null;
+
+  return (
+    <section className="mt-8">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <h2 className="font-serif text-500 font-semibold">Activity</h2>
+          <p className="mt-0.5 text-200 text-muted-foreground">
+            What moved most recently across the whole board.
+          </p>
+        </div>
+        <Link to="/ideas?sort=recent" className="text-200 font-medium">
+          See everything
+        </Link>
+      </div>
+
+      <ul className="mt-3.5 list-none space-y-2 p-0">
+        {recent.data.items.map((idea) => (
+          <li key={idea.id}>
+            <Link
+              to={`/ideas/${idea.id}/overview`}
+              className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl border border-border bg-card p-3.5 no-underline transition-colors duration-[var(--dur-fast)] hover:bg-muted/60"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <StatusPill kind="LIFECYCLE" status={idea.status} label={STATUS_LABEL[idea.status]} />
+                <span className="min-w-0 truncate font-medium text-foreground">{idea.title}</span>
+              </span>
+              <span className="whitespace-nowrap text-100 text-muted-foreground">
+                {idea.submitter.displayName} · {ago(idea.updatedAt)}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 /* ══════════════════════════════════════════════════════════════════
  * What happens after a decision (Idea Platform Redesign — "outcomes journey")

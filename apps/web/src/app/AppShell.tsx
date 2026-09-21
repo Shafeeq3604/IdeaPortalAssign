@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   ChevronDown, Compass, LayoutDashboard, ListChecks, LogOut, PenSquare, Plus, Settings,
   ShieldCheck, Sparkles, Trophy, User,
@@ -128,13 +129,19 @@ function AccountMenu() {
   const navigate = useNavigate();
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+
+  const closeAndReturnFocus = () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
 
   React.useEffect(() => {
     if (!open) return;
     const onAway = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && closeAndReturnFocus();
     document.addEventListener("mousedown", onAway);
     document.addEventListener("keydown", onEsc);
     return () => {
@@ -143,12 +150,55 @@ function AccountMenu() {
     };
   }, [open]);
 
+  // `role="menu"` promises arrow-key/roving-tabindex behaviour a mouse-only implementation
+  // never delivers — a keyboard user who reaches this popover could tab through it but not
+  // move between items the way the role tells their screen reader they can.
+  React.useEffect(() => {
+    if (!open) return;
+    const items = ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"]');
+    items?.[0]?.focus();
+  }, [open]);
+
+  const onMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+    if (items.length === 0) return;
+    const currentIndex = items.indexOf(document.activeElement as HTMLElement);
+    const focusAt = (index: number) => items[(index + items.length) % items.length]?.focus();
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        focusAt(currentIndex + 1);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        focusAt(currentIndex - 1);
+        break;
+      case "Home":
+        e.preventDefault();
+        focusAt(0);
+        break;
+      case "End":
+        e.preventDefault();
+        focusAt(items.length - 1);
+        break;
+      default:
+        break;
+    }
+  };
+
   const signOut = useMutation({
     mutationFn: () => api<{ ok: true }>("/auth/logout", { method: "POST" }),
     onSuccess: () => {
       // Clear every cached query: the next person must never see the last one's data.
       queryClient.clear();
       navigate("/login", { replace: true });
+    },
+    // The button used to just revert from "Signing out…" back to "Sign out" on failure —
+    // silent, with no sign anything went wrong. A shared machine is exactly where that
+    // matters: someone who believes they signed out and walks away has not.
+    onError: () => {
+      toast.error("Could not sign out. Check your connection and try again.");
     },
   });
 
@@ -164,6 +214,7 @@ function AccountMenu() {
     <div className="relative" ref={ref}>
       <button
         type="button"
+        ref={triggerRef}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
@@ -171,7 +222,7 @@ function AccountMenu() {
         // `hidden` below the `sm` breakpoint) — a button whose only accessible name comes
         // from text that can be hidden by CSS is one layout change away from having none.
         aria-label={`Account menu for ${data.user.displayName}`}
-        className={`flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors duration-[var(--dur-fast)] ${ON_BAR}`}
+        className={`flex h-11 items-center gap-2 rounded-lg px-2 py-1.5 transition-colors duration-[var(--dur-fast)] sm:h-auto ${ON_BAR}`}
       >
         <span className="flex size-7 items-center justify-center rounded-full bg-grad-highlight/20 text-100 font-bold text-grad-highlight ring-1 ring-grad-rule">
           {initials}
@@ -192,6 +243,7 @@ function AccountMenu() {
       {open ? (
         <div
           role="menu"
+          onKeyDown={onMenuKeyDown}
           className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-e4"
         >
           <div className="brand-bar px-4 py-4 text-grad-ink">
@@ -266,6 +318,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const roles: readonly Role[] = data?.user.roles ?? [];
   const [navOpen, setNavOpen] = React.useState(false);
 
+  // A click on a nav link already closes this (it bubbles to the wrapping div's own
+  // onClick below), but that left two gaps `AccountMenu` right above already closes for
+  // its own popover: Escape did nothing, and navigating by any non-click path (browser
+  // back/forward) left the drawer open over the new page underneath it.
+  //
+  // Adjusted during render, not in a `useEffect` — the React-recommended pattern for
+  // resetting state in response to a prop/route change (react.dev "You Might Not Need
+  // an Effect"): an effect that unconditionally calls `setState` on every dependency
+  // change is exactly the cascading-render anti-pattern `react-hooks/set-state-in-effect`
+  // exists to catch.
+  const [prevPathname, setPrevPathname] = React.useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    if (navOpen) setNavOpen(false);
+  }
+
+  React.useEffect(() => {
+    if (!navOpen) return;
+    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setNavOpen(false);
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, [navOpen]);
+
   const visible = (items: readonly NavItem[]) => items.filter((i) => canSee(roles, i.roles));
   const primary = visible(PRIMARY);
   const privileged = visible(PRIVILEGED);
@@ -322,7 +397,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Button
           variant="ghost"
           size="sm"
-          className="md:hidden"
+          className="h-11 w-11 md:hidden"
           onClick={() => setNavOpen((v) => !v)}
           aria-expanded={navOpen}
           aria-label="Menu"
@@ -404,7 +479,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           */}
           <Link
             to="/ideas/new"
-            className="mr-1 inline-flex h-8 items-center gap-1.5 rounded-full bg-grad-highlight px-3 text-200 font-bold text-grad-from no-underline transition-transform duration-[var(--dur-fast)] hover:-translate-y-px"
+            className="mr-1 inline-flex h-11 items-center gap-1.5 rounded-full bg-grad-highlight px-3 text-200 font-bold text-grad-from no-underline transition-transform duration-[var(--dur-fast)] hover:-translate-y-px sm:h-8"
           >
             <Plus aria-hidden className="size-4" />
             <span className="hidden sm:inline">New idea</span>
@@ -422,7 +497,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             to="/discovery"
             aria-label="Discover"
             title="Discover — ask the AI research agent"
-            className={`${ON_BAR} inline-flex h-8 items-center gap-1.5 rounded-md px-2 sm:px-2.5`}
+            className={`${ON_BAR} inline-flex h-11 w-11 items-center justify-center gap-1.5 rounded-md px-2 sm:h-8 sm:w-auto sm:justify-start sm:px-2.5`}
           >
             <Sparkles aria-hidden className="size-4 shrink-0" />
             <span className="hidden text-200 font-medium sm:inline">Discover</span>

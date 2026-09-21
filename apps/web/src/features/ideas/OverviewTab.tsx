@@ -1,21 +1,31 @@
 import { Link, useParams } from "react-router-dom";
-import { CircleAlert, Lightbulb, TrendingUp, Users } from "lucide-react";
+import { CircleAlert, Gavel, Lightbulb, ListChecks, TrendingUp, Users } from "lucide-react";
 import {
-  Accordion, AccordionContent, AccordionItem, AccordionTrigger, Card, CardContent, CardHeader,
-  CardTitle,
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Card, CardContent,
+  CardHeader, CardTitle,
 } from "@iep/ui";
 import { IdeaShell } from "./IdeaShell";
 import { AnalysisProgress } from "../analysis/AnalysisProgress";
 import { AttachmentsPanel } from "./Attachments";
+import { DECISION_HELP, DECISION_LABEL, useReviews } from "../review/api";
 
 /** Overview: the submitted content as written, before any AI touches it. */
 export function OverviewTab() {
   const { ideaId = "" } = useParams();
+  const reviews = useReviews(ideaId);
 
   return (
     <IdeaShell>
       {(idea) => {
         const v = idea.currentVersion;
+        /**
+         * "Implementation recommendation" (platform-transformation brief §6) — the
+         * platform's own review decision, not an AI verdict. `OVERRIDDEN` is excluded:
+         * it is a side effect of a score adjustment (`ReviewTab.tsx`'s `OverrideForm`),
+         * not anyone recording a call on whether to build this. Newest first
+         * (`listReviews`'s own ordering), so the first genuine decision found is current.
+         */
+        const latestDecision = reviews.data?.items.find((r) => r.decision !== "OVERRIDDEN");
         const optional: readonly { label: string; value: string | null }[] = [
           { label: "How it's done today", value: v.existingProcess },
           { label: "Existing tools", value: v.existingSolutions },
@@ -64,6 +74,44 @@ export function OverviewTab() {
               </div>
             </Card>
 
+            {/*
+              Implementation recommendation (brief §6, §13) — deliberately human-authored:
+              this is the reviewer's own recorded decision and their own words, never AI
+              output rendered as a verdict (P-3). Silent while nothing has been decided
+              yet — most ideas most of the time — rather than an empty-state card
+              crowding a page that is already telling the submission's own story.
+            */}
+            {latestDecision ? (
+              <Card className="border-l-4 border-l-accent-600">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 font-serif">
+                    <Gavel aria-hidden className="size-4 text-accent-700" />
+                    Implementation recommendation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={latestDecision.decision === "REJECTED" ? "outline" : "secondary"}>
+                      {DECISION_LABEL[latestDecision.decision]}
+                    </Badge>
+                    <span className="text-100 text-muted-foreground">
+                      <Link to={`/people/${latestDecision.reviewer.id}`}>
+                        {latestDecision.reviewer.displayName}
+                      </Link>
+                      {" · "}
+                      {new Date(latestDecision.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-200">
+                    {latestDecision.comment ?? DECISION_HELP[latestDecision.decision]}
+                  </p>
+                  <Link to={`/ideas/${ideaId}/review`} className="text-100">
+                    Full review history
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : null}
+
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader>
@@ -84,6 +132,30 @@ export function OverviewTab() {
                 <CardContent><p className="whitespace-pre-wrap">{v.expectedOutcome}</p></CardContent>
               </Card>
             </div>
+
+            {/*
+              Use cases (platform-transformation brief §7) — a real, structured field the
+              submitter wrote, not the AI's own post-submission use-case analysis (that
+              lives on the Analysis tab, with kind/horizon/evidence). Shown only once
+              there is at least one, same as every other optional-and-real section here.
+            */}
+            {v.useCases.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 font-serif">
+                    <ListChecks aria-hidden className="size-4 text-muted-foreground" />
+                    Use cases
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="list-disc space-y-1.5 pl-5">
+                    {v.useCases.map((useCase, i) => (
+                      <li key={`${i}-${useCase.slice(0, 24)}`} className="text-200">{useCase}</li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            ) : null}
 
             {provided.length > 0 ? (
               // Collapsed by default once there IS optional detail to show, same

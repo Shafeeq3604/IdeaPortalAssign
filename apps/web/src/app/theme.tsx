@@ -77,7 +77,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     <Button
       variant="ghost"
       size="sm"
-      className={`${className ?? ""} gap-1.5 px-2 sm:px-2.5`}
+      className={`${className ?? ""} h-11 w-11 gap-1.5 px-2 sm:h-8 sm:w-auto sm:px-2.5`}
       onClick={() => setTheme(NEXT[theme])}
       // The label says the CURRENT state, not the next one. "Switch to dark" on a button
       // showing a sun is ambiguous about which it is describing.

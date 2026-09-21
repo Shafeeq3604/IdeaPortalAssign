@@ -208,7 +208,21 @@ test.describe("J-5 the orphan hunt", () => {
 
   test("the data & AI notice is reachable from the submission form", async ({ page }) => {
     await signInAs(page, /Erin Employee/i);
-    await page.goto("/ideas/new");
+    // `/ideas/new` is the AI-native conversation now (platform-transformation brief §7);
+    // this notice is on the direct, human-filled form, at its own fallback route.
+    await page.goto("/ideas/new/manual");
+
+    // The notice sits on the wizard's final (optional/review) step — reach it with the
+    // minimum required answers, same three-section shape `j1-employee-journey.spec.ts`
+    // steps through.
+    await page.locator("#field-title").fill("Data & AI notice check");
+    await page.locator("#field-problemStatement").fill("Checking the notice link is reachable.");
+    await page.getByRole("button", { name: /^Continue$/ }).click();
+    await page.locator("#field-description").fill("Not a real idea — just reaching the final step.");
+    await page.getByRole("button", { name: /^Continue$/ }).click();
+    await page.locator("#field-expectedUsers").fill("Nobody — this is a navigation check.");
+    await page.locator("#field-expectedOutcome").fill("The link is confirmed reachable.");
+    await page.getByRole("button", { name: /^Continue$/ }).click();
 
     // SPEC §4.5 requires the link here specifically — this is where someone decides how
     // much to write.

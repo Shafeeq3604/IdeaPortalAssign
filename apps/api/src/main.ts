@@ -1,5 +1,5 @@
 import Redis from "ioredis";
-import { getPrisma } from "@iep/db";
+import { disconnectPrisma, getPrisma } from "@iep/db";
 import { ApiEnv, loadEnv } from "@iep/contracts/env";
 import { initErrorTracking } from "./lib/error-tracking.js";
 import { buildServer } from "./server.js";
@@ -12,6 +12,7 @@ import {
   makeAnalysisEnqueuer, makeRankingEnqueuer, noopEnqueuer, noopRankingEnqueuer,
 } from "./lib/analysis-queue.js";
 import { makeDiscoveryEnqueuer, noopDiscoveryEnqueuer } from "./lib/discovery-queue.js";
+import { makeIdeaCreationEnqueuer, noopIdeaCreationEnqueuer } from "./lib/idea-creation-queue.js";
 import type { AppContext } from "./context.js";
 import { makeAttachmentBackend } from "./modules/idea/attachments.js";
 
@@ -81,6 +82,7 @@ const ctx: AppContext = {
   analysis: noopEnqueuer,
   ranking: noopRankingEnqueuer,
   discovery: noopDiscoveryEnqueuer,
+  ideaCreation: noopIdeaCreationEnqueuer,
   attachments: makeAttachmentBackend(env),
 };
 
@@ -93,8 +95,9 @@ if (redis) {
   const analysis = makeAnalysisEnqueuer(env.REDIS_URL, app.log);
   const ranking = makeRankingEnqueuer(env.REDIS_URL, app.log);
   const discovery = makeDiscoveryEnqueuer(env.REDIS_URL, app.log);
-  Object.assign(ctx, { analysis, ranking, discovery });
-  queueEnqueuers.push(analysis, ranking, discovery);
+  const ideaCreation = makeIdeaCreationEnqueuer(env.REDIS_URL, app.log);
+  Object.assign(ctx, { analysis, ranking, discovery, ideaCreation });
+  queueEnqueuers.push(analysis, ranking, discovery, ideaCreation);
 }
 registerDevLogin(app, ctx);
 
@@ -112,14 +115,29 @@ try {
   process.exit(1);
 }
 
+// Guards against a second SIGINT/SIGTERM re-entering the shutdown sequence (impatient
+// double Ctrl-C, or a process manager sending both) — without it, a second signal starts
+// a second `app.close()` against an already-closing server.
+let shuttingDown = false;
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     app.log.info(`${signal} received, closing`);
     void (async () => {
-      await app.close();
-      await Promise.all(queueEnqueuers.map((q) => q.close()));
-      redis?.disconnect();
-      process.exit(0);
+      try {
+        await app.close();
+        await Promise.allSettled(queueEnqueuers.map((q) => q.close()));
+        redis?.disconnect();
+        await disconnectPrisma();
+      } catch (error) {
+        // A rejection here used to be unhandled — the exact scenario shutdown code hits
+        // most often (Redis already half-gone) meant `process.exit(0)` below was never
+        // reached and the process hung until SIGKILL. Log it and exit anyway.
+        app.log.error(error, "error during shutdown — exiting anyway");
+      } finally {
+        process.exit(0);
+      }
     })();
   });
 }

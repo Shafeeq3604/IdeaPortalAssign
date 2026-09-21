@@ -96,7 +96,7 @@ describe("SPEC §7.4 — the AI provenance treatment is a contract, not a style"
 describe("SPEC §8.4 — the analysis stepper is determinate and honest", () => {
   const progress = () => read("apps/web/src/features/analysis/AnalysisProgress.tsx");
 
-  it("all six steps come from the contract, not from whatever the run has produced", () => {
+  it("all seven steps come from the contract, not from whatever the run has produced", () => {
     /**
      * A stepper built by mapping the response's `steps` array grows as steps start. That
      * is an indeterminate progress bar wearing a determinate costume: the total is

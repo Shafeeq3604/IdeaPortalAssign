@@ -2,7 +2,7 @@ import { Queue } from "bullmq";
 import type { DiscoveryEnqueuer } from "../context.js";
 import type { EnqueuerLogger } from "./analysis-queue.js";
 import { captureException } from "./error-tracking.js";
-import { makeQueueConnection } from "./redis-connection.js";
+import { makeQueueConnection, withEnqueueTimeout } from "./redis-connection.js";
 
 /**
  * The API's side of the discovery queue (SPC-001).
@@ -18,11 +18,17 @@ export function makeDiscoveryEnqueuer(
   redisUrl: string,
   logger?: EnqueuerLogger,
 ): DiscoveryEnqueuer & { close(): Promise<void> } {
+  // Captured so `close()` below can `quit()` it — BullMQ does not close an externally
+  // supplied connection on `Queue.close()`, so without this it leaks on every shutdown.
+  const connection = makeQueueConnection(redisUrl);
   const queue = new Queue("iep.discovery", {
-    connection: makeQueueConnection(redisUrl),
+    connection,
     defaultJobOptions: {
       attempts: 1, // SPC-8: no automatic retry — a failed query is cheap to resubmit by hand
       removeOnComplete: { age: 3600, count: 500 },
+      // Without this, every failing query (attempts: 1, so every failure) accumulates a
+      // job hash — including its full payload — in Redis forever.
+      removeOnFail: { age: 86_400 },
     },
   });
 
@@ -31,7 +37,7 @@ export function makeDiscoveryEnqueuer(
       try {
         // One job per row: a duplicate call for the same query id collapses rather than
         // spending model cost twice.
-        await queue.add("discover", job, { jobId: job.discoveryQueryId });
+        await withEnqueueTimeout(queue.add("discover", job, { jobId: job.discoveryQueryId }));
         return true;
       } catch (error) {
         logger?.warn(
@@ -42,7 +48,10 @@ export function makeDiscoveryEnqueuer(
         return false;
       }
     },
-    close: () => queue.close(),
+    close: async () => {
+      await queue.close();
+      await connection.quit();
+    },
   };
 }
 

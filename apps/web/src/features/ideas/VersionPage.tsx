@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Card, CardContent, CardHeader, CardTitle, DiffView, ErrorState, Skeleton,
+  Button, Card, CardContent, CardHeader, CardTitle, DiffView, ErrorState, Skeleton,
 } from "@iep/ui";
 import type { IdeaVersionDetail } from "@iep/contracts";
 import { api } from "../../app/api-client";
@@ -111,6 +111,19 @@ export function VersionPage() {
             <CardContent>
               {n > 1 && previous.isPending ? (
                 <Skeleton className="h-64 w-full" />
+              ) : n > 1 && previous.isError ? (
+                // Previously unchecked: a failed fetch left `previous.data` undefined,
+                // `contentOf(undefined)` returned `{}`, and the diff below rendered
+                // exactly as it does for a genuine version 1 — every field reading as
+                // newly "added" — a confidently wrong diff with no sign anything failed.
+                <div className="flex flex-col items-start gap-2">
+                  <p role="alert" className="text-200 text-destructive">
+                    Could not load version {n - 1} to compare against.
+                  </p>
+                  <Button size="sm" variant="outline" onClick={() => void previous.refetch()}>
+                    Try again
+                  </Button>
+                </div>
               ) : (
                 <DiffView
                   // For v1 the "before" is empty, so every filled field reads as added —
