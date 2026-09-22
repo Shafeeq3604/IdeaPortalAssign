@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Trophy } from "lucide-react";
 import { StatusPill } from "@iep/ui";
 import { IdeaStatus } from "@iep/contracts";
 import type { IdeaSummary } from "@iep/contracts";
@@ -177,6 +178,71 @@ export function IdeaCard({ idea }: { idea: IdeaSummary }) {
             <VoteCount up={idea.feedback.up} down={idea.feedback.down} />
           </span>
         )}
+      </div>
+    </article>
+  );
+}
+
+/**
+ * The one card on Explore Ideas that reads as more important than the rest (visual-
+ * composition pass §9 — "featured / highlighted opportunity + secondary opportunity
+ * cards", not a grid of identical tiles). Only ever the board's own current #1 — the
+ * exact fact `IdeaCard`'s neutral "Ranked #N" chip already states for every other idea —
+ * given more room, not a new claim. Same `card-texture` + `shadow-e4` depth language
+ * Dashboard's own Spotlight uses for the same reason: one true focal point per screen.
+ *
+ * Deliberately built from `IdeaSummary` fields only, the same payload the ordinary grid
+ * already has — no second request, and nothing here (topStrength/topConstraint) that
+ * only the rankings endpoint carries.
+ */
+export function FeaturedIdeaCard({ idea }: { idea: IdeaSummary }) {
+  return (
+    <article className="card-texture relative overflow-hidden rounded-2xl bg-card p-5 shadow-e4-lit ring-1 ring-inset ring-border transition-transform duration-[var(--dur-base)] hover:-translate-y-1 sm:p-6">
+      {/*
+        Brand accent, not amber (audit finding): the identical fact — "this is the
+        board's #1" — already renders in accent blue on the Rankings podium
+        (`RankingsPage.tsx`'s own "Featured opportunity" tile). Amber here made the same
+        label mean two different things depending which screen you were on, and it
+        collided with a genuinely urgent amber status pill (e.g. "Under review") sitting
+        two inches away in the same grid. One color, one meaning: amber stays reserved
+        for "this needs attention," blue for "this is the one being highlighted."
+      */}
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-accent-500 to-accent-700"
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="inline-flex items-center gap-1.5 rounded-full bg-accent-050 px-2.5 py-1 text-100 font-extrabold uppercase tracking-[0.1em] text-accent-700">
+          <Trophy aria-hidden className="size-3" />
+          Featured opportunity
+        </h2>
+        <StatusPill kind="LIFECYCLE" status={idea.status} label={STATUS_LABEL[idea.status]} />
+        {idea.department ? (
+          <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-100 font-medium text-muted-foreground">
+            {idea.department.name}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-3.5 flex flex-wrap items-start gap-5">
+        {idea.compositeScore === null ? null : <ScoreRing value={idea.compositeScore} />}
+
+        <div className="min-w-[16rem] flex-1">
+          <h3 className="text-400 font-semibold leading-snug">
+            <Link to={`/ideas/${idea.id}/overview`}>{idea.title}</Link>
+          </h3>
+          <p className="mt-1 text-200 text-muted-foreground">
+            {idea.submitter.displayName}
+            {idea.category ? ` · ${idea.category.label}` : ""}
+          </p>
+
+          <div className="mt-3 flex items-center gap-3">
+            {idea.status === "DRAFT" ? null : (
+              <VoteCount up={idea.feedback.up} down={idea.feedback.down} />
+            )}
+          </div>
+        </div>
       </div>
     </article>
   );

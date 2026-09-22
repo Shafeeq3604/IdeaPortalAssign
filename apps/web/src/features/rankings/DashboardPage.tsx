@@ -6,7 +6,7 @@ import {
 import { ErrorState, Skeleton, StatusPill } from "@iep/ui";
 import type { DashboardResponse, ListRankingsResponse } from "@iep/contracts";
 import { useDashboard, useRankings } from "./api";
-import { DashboardHero, Spotlight } from "./DashboardHero";
+import { BoardComposition, DashboardHero, Spotlight } from "./DashboardHero";
 import { useCountUp } from "../../app/use-count-up";
 import { ago } from "../../app/relative-time";
 import { STATUS_LABEL, useIdeaList } from "../ideas/api";
@@ -85,7 +85,18 @@ function Tiles() {
 
       <PipelineTiles tiles={query.data.tiles} board={board.data} />
 
-      <Spotlight board={board.data} />
+      {/*
+        Featured opportunity | Opportunity overview (visual-composition pass §8): the
+        board's one most-important fact, paired with real context about it, instead of
+        sitting alone above a full-width row. Stacks to one column below `lg` — the
+        Spotlight (the more important of the two) comes first either way.
+      */}
+      {board.data?.items.some((e) => e.rank === 1) ? (
+        <section className="mt-8 grid items-stretch gap-4 lg:grid-cols-[2fr_1fr]">
+          <Spotlight board={board.data} />
+          <BoardComposition board={board.data} />
+        </section>
+      ) : null}
 
       <RecentActivity />
 
@@ -211,7 +222,15 @@ function PipelineTiles({
         newly inserted into the DOM, not on a prop-only update), so filtering, a recompute,
         or any other state change here stays instant, not re-choreographed.
       */}
-      <div className="motion-reveal mt-3.5 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {/*
+        Mobile-recomposition finding: below `sm` this was a single column, so five tiles
+        that read as one compact strip on desktop became five full-width cards stacked a
+        phone-screen apart — a KPI row someone had to scroll through one number at a
+        time. Two columns even at the narrowest width keeps the "row of stats you can
+        scan together" reading intact; it only opens out to three, then five, once there
+        is room for a real row.
+      */}
+      <div className="motion-reveal mt-3.5 grid grid-cols-2 gap-3 sm:gap-3.5 lg:grid-cols-3 xl:grid-cols-5">
         {PIPELINE.map((stage) => {
           const tile = byKey.get(stage.key);
           if (!tile) return null;
@@ -244,9 +263,13 @@ function PipelineTiles({
                   // A zero should not shout as loudly as a real number. Nine tiles at
                   // equal weight, six of them zero, is a wall of noughts with the three
                   // counts that matter hidden inside it.
+                  //
+                  // `text-600` at phone width, stepping up to the full `text-800`/`text-700`
+                  // once two tiles share a row instead of five — the same digits, sized for
+                  // the two-column layout they actually sit in on a phone.
                   live
-                    ? `mt-1.5 block font-serif text-800 font-bold leading-none tabular-nums ${stage.ink}`
-                    : "mt-1.5 block font-serif text-700 font-semibold leading-none tabular-nums text-muted-foreground"
+                    ? `mt-1.5 block font-serif text-600 font-bold leading-none tabular-nums sm:text-800 ${stage.ink}`
+                    : "mt-1.5 block font-serif text-600 font-semibold leading-none tabular-nums text-muted-foreground sm:text-700"
                 }
               >
                 <TileCount value={tile.count} />

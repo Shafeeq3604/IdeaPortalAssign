@@ -167,6 +167,8 @@
   --shadow-e2: var(--e-2);
   --shadow-e3: var(--e-3);
   --shadow-e4: var(--e-4);
+  /* "-lit" token (visual-identity pass) — reserved for a page's one focal card. */
+  --shadow-e4-lit: var(--e-4-lit);
 
   /* ── Motion (SPEC §8.2) ── */
   --animate-duration-instant: var(--dur-instant);

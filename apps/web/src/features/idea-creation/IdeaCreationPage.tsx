@@ -7,6 +7,7 @@ import { ApiError } from "../../app/api-client";
 import { Badge, Button, Skeleton, Textarea } from "@iep/ui";
 import type { DraftField, IdeaCreationDraft, IdeaCreationMessage } from "@iep/contracts";
 import { PageHeading } from "../../app/PageHero";
+import { BrandMark } from "../../app/BrandMark";
 import type { IdeaFormValues } from "../ideas/IdeaForm";
 import {
   useCreateIdeaCreationConversation, useIdeaCreationConversation,
@@ -274,66 +275,76 @@ function StartScreen({ onStart, busy }: { onStart: (message: string) => void; bu
   ];
 
   return (
-    <div className="dash-hero relative overflow-hidden rounded-2xl p-6 text-grad-ink shadow-e4 sm:p-8">
-      <span className="inline-flex items-center gap-2 rounded-full bg-grad-ink/10 px-3 py-1 text-100 uppercase tracking-[0.06em] text-grad-ink-soft ring-1 ring-grad-rule">
-        <Sparkles aria-hidden className="size-3" />
-        AI-native idea creation
-      </span>
-      <h1 className="mt-3.5 font-serif text-600 font-semibold leading-tight tracking-tight text-grad-ink">
-        What's the idea?
-      </h1>
-      <p className="mt-2 max-w-[60ch] text-200 leading-relaxed text-grad-ink-soft">
-        Describe it however it's in your head right now — a frustration, a half-formed
-        thought, a sentence. The agent asks what's missing, one question at a time, and
-        the idea takes shape on the right as you talk. Nothing is submitted until you
-        review it yourself.
-      </p>
+    <div className="dash-hero relative overflow-hidden rounded-2xl p-6 text-grad-ink shadow-e4-lit sm:p-8">
+      {/* The product's own mark, as a large watermark (visual-identity pass) — see
+          `WelcomeShell`'s gradient panel for the full reasoning. */}
+      <BrandMark
+        aria-hidden
+        className="pointer-events-none absolute -right-12 -top-12 size-72 text-grad-ink opacity-[0.06]"
+      />
+      {/* `relative`: every real child needs to out-stack the absolutely-positioned
+          watermark above, same reasoning as `DashboardHero`/`DiscoveryChatPage`. */}
+      <div className="relative">
+        <span className="inline-flex items-center gap-2 rounded-full bg-grad-ink/10 px-3 py-1 text-100 uppercase tracking-[0.06em] text-grad-ink-soft ring-1 ring-grad-rule">
+          <Sparkles aria-hidden className="size-3" />
+          AI-native idea creation
+        </span>
+        <h1 className="mt-3.5 font-serif text-600 font-semibold leading-tight tracking-tight text-grad-ink">
+          What's the idea?
+        </h1>
+        <p className="mt-2 max-w-[60ch] text-200 leading-relaxed text-grad-ink-soft">
+          Describe it however it's in your head right now — a frustration, a half-formed
+          thought, a sentence. The agent asks what's missing, one question at a time, and
+          the idea takes shape on the right as you talk. Nothing is submitted until you
+          review it yourself.
+        </p>
 
-      <form
-        className="mt-5 rounded-xl bg-grad-ink/8 p-3 ring-1 ring-grad-rule"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (text.trim()) onStart(text.trim());
-        }}
-      >
-        <Textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="e.g. Expense approvals take way too long and I don't know why."
-          rows={3}
-          maxLength={4_000}
-          className="border-0 bg-transparent text-grad-ink shadow-none placeholder:text-grad-ink-soft/70 focus-visible:ring-0"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              if (text.trim()) onStart(text.trim());
-            }
+        <form
+          className="mt-5 rounded-xl bg-grad-ink/8 p-3 ring-1 ring-grad-rule"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (text.trim()) onStart(text.trim());
           }}
-        />
-        <div className="flex justify-end border-t border-grad-rule pt-2">
-          <Button
-            type="submit"
-            disabled={!text.trim() || busy}
-            className="bg-grad-highlight text-grad-from hover:opacity-90"
-          >
-            {busy ? "Starting…" : "Start"}
-            <Send aria-hidden className="size-3.5" />
-          </Button>
-        </div>
-      </form>
+        >
+          <Textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="e.g. Expense approvals take way too long and I don't know why."
+            rows={3}
+            maxLength={4_000}
+            className="border-0 bg-transparent text-grad-ink shadow-none placeholder:text-grad-ink-soft/70 focus-visible:ring-0"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (text.trim()) onStart(text.trim());
+              }
+            }}
+          />
+          <div className="flex justify-end border-t border-grad-rule pt-2">
+            <Button
+              type="submit"
+              disabled={!text.trim() || busy}
+              className="bg-grad-highlight text-grad-from hover:opacity-90"
+            >
+              {busy ? "Starting…" : "Start"}
+              <Send aria-hidden className="size-3.5" />
+            </Button>
+          </div>
+        </form>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {STARTERS.map((s) => (
-          <button
-            key={s}
-            type="button"
-            disabled={busy}
-            onClick={() => onStart(s)}
-            className="rounded-full bg-grad-ink/8 px-3 py-1.5 text-100 text-grad-ink-soft ring-1 ring-grad-rule transition-colors hover:bg-grad-ink/15 disabled:pointer-events-none disabled:opacity-50"
-          >
-            "{s}"
-          </button>
-        ))}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {STARTERS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              disabled={busy}
+              onClick={() => onStart(s)}
+              className="rounded-full bg-grad-ink/8 px-3 py-1.5 text-100 text-grad-ink-soft ring-1 ring-grad-rule transition-colors hover:bg-grad-ink/15 disabled:pointer-events-none disabled:opacity-50"
+            >
+              "{s}"
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

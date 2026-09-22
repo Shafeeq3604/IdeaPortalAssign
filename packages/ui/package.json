@@ -17,6 +17,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@fontsource/ibm-plex-sans": "^5.2.7",
+    "@fontsource/ibm-plex-serif": "^5.2.7",
     "@hookform/resolvers": "^5.9.1",
     "@iep/contracts": "workspace:*",
     "class-variance-authority": "^0.7.1",

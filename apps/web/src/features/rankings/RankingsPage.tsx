@@ -309,7 +309,7 @@ function PodiumCard({
         first
           // `card-texture` + `shadow-e4` (visual-richness pass — hero-card depth): the
           // top-ranked card should read as more elevated than 2nd/3rd, not just bigger.
-          ? "card-texture relative overflow-hidden rounded-2xl bg-card p-6 shadow-e4 ring-2 ring-inset ring-accent-100 transition-transform duration-[var(--dur-base)] hover:-translate-y-1"
+          ? "card-texture relative overflow-hidden rounded-2xl bg-card p-6 shadow-e4-lit ring-2 ring-inset ring-accent-100 transition-transform duration-[var(--dur-base)] hover:-translate-y-1"
           : "relative overflow-hidden rounded-2xl bg-card p-5 shadow-e2 ring-1 ring-inset ring-border"
       }
     >
@@ -415,6 +415,93 @@ function PodiumCard({
         />
         Compare
       </label>
+    </div>
+  );
+}
+
+/** Group by `criterionLabel`, count occurrences, sorted loudest first, capped to 3 —
+ *  a "pattern" is a top few, not a full re-listing of every criterion on the board. */
+function topFactors(
+  items: readonly RankingEntry[],
+  pick: (row: RankingEntry) => ExplanationItem | null,
+): readonly (readonly [string, number])[] {
+  const counts = new Map<string, number>();
+  for (const row of items) {
+    const item = pick(row);
+    if (item) counts.set(item.criterionLabel, (counts.get(item.criterionLabel) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+}
+
+function FactorList({
+  title, rows, total, tone,
+}: {
+  title: string;
+  rows: readonly (readonly [string, number])[];
+  total: number;
+  tone: "up" | "down";
+}) {
+  if (rows.length === 0) {
+    return (
+      <div>
+        <p className="text-100 font-bold uppercase tracking-[0.1em] text-muted-foreground">
+          {title}
+        </p>
+        <p className="mt-2 text-200 text-muted-foreground">Nothing stood out yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="text-100 font-bold uppercase tracking-[0.1em] text-muted-foreground">
+        {title}
+      </p>
+      <ul className="mt-2 flex flex-col gap-2">
+        {rows.map(([label, count]) => (
+          <li key={label}>
+            <div className="flex items-baseline justify-between gap-3 text-200">
+              <span className="font-medium">{label}</span>
+              <span className={`text-100 tabular-nums ${tone === "up" ? "text-factor-up" : "text-factor-down"}`}>
+                {count} of {total} ideas
+              </span>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className={`h-full rounded-full ${tone === "up" ? "bg-factor-up" : "bg-factor-down"}`}
+                style={{ width: `${Math.max(4, (count / total) * 100)}%` }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function AssessmentOverview({ items }: { items: readonly RankingEntry[] }) {
+  const strengths = topFactors(items, (r) => r.topStrength);
+  const constraints = topFactors(items, (r) => r.topConstraint);
+
+  return (
+    <div className="mb-4 rounded-2xl bg-card p-5 shadow-e2 ring-1 ring-inset ring-border">
+      {/*
+        A styled `<p>`, not a real heading — same reason `DashboardHero`'s "Pipeline
+        flow" label isn't one either: this panel's title is a label for content the
+        page's own `<h1>` ("Rankings") already scopes, not a new structural section on
+        the level of an idea's own title. Concretely: J-5's e2e spec clicks
+        `getByRole("heading", { level: 2 }).first()` expecting the first RANKED IDEA's
+        title — a real `<h2>` here would come first in the DOM and break that assumption
+        for every idea title on the page, not just this one.
+      */}
+      <p className="font-serif text-300 font-semibold">Assessment overview</p>
+      <p className="mt-1 text-100 text-muted-foreground">
+        What most often lifts or holds back the {items.length} ideas shown below.
+      </p>
+      <div className="mt-3.5 grid gap-4 sm:grid-cols-2">
+        <FactorList title="Most often the strongest factor" rows={strengths} total={items.length} tone="up" />
+        <FactorList title="Most often the limiting factor" rows={constraints} total={items.length} tone="down" />
+      </div>
     </div>
   );
 }
@@ -530,6 +617,17 @@ function Board({
         contains no rank 1, so it correctly gets no podium rather than crowning whatever
         happens to be first on screen — which is the bug this shape invites.
       */}
+      {/*
+        "Assessment overview" (visual-composition pass §11 — "opportunity assessment
+        landscape," not a leaderboard): what is actually driving the CURRENT board, as a
+        pattern across every row shown, not just the featured one. Every count here is
+        real — each row's own `topStrength`/`topConstraint.criterionLabel`, grouped —
+        the same two figures `FactorPair` already prints per row, aggregated rather than
+        invented. Hidden once there is nothing to aggregate (a one-page board of one or
+        two ideas has no real "pattern" to report).
+      */}
+      {!empty && data.items.length >= 4 ? <AssessmentOverview items={data.items} /> : null}
+
       {podium.length > 0 ? (
         <ol className="grid list-none grid-cols-1 items-end gap-3.5 p-0 md:grid-cols-3">
           {podium.map((row) => (

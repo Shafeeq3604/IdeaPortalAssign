@@ -133,13 +133,26 @@ export function CriteriaPage() {
                       <p className="mt-1 text-100 text-muted-foreground">
                         {DIRECTION_HELP[c.direction] ?? c.direction}
                       </p>
-                      <p className="mt-1 text-100 text-muted-foreground">
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-100 text-muted-foreground">
                         {c.usedInProfiles.length === 0 ? (
                           "No profile currently gives this any weight, so it cannot affect a rank."
                         ) : (
                           <>
                             {defaultProfile && weightOf(c.key) !== undefined ? (
                               <>
+                                {/* Same weight, same bar `ProfilesPage` already draws for
+                                    this exact number — a percentage on its own here read
+                                    as a different kind of fact from the identical one a
+                                    click away, when it is the same quantity either way. */}
+                                <span
+                                  aria-hidden
+                                  className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-ramp-1"
+                                >
+                                  <span
+                                    className="block h-full rounded-full bg-gradient-to-r from-ramp-4 to-accent-700"
+                                    style={{ width: `${Math.max(4, weightOf(c.key)! * 100)}%` }}
+                                  />
+                                </span>
                                 <span className="font-semibold tabular-nums text-foreground">
                                   {(weightOf(c.key)! * 100).toFixed(0)}%
                                 </span>{" "}
@@ -155,7 +168,7 @@ export function CriteriaPage() {
                             in total.
                           </>
                         )}
-                      </p>
+                      </div>
                     </div>
                   ))}
               </div>

@@ -5,6 +5,7 @@ import { matchRouteId } from "@iep/contracts";
 import type { DashboardResponse, ExplanationItem, ListRankingsResponse } from "@iep/contracts";
 import { canSee, useSession } from "../../app/use-session";
 import { ago } from "../../app/relative-time";
+import { BrandMark } from "../../app/BrandMark";
 
 /**
  * The dashboard hero (Idea Platform Redesign — "hero").
@@ -90,15 +91,30 @@ export function DashboardHero({
     .join(" · ");
 
   return (
-    <div className="dash-hero relative overflow-hidden rounded-2xl p-7 text-grad-ink shadow-e4 sm:p-8">
-      <div className="relative flex flex-wrap items-start justify-between gap-8">
+    <div className="dash-hero relative overflow-hidden rounded-2xl p-5 text-grad-ink shadow-e4-lit sm:p-7 lg:p-8">
+      {/* The product's own mark, as a large watermark (visual-identity pass) — see the
+          identical treatment on `WelcomeShell`'s gradient panel for the full reasoning. */}
+      <BrandMark
+        aria-hidden
+        className="pointer-events-none absolute -right-12 -top-12 size-72 text-grad-ink opacity-[0.06]"
+      />
+      <div className="relative flex flex-wrap items-start justify-between gap-6 lg:gap-8">
         <div className="max-w-[52ch]">
           <span className="inline-flex items-center gap-2 rounded-full bg-grad-ink/10 px-3 py-1 text-100 uppercase tracking-[0.06em] text-grad-ink-soft ring-1 ring-grad-rule">
             <span className="dash-pulse size-1.5 rounded-full bg-grad-highlight" />
             Board recomputed {ago(data.generatedAt)}
           </span>
 
-          <h2 className="mt-3.5 font-serif text-600 font-semibold leading-tight tracking-tight sm:text-700">
+          {/*
+            Mobile-recomposition finding: at phone width this headline used the same
+            `text-600` a desktop reader sees, which on a four-word-per-line serif face
+            wrapped to four lines and pushed every actionable number below the fold — the
+            hero became something to scroll PAST, not the first useful thing on the
+            screen. `text-400` on a phone is still the largest text in the header, still
+            bold serif, still the same words; it simply stops competing with the numbers
+            underneath it for a small screen's limited vertical budget.
+          */}
+          <h2 className="mt-3 font-serif text-400 font-semibold leading-tight tracking-tight sm:mt-3.5 sm:text-600 lg:text-700">
             {greeting()}
             {firstName ? `, ${firstName}` : ""}.
             <br />
@@ -106,10 +122,10 @@ export function DashboardHero({
           </h2>
 
           {detail ? (
-            <p className="mt-2.5 text-300 leading-relaxed text-grad-ink-soft">{detail}.</p>
+            <p className="mt-2 text-200 leading-relaxed text-grad-ink-soft sm:mt-2.5 sm:text-300">{detail}.</p>
           ) : null}
 
-          <div className="mt-5 flex flex-wrap gap-2.5">
+          <div className="mt-4 flex flex-wrap gap-2.5 sm:mt-5">
             {toReview > 0 && canReview ? (
               <Link
                 to="/review"
@@ -130,7 +146,7 @@ export function DashboardHero({
         </div>
 
         {/* ── pipeline flow ── */}
-        <div className="w-full max-w-[16rem] rounded-2xl bg-grad-ink/8 p-4 ring-1 ring-grad-rule">
+        <div className="w-full max-w-[16rem] rounded-2xl bg-grad-ink/8 p-3.5 ring-1 ring-grad-rule sm:p-4">
           <p className="text-100 font-bold uppercase tracking-[0.14em] text-grad-ink-soft">
             Pipeline flow
           </p>
@@ -151,8 +167,15 @@ export function DashboardHero({
           */}
           <div className="mt-4 flex gap-5 border-t border-grad-rule pt-3.5">
             <Stat value={String(board?.run.cohortSize ?? ranked)} label="on the board" />
+            {/*
+              "/100" appended (audit finding: first-time-user clarity) — a bare "61.8"
+              means nothing to someone who hasn't yet learned this product's scoring
+              model, and every other place a composite score appears (`ScoreRing`, the
+              Evaluation tab) already states the scale it's out of. This is the one place
+              that had dropped it.
+            */}
             <Stat
-              value={leader ? leader.compositeScore.toFixed(1) : "—"}
+              value={leader ? `${leader.compositeScore.toFixed(1)}/100` : "—"}
               label="top score"
             />
           </div>
@@ -509,54 +532,111 @@ export function Spotlight({ board }: { board: ListRankingsResponse | undefined }
   if (!leader) return null;
 
   return (
-    <section className="mt-8">
-      {/*
-        `card-texture` + `shadow-e4` (visual-richness pass — hero-card depth): this is the
-        one card on the dashboard that answers "what's the single most important thing
-        happening on the board," so it gets more depth than the KPI tiles above it and
-        the outcome track below it, not just a coloured edge.
-      */}
-      <div className="card-texture relative overflow-hidden rounded-2xl bg-card p-5 shadow-e4 ring-1 ring-inset ring-border transition-transform duration-[var(--dur-base)] hover:-translate-y-1">
-        {/* The amber-to-violet edge the canvas runs down the spotlight, and the only thing
-            marking this card out from the ones below it. */}
-        <span
-          aria-hidden
-          className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-grad-highlight to-grad-to"
-        />
+    /*
+      `card-texture` + `shadow-e4` (visual-richness pass — hero-card depth): this is the
+      one card on the dashboard that answers "what's the single most important thing
+      happening on the board," so it gets more depth than the KPI tiles above it and
+      the outcome track below it, not just a coloured edge.
 
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="inline-flex items-center gap-1.5 rounded-full bg-grad-highlight/20 px-2.5 py-1 text-100 font-extrabold uppercase tracking-[0.1em] text-state-warn">
-            <Trophy aria-hidden className="size-3" />
-            Leading the board
-          </h2>
-          <RankDelta rank={leader.rank} previousRank={leader.previousRank} />
-        </div>
+      No longer its own full-width `<section>` — paired with `BoardComposition` in a
+      two-column focal section on `DashboardPage` (visual-composition pass §8: "Featured
+      opportunity | Opportunity overview"), so the page's one most-important fact sits
+      beside the one panel that gives it context, instead of alone above it.
+    */
+    <div className="card-texture relative h-full overflow-hidden rounded-2xl bg-card p-5 shadow-e4-lit ring-1 ring-inset ring-border transition-transform duration-[var(--dur-base)] hover:-translate-y-1">
+      {/* The amber-to-violet edge the canvas runs down the spotlight, and the only thing
+          marking this card out from the ones below it. */}
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-grad-highlight to-grad-to"
+      />
 
-        <div className="mt-3.5 flex flex-wrap items-start gap-5">
-          <ScoreRing value={leader.compositeScore} />
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="inline-flex items-center gap-1.5 rounded-full bg-grad-highlight/20 px-2.5 py-1 text-100 font-extrabold uppercase tracking-[0.1em] text-state-warn">
+          <Trophy aria-hidden className="size-3" />
+          Leading the board
+        </h2>
+        <RankDelta rank={leader.rank} previousRank={leader.previousRank} />
+      </div>
 
-          <div className="min-w-[16rem] flex-1">
-            <h3 className="text-400 font-semibold leading-snug">
-              <Link to={`/ideas/${leader.ideaId}/evaluation`}>{leader.title}</Link>
-            </h3>
-            <p className="mt-1 text-200 text-muted-foreground">
-              <Link to={`/people/${leader.submitter.id}`}>{leader.submitter.displayName}</Link>
-              {leader.department ? ` · ${leader.department}` : ""} ·{" "}
-              <span className="font-semibold text-primary">
-                #{leader.rank} of {board?.run.cohortSize ?? leader.rank}
-              </span>
-            </p>
+      <div className="mt-3.5 flex flex-wrap items-start gap-5">
+        <ScoreRing value={leader.compositeScore} />
 
-            {/* P-2 travels with the rank, here as much as on the board itself. */}
-            <div className="mt-3.5 flex flex-col gap-2.5">
-              {leader.topStrength ? <FactorBar item={leader.topStrength} kind="up" /> : null}
-              {leader.topConstraint ? (
-                <FactorBar item={leader.topConstraint} kind="down" />
-              ) : null}
-            </div>
+        <div className="min-w-[16rem] flex-1">
+          <h3 className="text-400 font-semibold leading-snug">
+            <Link to={`/ideas/${leader.ideaId}/evaluation`}>{leader.title}</Link>
+          </h3>
+          <p className="mt-1 text-200 text-muted-foreground">
+            <Link to={`/people/${leader.submitter.id}`}>{leader.submitter.displayName}</Link>
+            {leader.department ? ` · ${leader.department}` : ""} ·{" "}
+            <span className="font-semibold text-primary">
+              #{leader.rank} of {board?.run.cohortSize ?? leader.rank}
+            </span>
+          </p>
+
+          {/* P-2 travels with the rank, here as much as on the board itself. */}
+          <div className="mt-3.5 flex flex-col gap-2.5">
+            {leader.topStrength ? <FactorBar item={leader.topStrength} kind="up" /> : null}
+            {leader.topConstraint ? (
+              <FactorBar item={leader.topConstraint} kind="down" />
+            ) : null}
           </div>
         </div>
       </div>
-    </section>
+    </div>
+  );
+}
+
+/**
+ * "Opportunity overview" — the Spotlight's paired panel (visual-composition pass §8).
+ *
+ * Real, already-fetched data only: each ranked idea's own `department` (RankingEntry's
+ * own field — no new query), grouped and counted client-side. Deliberately NOT a score
+ * distribution or a "quality" bucketing — a chart that groups ideas into bands by
+ * composite score would read as a verdict palette by another name (P-1), exactly what
+ * this product exists to avoid. Department is a plain fact about who submitted, not a
+ * judgement about the idea, so it is the one grouping this board can show without
+ * inventing a threshold nobody asked for.
+ */
+export function BoardComposition({ board }: { board: ListRankingsResponse | undefined }) {
+  const items = board?.items ?? [];
+  if (items.length === 0) return null;
+
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const key = item.department ?? "No department";
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const rows = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const max = Math.max(...rows.map(([, n]) => n));
+
+  return (
+    <div className="h-full rounded-2xl bg-card p-5 shadow-e2 ring-1 ring-inset ring-border">
+      <h2 className="text-200 font-bold uppercase tracking-[0.1em] text-muted-foreground">
+        Opportunity overview
+      </h2>
+      <p className="mt-1 text-100 text-muted-foreground">
+        Where the board's {items.length} ranked idea{items.length === 1 ? "" : "s"} come from.
+      </p>
+
+      <ul className="mt-4 flex flex-col gap-3">
+        {rows.map(([name, n]) => (
+          <li key={name}>
+            <div className="flex items-baseline justify-between gap-3 text-100">
+              <span className="min-w-0 truncate font-semibold text-foreground">{name}</span>
+              <span className="shrink-0 font-bold tabular-nums text-muted-foreground">{n}</span>
+            </div>
+            <div aria-hidden className="mt-1 h-1.5 overflow-hidden rounded-full bg-ramp-1">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-ramp-4 to-ramp-5"
+                style={{ width: `${Math.max(6, (n / max) * 100)}%` }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

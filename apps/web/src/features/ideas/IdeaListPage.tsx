@@ -12,7 +12,7 @@ import { IdeaStatus } from "@iep/contracts";
 import type { IdeaSummary } from "@iep/contracts";
 import { InlineStat, PageHeading } from "../../app/PageHero";
 import { STATUS_LABEL, parseSort, useIdeaList, type IdeaSort } from "./api";
-import { IdeaCard } from "./IdeaCard";
+import { FeaturedIdeaCard, IdeaCard } from "./IdeaCard";
 import { useSession } from "../../app/use-session";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
@@ -241,6 +241,17 @@ export function IdeaListPage({ scope }: Props) {
   const view = params.get("view") === "table" ? "table" : "grid";
   const setView = (next: "grid" | "table") =>
     update((n) => (next === "grid" ? n.delete("view") : n.set("view", next)));
+
+  /**
+   * The board's own #1, only on the true default view — unfiltered, page 1, no search.
+   * A search or a status filter narrows the list to what the reader asked for; a
+   * "featured" card that isn't necessarily part of that narrowed set (or reads as
+   * unexplained if it happens to be) has no place there.
+   */
+  const featured =
+    page === 1 && !search && status.length === 0
+      ? list.data?.items.find((i) => i.rank === 1)
+      : undefined;
 
   return (
     <main className="page">
@@ -473,13 +484,30 @@ export function IdeaListPage({ scope }: Props) {
           {view === "table" ? (
             <IdeaTable items={list.data.items} />
           ) : (
-            <ul className="grid list-none gap-4 p-0 lg:grid-cols-2 xl:grid-cols-3">
-              {list.data.items.map((idea) => (
-                <li key={idea.id}>
-                  <IdeaCard idea={idea} />
-                </li>
-              ))}
-            </ul>
+            <>
+              {/*
+                Featured opportunity (visual-composition pass §9): the board's own #1,
+                given a real focal point instead of sitting in the grid as one more equal
+                tile. Scoped tightly to the true default view — unfiltered, page 1, no
+                search — the same gating `IdeaListPage`'s own "My ideas" low-volume panel
+                already uses, so a search or a status filter never hides a result the
+                reader asked for behind a "featured" card they didn't ask to see.
+              */}
+              {featured ? (
+                <div className="mb-4">
+                  <FeaturedIdeaCard idea={featured} />
+                </div>
+              ) : null}
+              <ul className="grid list-none gap-4 p-0 lg:grid-cols-2 xl:grid-cols-3">
+                {list.data.items
+                  .filter((idea) => idea.id !== featured?.id)
+                  .map((idea) => (
+                    <li key={idea.id}>
+                      <IdeaCard idea={idea} />
+                    </li>
+                  ))}
+              </ul>
+            </>
           )}
 
           {/*

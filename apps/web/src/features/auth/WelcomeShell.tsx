@@ -43,6 +43,20 @@ export function WelcomeShell({
     <div className="min-h-dvh bg-welcome-canvas lg:grid lg:grid-cols-[1.05fr_minmax(0,1fr)]">
       {/* ═══ left: the gradient ═══ */}
       <section className="welcome-panel relative flex flex-col justify-between overflow-hidden px-6 py-10 text-grad-ink sm:px-10 lg:px-14 lg:py-14">
+        {/*
+          The product's own mark (visual-identity pass), reused as a large, near-invisible
+          watermark rather than confined to the small badge three lines below — the same
+          device a Stripe/Linear-tier product uses its own glyph for on a hero surface: a
+          detail that says "this was designed as itself," not decoration for its own sake.
+          Placed first in the DOM (behind every real, positioned child by paint order) and
+          `pointer-events-none` + `aria-hidden`, so it can never intercept a click or be
+          announced as content.
+        */}
+        <BrandMark
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-16 size-96 text-grad-ink opacity-[0.06] sm:-right-10 sm:-top-10"
+        />
+
         <header className="relative flex items-center gap-2">
           <span className="grid size-9 place-items-center rounded-xl bg-grad-highlight/15 ring-1 ring-grad-rule">
             <BrandMark className="size-4 text-grad-highlight" />

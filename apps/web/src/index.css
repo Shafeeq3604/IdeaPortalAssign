@@ -370,14 +370,28 @@
     radial-gradient(600px 300px at 88% 10%, color-mix(in oklab, var(--grad-highlight) 30%, transparent), transparent 58%),
     radial-gradient(520px 380px at 6% 108%, color-mix(in oklab, var(--grad-to) 85%, transparent), transparent 60%),
     linear-gradient(120deg, var(--grad-from) 0%, var(--grad-via) 52%, var(--grad-to) 100%);
-  box-shadow: var(--e-4);
+  /* "-lit" (visual-identity pass): the one card every page that has one leads with —
+     gets the top-edge highlight, same as the other focal-only surfaces below. */
+  box-shadow: var(--e-4-lit);
 }
 
-/* The dot grid the canvas lays over the gradient, faded out towards the corner. */
+/*
+ * The dot grid the canvas lays over the gradient, faded out towards the corner.
+ *
+ * `pointer-events: none` is load-bearing, not decoration-hygiene: an absolutely
+ * positioned `::before` with `inset: 0` is a POSITIONED descendant (z-index: auto), which
+ * paints (and hit-tests) ABOVE this element's normal-flow, non-positioned children per
+ * the CSS stacking order — regardless of DOM order. Every real control inside a
+ * `.dash-hero` card (the idea-creation start form's textarea/Start button, its own
+ * `document.elementFromPoint` returning this div instead of the textarea) was
+ * unclickable because of exactly this, on every browser, for every role — not a layout
+ * accident, a missing line on a full-bleed decorative overlay.
+ */
 .dash-hero::before {
   content: "";
   position: absolute;
   inset: 0;
+  pointer-events: none;
   background-image: radial-gradient(var(--grad-rule) 1px, transparent 1px);
   background-size: 26px 26px;
   mask-image: linear-gradient(200deg, #000, transparent 80%);
@@ -394,6 +408,9 @@
   content: "";
   position: absolute;
   inset: 0;
+  /* Same reason as `.dash-hero::before` above — a full-inset positioned overlay sits
+     above this card's normal-flow children in paint AND hit-test order by default. */
+  pointer-events: none;
   background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
   background-size: 22px 22px;
   mask-image: linear-gradient(200deg, #000, transparent 65%);
@@ -452,6 +469,9 @@
   width: 3px;
   border-radius: var(--r-full);
   background: var(--grad-highlight);
+  /* Same reason as `.dash-hero::before` above — a positioned decorative overlay must
+     never be able to intercept a click meant for the link it decorates. */
+  pointer-events: none;
 }
 
 /*
@@ -514,6 +534,8 @@
   content: "";
   position: absolute;
   inset: 0;
+  /* Same reason as `.dash-hero::before` above. */
+  pointer-events: none;
   background-image: radial-gradient(var(--grad-rule) 1px, transparent 1px);
   background-size: 20px 20px;
 }

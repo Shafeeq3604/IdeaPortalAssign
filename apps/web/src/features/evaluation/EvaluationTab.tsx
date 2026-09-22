@@ -191,6 +191,27 @@ export function EvaluationTab() {
               </section>
             )}
 
+            {/*
+              ── Evaluation profile (visual-composition pass) ──
+
+              The "shape" of the assessment at a glance, before the itemised list below.
+              Each bar is a real, already-known quantity — that group's criteria summed to
+              their own `contribution` figures, the same numbers "Every criterion" shows
+              per row — not a second computation and not a fabricated percentage. Sized
+              against the loudest group on THIS idea, same magnitude-bar convention the
+              Dashboard's pipeline tiles and board-composition panel already use, so the
+              same visual language means "relative size" everywhere it appears.
+            */}
+            <Card>
+              <CardHeader><CardTitle className="font-serif">Evaluation profile</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-100 text-muted-foreground">
+                  How much each group of criteria contributed to the composite score.
+                </p>
+                <EvaluationProfile byGroup={byGroup} />
+              </CardContent>
+            </Card>
+
             {/* ── every criterion, grouped, each with its evidence ── */}
             <Card>
               <CardHeader><CardTitle className="font-serif">Every criterion</CardTitle></CardHeader>
@@ -243,5 +264,38 @@ export function EvaluationTab() {
         );
       }}
     </IdeaShell>
+  );
+}
+
+/**
+ * The evaluation-profile bars. `byGroup` is the exact map `EvaluationTab` already built
+ * for "Every criterion" — one pass over already-fetched data, not a second fetch.
+ */
+function EvaluationProfile({ byGroup }: { byGroup: Map<CriterionGroup, CriterionScore[]> }) {
+  const rows = GROUP_ORDER.filter((g) => byGroup.has(g)).map((group) => ({
+    group,
+    total: (byGroup.get(group) ?? []).reduce((sum, s) => sum + s.contribution, 0),
+  }));
+  const max = Math.max(1, ...rows.map((r) => r.total));
+
+  return (
+    <div className="mt-3.5 grid gap-3.5 sm:grid-cols-2">
+      {rows.map(({ group, total }) => (
+        <div key={group}>
+          <div className="flex items-baseline justify-between gap-2 text-100">
+            <span className="font-semibold text-foreground">{GROUP_LABEL[group]}</span>
+            <span className="font-bold tabular-nums text-muted-foreground">
+              {total.toFixed(1)} pts
+            </span>
+          </div>
+          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ramp-1">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-accent-600 to-grad-to"
+              style={{ width: `${Math.max(4, (total / max) * 100)}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

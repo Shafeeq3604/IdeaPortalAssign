@@ -3,8 +3,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  ChevronDown, Compass, LayoutDashboard, ListChecks, LogOut, PenSquare, Plus, Settings,
-  ShieldCheck, Sparkles, Trophy, User,
+  ChevronDown, Compass, LayoutDashboard, ListChecks, LogOut, Menu, PenSquare, Plus, Settings,
+  ShieldCheck, Sparkles, Trophy, User, X,
 } from "lucide-react";
 import { Button } from "@iep/ui";
 import type { Role } from "@iep/contracts";
@@ -397,12 +397,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Button
           variant="ghost"
           size="sm"
-          className="h-11 w-11 md:hidden"
+          className={`h-11 w-11 md:hidden ${ON_BAR}`}
           onClick={() => setNavOpen((v) => !v)}
           aria-expanded={navOpen}
-          aria-label="Menu"
+          aria-controls="mobile-nav"
+          aria-label={navOpen ? "Close menu" : "Menu"}
         >
-          ☰
+          {navOpen ? <X aria-hidden className="size-5" /> : <Menu aria-hidden className="size-5" />}
         </Button>
 
         {/*
@@ -515,9 +516,45 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           sitting in the column beside it, instead of the exact same slate repeated.
         */}
         <aside className="brand-rail hidden border-r border-border bg-sidebar md:block">{nav}</aside>
+        {/*
+          A real overlay drawer on a phone, not an inline panel that shoves the page's own
+          content down the screen (design-audit finding: the old version left someone's
+          scroll position wrecked the moment they closed it, and gave no way to close it
+          except tapping the hamburger a second time). Fixed, sits above everything, and a
+          scrim behind it is both the visual cue that this is temporary and a full-width
+          "tap anywhere to close" target — the standard mobile nav pattern, not a bespoke
+          one invented for this product.
+        */}
         {navOpen ? (
-          <div className="border-b border-border md:hidden" onClick={() => setNavOpen(false)}>
-            {nav}
+          <div className="fixed inset-0 z-50 md:hidden">
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-foreground/50"
+              onClick={() => setNavOpen(false)}
+            />
+            <div
+              id="mobile-nav"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Main navigation"
+              className="absolute inset-y-0 left-0 w-72 max-w-[85vw] overflow-y-auto border-r border-border bg-sidebar shadow-e4"
+            >
+              <div className="flex h-14 items-center justify-between border-b border-border px-4">
+                <span className="flex items-center gap-2 text-200 font-semibold text-foreground">
+                  <BrandMark className="size-4 text-accent-700" />
+                  {PRODUCT_SHORT}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setNavOpen(false)}
+                  aria-label="Close menu"
+                  className="grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <X aria-hidden className="size-4" />
+                </button>
+              </div>
+              {nav}
+            </div>
           </div>
         ) : null}
         <div id="main-content" tabIndex={-1} className="min-w-0 focus:outline-none">

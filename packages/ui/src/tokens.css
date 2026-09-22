@@ -9,6 +9,20 @@
  * Feature code may not use a raw hex or px value. `pnpm lint:tokens` enforces it.
  */
 
+/*
+ * Visual-identity pass (CONTRACT-LOG.md, corrective): the actual type files behind
+ * --font-display/--font-sans below. Self-hosted, exact weights only (not the "index"
+ * import, which pulls every cut) — see the comment on those two tokens for why this
+ * replaced two system-font guesses that were never guaranteed to render at all.
+ */
+@import "@fontsource/ibm-plex-serif/400.css";
+@import "@fontsource/ibm-plex-serif/600.css";
+@import "@fontsource/ibm-plex-serif/700.css";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-sans/700.css";
+
 :root {
   /* ── Ink ramp ── */
   /*
@@ -179,16 +193,26 @@
   --grad-rule: #ffffff26;
 
   /*
-   * A real serif, from the system.
+   * IBM Plex Serif / IBM Plex Sans, self-hosted (visual-identity pass, CONTRACT-LOG.md
+   * — corrective). Both tokens previously named only a SYSTEM-font stack: nothing shipped
+   * with the app, so "the considered serif display face" silently resolved to whatever
+   * happened to be installed on the machine reading it — Times New Roman or Georgia, not
+   * a chosen typeface, and "Inter var" was never actually bundled either. The rest of the
+   * stack after the new leading name is the old system fallback, unchanged, for the one
+   * case that still matters: a request for the self-hosted file itself fails (blocked
+   * asset, corrupted cache) — that reads as "system serif," never as invisible text.
    *
-   * No webfont on purpose: the sign-in page is the one screen that must render correctly
-   * on a cold cache over a bad connection, and a display face that arrives late is worse
-   * than one that was never asked for.
+   * Self-hosted rather than a third-party font CDN is what keeps the ORIGINAL concern
+   * (the sign-in page must render correctly on a cold cache over a bad connection) still
+   * true: these files ship in the app's own bundle, same origin, no external round trip,
+   * and `@fontsource`'s own CSS sets `font-display: swap` — the fallback paints first
+   * paint immediately either way, this only changes what it swaps to once the local file
+   * (cached like any other asset) is available.
    */
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
-    Georgia, "Times New Roman", serif;
+  --font-display: "IBM Plex Serif", "Iowan Old Style", "Palatino Linotype", Palatino,
+    "Book Antiqua", Georgia, "Times New Roman", serif;
 
-  --font-sans: "Inter var", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "IBM Plex Sans", "Inter var", -apple-system, "Segoe UI", Roboto, sans-serif;
   --fs-100: 0.694rem;
   --fs-200: 0.833rem;
   --fs-300: 1rem;
@@ -236,6 +260,17 @@
   --e-2: 0 2px 6px -1px rgb(15 23 42 / 10%), 0 1px 2px rgb(15 23 42 / 6%);
   --e-3: 0 10px 20px -5px rgb(15 23 42 / 13%), 0 3px 6px rgb(15 23 42 / 7%);
   --e-4: 0 20px 38px -10px rgb(15 23 42 / 18%), 0 6px 12px rgb(15 23 42 / 8%);
+  /*
+   * "-lit" (visual-identity pass, CONTRACT-LOG.md — additive): the SAME e-4 shadow, plus a
+   * soft inset highlight along the top edge. Not a replacement for e-4 — a second, opt-in
+   * token, reserved for the handful of cards the design already raises to e-4 BECAUSE
+   * they're a page's one focal surface (the hero, a spotlight/podium/featured card), never
+   * applied to an ordinary card (those stop at e-1/e-2/e-3, untouched). That highlight is
+   * the detail that reads as "a produced object," not "a div with a shadow" — the same
+   * thing a raised physical card does under an overhead light. Kept restrained (60% white
+   * in light mode) rather than glossy.
+   */
+  --e-4-lit: var(--e-4), inset 0 1px 0 0 rgb(255 255 255 / 60%);
 
   /* ── Layout ── */
   --container: 1280px;
@@ -411,6 +446,11 @@
     --e-2: 0 2px 6px -1px rgb(0 0 0 / 35%), 0 1px 2px rgb(0 0 0 / 20%);
     --e-3: 0 8px 16px -4px rgb(0 0 0 / 45%);
     --e-4: 0 16px 32px -8px rgb(0 0 0 / 55%);
+    /* Same "-lit" token, restrained further: a 60%-white top edge that reads as a
+       considered highlight in light mode reads as a visible seam on a dark card, so dark
+       mode gets a much fainter one — present enough to still separate a focal card's top
+       edge from an ordinary one, not bright enough to look like a rendering artifact. */
+    --e-4-lit: var(--e-4), inset 0 1px 0 0 rgb(255 255 255 / 6%);
   }
 }
 
@@ -491,6 +531,8 @@
   --e-2: 0 2px 6px -1px rgb(0 0 0 / 35%), 0 1px 2px rgb(0 0 0 / 20%);
   --e-3: 0 8px 16px -4px rgb(0 0 0 / 45%);
   --e-4: 0 16px 32px -8px rgb(0 0 0 / 55%);
+  /* Same "-lit" restraint as the system-dark block above. */
+  --e-4-lit: var(--e-4), inset 0 1px 0 0 rgb(255 255 255 / 6%);
 }
 
 /* ── shadcn/ui theme bridge (ADR-019): shadcn reads these names. ── */
