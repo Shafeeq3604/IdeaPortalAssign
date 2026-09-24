@@ -5,6 +5,8 @@ import {
   AnthropicProvider, StubProvider, type AiProvider,
   AnthropicDiscoveryProvider, StubDiscoveryProvider, type DiscoveryChatProvider,
   AnthropicIdeaCreationProvider, StubIdeaCreationProvider, type IdeaCreationProvider,
+  OpenAiEmbeddingProvider, StubEmbeddingProvider, type EmbeddingProvider,
+  AnthropicDetectionProvider, StubDetectionProvider, type DetectionProvider,
 } from "@iep/ai";
 import {
   ANALYSIS_QUEUE, RANKING_QUEUE, DISCOVERY_QUEUE, IDEA_CREATION_QUEUE, connectionFrom,
@@ -14,7 +16,9 @@ import {
 import { runPipeline } from "./pipeline.js";
 import { runDiscoveryQuery } from "./discovery.js";
 import { runIdeaCreationTurn } from "./idea-creation.js";
-import { backfillMissingEvaluations, evaluateVersion, recomputeRankings } from "@iep/evaluation";
+import {
+  backfillMissingEvaluations, evaluateVersion, recomputeRankings, runDetection,
+} from "@iep/evaluation";
 import { grantRole } from "@iep/db";
 import { makeObservabilityClient } from "./observability.js";
 import { captureException, initErrorTracking } from "./error-tracking.js";
@@ -90,6 +94,36 @@ function makeIdeaCreationProvider(): IdeaCreationProvider {
 
 const ideaCreationProvider = makeIdeaCreationProvider();
 
+/**
+ * P12 (AI-10/AI-11) — same degrade-to-stub philosophy as every provider above. Anthropic
+ * has no embeddings endpoint (packages/ai/src/embeddings.ts), so this is a genuinely
+ * different vendor key, independently optional: a missing OPENAI_API_KEY means detection
+ * runs on its non-AI fallback (trigram search / catalogue-only lookup, SPEC §12.3), not
+ * that the worker won't start.
+ */
+function makeEmbeddingProvider(): EmbeddingProvider {
+  if (env.EMBEDDING_PROVIDER === "stub") return new StubEmbeddingProvider();
+  if (!env.OPENAI_API_KEY) {
+    console.error(
+      "[worker] EMBEDDING_PROVIDER=openai but no OPENAI_API_KEY is set. P12 detection " +
+        "falling back to trigram/catalogue-only matching — set OPENAI_API_KEY to enable it.",
+    );
+    return new StubEmbeddingProvider();
+  }
+  return new OpenAiEmbeddingProvider({ apiKey: env.OPENAI_API_KEY });
+}
+
+const embeddingProvider = makeEmbeddingProvider();
+
+/** Reuses the worker's own ANTHROPIC_API_KEY — same account, same degrade-to-stub rule. */
+function makeDetectionProvider(): DetectionProvider {
+  if (env.AI_PROVIDER === "stub") return new StubDetectionProvider();
+  if (!env.ANTHROPIC_API_KEY) return new StubDetectionProvider();
+  return new AnthropicDetectionProvider({ apiKey: env.ANTHROPIC_API_KEY });
+}
+
+const detectionProvider = makeDetectionProvider();
+
 /** iManner LLM observability (opt-in, see packages/contracts/src/env.ts's OBS_* fields). */
 const observability = makeObservabilityClient(env);
 
@@ -153,11 +187,31 @@ const worker = new Worker<AnalysisJob>(
       });
     }
 
+    /**
+     * P12 (FR-20/FR-21) — same "part of finishing an analysis, not a separate user
+     * action" reasoning as `evaluateVersion` above. Best-effort: a detection failure
+     * must never fail the analysis job itself (an idea with no similar-idea/existing-
+     * solution data is still fully rankable — those are enrichment, not a gate).
+     */
+    let detected: { similarIdeaCount: number; existingSolutionMatchCount: number; embeddingSource: "openai" | "stub" | "fallback" } =
+      { similarIdeaCount: 0, existingSolutionMatchCount: 0, embeddingSource: "fallback" };
+    try {
+      detected = await runDetection(
+        { db, embeddingProvider, detectionProvider },
+        { ideaId: job.data.ideaId, ideaVersionId: job.data.ideaVersionId },
+      );
+    } catch (error) {
+      console.error(`[detection] idea ${job.data.ideaId} failed:`, error instanceof Error ? error.message : error);
+      captureException(error, { kind: "detection", ideaId: job.data.ideaId });
+    }
+
     console.log(
       `[analysis] ${result.ideaVersionId} ${result.overall} · ` +
         `${evaluated ? `composite ${evaluated.compositeScore}, maturity ${evaluated.maturityLevel}` : "not evaluated"} · ` +
         `${result.stepsRun} steps, ${result.stepsFallenBack} fallback, ` +
-        `$${result.totalCostUsd.toFixed(4)}, ${Date.now() - started}ms`,
+        `$${result.totalCostUsd.toFixed(4)}, ${Date.now() - started}ms · ` +
+        `detection(${detected.embeddingSource}): ${detected.similarIdeaCount} similar, ` +
+        `${detected.existingSolutionMatchCount} catalogue match(es)`,
     );
     return result;
   },
@@ -264,6 +318,7 @@ console.log(
   `iep-worker listening on ${ANALYSIS_QUEUE} + ${RANKING_QUEUE} + ${DISCOVERY_QUEUE} + ` +
     `${IDEA_CREATION_QUEUE} · provider=${provider.name} · ` +
     `discoveryProvider=${discoveryProvider.name} · ideaCreationProvider=${ideaCreationProvider.name} · ` +
+    `embeddingProvider=${embeddingProvider.name} · detectionProvider=${detectionProvider.name} · ` +
     `budget=$${env.AI_BUDGET_PER_VERSION_USD}/version · redaction=${env.PII_REDACTION_ENABLED} · ` +
     `iManner observability=${env.OBS_ENABLED ? "enabled" : "disabled"}`,
 );

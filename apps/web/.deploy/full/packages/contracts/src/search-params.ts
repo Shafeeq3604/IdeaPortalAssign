@@ -69,6 +69,14 @@ export const DashboardParams = z.object({
 });
 export type DashboardParams = z.infer<typeof DashboardParams>;
 
+/** P14. Department + category only — both are filters `/ideas` honours too, so every
+ *  count on the page can link to a list that agrees with it (no date range; see analytics.ts). */
+export const AnalyticsParams = z.object({
+  department: uuid.optional(),
+  category: uuid.optional(),
+});
+export type AnalyticsParams = z.infer<typeof AnalyticsParams>;
+
 export const HistoryParams = z.object({
   /** "2-3" compares v2 with v3. */
   diff: z
@@ -113,6 +121,7 @@ export const SEARCH_PARAM_SCHEMAS = {
   "rankings.compare": CompareParams,
   "review.queue": ReviewQueueParams,
   dashboard: DashboardParams,
+  analytics: AnalyticsParams,
   "idea.history": HistoryParams,
   "idea.revise": ReviseParams,
   "admin.audit": AuditParams,

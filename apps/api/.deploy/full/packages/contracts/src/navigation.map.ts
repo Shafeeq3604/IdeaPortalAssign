@@ -66,7 +66,8 @@ export const ROUTES: readonly RouteDef[] = [
     renders: ["Idea", "IdeaVersion", "AiStructuredProposal", "UseCase", "AiAnalysis"] },
   { id: "idea.analysis", path: "/ideas/:ideaId/analysis", title: "Analysis", roles: ALL, backPath: "/ideas",
     renders: ["ValueFinding", "FeasibilityAssessment", "FeasibilityFinding", "Risk", "Dependency",
-              "ImplementationPlan", "ImplementationRequirement", "TimelineEstimate"] },
+              "ImplementationPlan", "ImplementationRequirement", "TimelineEstimate",
+              "ImplementationRecommendation"] },
   { id: "idea.evaluation", path: "/ideas/:ideaId/evaluation", title: "Evaluation", roles: ALL, backPath: "/ideas",
     renders: ["Evaluation", "CriterionScore", "ScoreOverride", "RankingEntry", "RankingExplanation"] },
   { id: "idea.history", path: "/ideas/:ideaId/history", title: "History", roles: ALL, backPath: "/ideas",
@@ -91,6 +92,8 @@ export const ROUTES: readonly RouteDef[] = [
 
   { id: "dashboard", path: "/dashboard", title: "Dashboard", roles: LEADERSHIP, backPath: "/",
     renders: ["Idea", "RankingEntry"], searchParams: ["department", "category", "from", "to", "profile"] },
+  { id: "analytics", path: "/analytics", title: "Analytics", roles: LEADERSHIP, backPath: "/dashboard",
+    renders: ["Idea", "Department", "IdeaCategory", "RankingEntry"], searchParams: ["department", "category"] },
 
   { id: "department", path: "/departments/:departmentId", title: "Department", roles: ALL, backPath: "/ideas",
     renders: ["Department", "Idea"] },
@@ -106,6 +109,13 @@ export const ROUTES: readonly RouteDef[] = [
     renders: ["User", "UserRole", "Department"], searchParams: ["q", "role", "page"] },
   { id: "admin.audit", path: "/admin/audit", title: "Audit log", roles: ADMIN_ONLY, backPath: "/",
     renders: ["AuditLog", "AiModelRoute"], searchParams: ["entity", "entityId", "actor", "action", "from", "to", "page"] },
+
+  { id: "config.categories", path: "/config/categories", title: "Categories", roles: ADMIN_ONLY, backPath: "/admin/users",
+    renders: ["IdeaCategory"] },
+  { id: "config.existingSolutions", path: "/config/existing-solutions", title: "Existing-solution catalogue",
+    roles: ADMIN_ONLY, backPath: "/admin/users", renders: ["ExistingSolution"] },
+  { id: "config.detection", path: "/config/detection", title: "Detection thresholds", roles: ADMIN_ONLY,
+    backPath: "/admin/users", renders: ["DetectionConfig"] },
 
   { id: "help.dataAndAi", path: "/help/data-and-ai", title: "Data & AI notice", roles: ALL, backPath: "/", renders: [] },
 
@@ -130,6 +140,20 @@ export const ROUTES: readonly RouteDef[] = [
    */
   { id: "ideas.new.manual", path: "/ideas/new/manual", title: "Submit an idea (direct form)", roles: ALL,
     backPath: "/ideas/new", renders: ["IdeaVersion", "Attachment"] },
+
+  /**
+   * ADR-026 — the final organisational decision on an AI Implementation Recommendation.
+   * Deliberately NOT part of RELATIONSHIPS (locked to SPEC §6.2's 46 rows — "no invented
+   * rows"), same shape as the Discovery/`ideas.new.manual` entries above: a real,
+   * reachable route registered here instead. Role-gated to `LEADERSHIP`
+   * (MANAGEMENT + ADMIN) — this is deliberately not everyone the way `idea.review` is
+   * scoped to `REVIEWERS`, since recording the final decision is a leadership act, not a
+   * reviewer one. The AI's own recommendation is read on `idea.analysis` (same tab as
+   * every other analysis finding); this route is only the human decision surface.
+   */
+  { id: "idea.leadershipDecision", path: "/ideas/:ideaId/leadership-decision",
+    title: "Leadership decision", roles: LEADERSHIP, backPath: "/ideas/:ideaId/analysis",
+    renders: ["ImplementationRecommendation", "LeadershipDecision"] },
 ];
 
 /** The 46 relationships of SPEC §6.2, in order. */

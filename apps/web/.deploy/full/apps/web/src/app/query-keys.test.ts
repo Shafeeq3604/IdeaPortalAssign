@@ -38,6 +38,7 @@ describe("queryKeys", () => {
     ]);
     expect(queryKeys.ideas.reviews("idea-1")).toEqual(["ideas", "detail", "idea-1", "reviews"]);
     expect(queryKeys.ideas.feedback("idea-1")).toEqual(["ideas", "detail", "idea-1", "feedback"]);
+    expect(queryKeys.ideas.signals("idea-1")).toEqual(["ideas", "detail", "idea-1", "signals"]);
     // NOT nested under "detail" — this is the one idea sub-key with a different shape.
     expect(queryKeys.ideas.attachments("idea-1")).toEqual(["ideas", "idea-1", "attachments"]);
   });
@@ -67,6 +68,10 @@ describe("queryKeys", () => {
     expect(queryKeys.admin.audit({ page: 1 })).toEqual(["admin", "audit", { page: 1 }]);
     expect(queryKeys.admin.users({ page: 1 })).toEqual(["admin", "users", { page: 1 }]);
     expect(queryKeys.admin.departments()).toEqual(["admin", "departments"]);
+  });
+
+  it("builds people keys", () => {
+    expect(queryKeys.people.activity("user-1")).toEqual(["people", "user-1", "activity"]);
   });
 });
 
@@ -110,10 +115,41 @@ describe("invalidateAfter", () => {
     ]);
   });
 
-  it("recompute invalidates every ranking and the dashboard, and nothing per-idea", () => {
+  it("recompute invalidates every ranking, the dashboard and analytics, and nothing per-idea", () => {
     expect(invalidateAfter.recompute()).toEqual([
       ["rankings"],
       ["dashboard", null],
+      // Prefix — every filtered analytics view reads the latest run for impact vs effort.
+      ["analytics"],
+    ]);
+  });
+
+  it("profileWeightsUpdate invalidates config and the audit trail, but no rank (ADR-008)", () => {
+    expect(invalidateAfter.profileWeightsUpdate()).toEqual([
+      ["config", "criteria"],
+      ["config", "profiles"],
+      ["admin", "audit", {}],
+    ]);
+  });
+
+  it("categoryUpdate invalidates the categories list and the audit trail", () => {
+    expect(invalidateAfter.categoryUpdate()).toEqual([
+      ["config", "categories"],
+      ["admin", "audit", {}],
+    ]);
+  });
+
+  it("existingSolutionUpdate invalidates the catalogue list and the audit trail", () => {
+    expect(invalidateAfter.existingSolutionUpdate()).toEqual([
+      ["config", "existing-solutions"],
+      ["admin", "audit", {}],
+    ]);
+  });
+
+  it("detectionConfigUpdate invalidates the detection thresholds and the audit trail", () => {
+    expect(invalidateAfter.detectionConfigUpdate()).toEqual([
+      ["config", "detection"],
+      ["admin", "audit", {}],
     ]);
   });
 

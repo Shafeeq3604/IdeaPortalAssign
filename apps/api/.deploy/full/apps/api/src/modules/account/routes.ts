@@ -1,6 +1,9 @@
 import {
-  CreateUserRequest, LoginRequest, SetFeedbackRequest, SignupRequest, UpdateUserRequest, can,
+  CreateUserRequest, LoginRequest, SetFeedbackRequest, SetIdeaSignalRequest, SignupRequest,
+  UpdateUserRequest, can,
 } from "@iep/contracts";
+import { Prisma } from "@iep/db";
+import { evaluateVersion } from "@iep/evaluation";
 import type { IdeaStatus, Role, SessionResponse, SignupOptions } from "@iep/contracts";
 import type { Handler } from "../../server.js";
 import { requireActor, sendError } from "../../server.js";
@@ -357,52 +360,73 @@ export function registerAccountRoutes(handlers: Map<string, Handler>): void {
       }
     }
 
-    await ctx.db.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: userId },
-        data: {
-          ...(parsed.data.displayName ? { displayName: parsed.data.displayName } : {}),
-          ...(parsed.data.departmentId !== undefined
-            ? { departmentId: parsed.data.departmentId }
-            : {}),
-          ...(parsed.data.isActive !== undefined ? { isActive: parsed.data.isActive } : {}),
-          ...(parsed.data.newPassword
-            ? {
-                passwordHash: await hashPassword(parsed.data.newPassword),
-                passwordSetAt: new Date(),
-                // A new password clears a lockout: that is what the admin is fixing.
-                failedLogins: 0,
-                lockedUntil: null,
-              }
-            : {}),
-        },
-      });
+    /**
+     * SERIALIZABLE, same as the vote-race fix below: `existing.roles` was read outside
+     * this transaction, so two admins editing the same user's roles concurrently can both
+     * read the same stale set. `deleteMany`+`createMany` has no single row to guard with
+     * an `updateMany`-style WHERE clause — it replaces a whole child-row set — so instead
+     * of a count-guard, Postgres itself aborts whichever transaction's read set the other
+     * invalidates, and that one surfaces as P2034 here rather than silently discarding one
+     * admin's change (both audit rows would otherwise claim the same, now-stale, "before").
+     */
+    try {
+      await ctx.db.$transaction(
+        async (tx) => {
+          await tx.user.update({
+            where: { id: userId },
+            data: {
+              ...(parsed.data.displayName ? { displayName: parsed.data.displayName } : {}),
+              ...(parsed.data.departmentId !== undefined
+                ? { departmentId: parsed.data.departmentId }
+                : {}),
+              ...(parsed.data.isActive !== undefined ? { isActive: parsed.data.isActive } : {}),
+              ...(parsed.data.newPassword
+                ? {
+                    passwordHash: await hashPassword(parsed.data.newPassword),
+                    passwordSetAt: new Date(),
+                    // A new password clears a lockout: that is what the admin is fixing.
+                    failedLogins: 0,
+                    lockedUntil: null,
+                  }
+                : {}),
+            },
+          });
 
-      if (parsed.data.roles) {
-        await tx.userRole.deleteMany({ where: { userId } });
-        await tx.userRole.createMany({
-          data: parsed.data.roles.map((role) => ({ userId, role })),
-        });
+          if (parsed.data.roles) {
+            await tx.userRole.deleteMany({ where: { userId } });
+            await tx.userRole.createMany({
+              data: parsed.data.roles.map((role) => ({ userId, role })),
+            });
+          }
+
+          await writeAudit(tx, {
+            actorId: actor.userId,
+            action: "user.update",
+            entityType: "user",
+            entityId: userId,
+            before: {
+              roles: existing.roles.map((r) => r.role),
+              isActive: existing.isActive,
+            },
+            after: {
+              roles: parsed.data.roles ?? existing.roles.map((r) => r.role),
+              isActive: parsed.data.isActive ?? existing.isActive,
+              // Recorded as a fact, never as a value.
+              passwordChanged: Boolean(parsed.data.newPassword),
+            },
+            requestId: request.id,
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      // P2034: see the identical comment at the vote transaction below.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+        return sendError(reply, "CONCURRENT_MODIFICATION",
+          "Another administrator changed this user while your request was in flight. Reload and try again.");
       }
-
-      await writeAudit(tx, {
-        actorId: actor.userId,
-        action: "user.update",
-        entityType: "user",
-        entityId: userId,
-        before: {
-          roles: existing.roles.map((r) => r.role),
-          isActive: existing.isActive,
-        },
-        after: {
-          roles: parsed.data.roles ?? existing.roles.map((r) => r.role),
-          isActive: parsed.data.isActive ?? existing.isActive,
-          // Recorded as a fact, never as a value.
-          passwordChanged: Boolean(parsed.data.newPassword),
-        },
-        requestId: request.id,
-      });
-    });
+      throw error;
+    }
 
     return presentAdminUser(ctx, userId);
   });
@@ -433,24 +457,120 @@ export function registerAccountRoutes(handlers: Map<string, Handler>): void {
      * the totals are all this is for. No audit entry either: a thumb is not a decision
      * about an idea's fate, and filling the governance trail with them would bury the
      * decisions that are.
+     *
+     * SERIALIZABLE, not the default isolation: the unique constraint on `Feedback` is
+     * scoped per `(ideaId, userId, type)`, not per `(ideaId, userId)`, so a delete-then-
+     * create for UP does not conflict with a concurrent delete-then-create for DOWN — two
+     * requests from the same double-click can each see zero existing rows, and both
+     * inserts succeed, leaving one person with both an UP and a DOWN row on the same idea
+     * at once. READ COMMITTED (the default) would not catch this — neither transaction's
+     * DELETE ever sees the other's uncommitted INSERT. SERIALIZABLE makes Postgres abort
+     * the loser with a serialization failure instead, which is caught below and reported
+     * as a conflict the client already knows how to retry.
      */
-    await ctx.db.feedback.deleteMany({
-      where: { ideaId, userId, type: { in: ["WOULD_USE", "SEE_RISK"] } },
-    });
-
-    if (parsed.data.vote) {
-      await ctx.db.feedback.create({
-        data: {
-          ideaId,
-          userId,
-          // Mapped onto the P0 enum rather than widening it: "I would use this" and
-          // "I see a risk here" are what a thumb up and down actually mean here.
-          type: parsed.data.vote === "UP" ? "WOULD_USE" : "SEE_RISK",
+    try {
+      await ctx.db.$transaction(
+        async (tx) => {
+          await tx.feedback.deleteMany({
+            where: { ideaId, userId, type: { in: ["WOULD_USE", "SEE_RISK"] } },
+          });
+          if (parsed.data.vote) {
+            await tx.feedback.create({
+              data: {
+                ideaId,
+                userId,
+                // Mapped onto the P0 enum rather than widening it: "I would use this" and
+                // "I see a risk here" are what a thumb up and down actually mean here.
+                type: parsed.data.vote === "UP" ? "WOULD_USE" : "SEE_RISK",
+              },
+            });
+          }
         },
-      });
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      // P2034: Prisma's code for a transaction Postgres aborted for write conflict / could
+      // not serialize — exactly the race this isolation level exists to catch.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+        return sendError(reply, "CONCURRENT_MODIFICATION",
+          "Your vote crossed with another change. Try again.");
+      }
+      throw error;
     }
 
     return summariseFeedback(ctx, ideaId, userId);
+  });
+
+  /* ── Structured feedback (FR-18, P11 — the five non-vote `FeedbackType` values) ── */
+
+  handlers.set("getIdeaSignals", async (request, reply, ctx) => {
+    const { ideaId } = request.params as { ideaId: string };
+    const idea = await readableIdea(request, ctx, ideaId);
+    if (!idea) return sendError(reply, "NOT_FOUND", "No idea with that id");
+
+    return summariseSignals(ctx, ideaId, requireActor(request).userId);
+  });
+
+  handlers.set("setIdeaSignal", async (request, reply, ctx) => {
+    const parsed = SetIdeaSignalRequest.safeParse(request.body);
+    if (!parsed.success) {
+      return sendError(reply, "VALIDATION_FAILED", "Choose a reason, and keep any note under 500 characters");
+    }
+
+    const { ideaId } = request.params as { ideaId: string };
+    const idea = await readableIdea(request, ctx, ideaId);
+    if (!idea) return sendError(reply, "NOT_FOUND", "No idea with that id");
+
+    const userId = requireActor(request).userId;
+    const { type, active } = parsed.data;
+
+    /**
+     * `upsert`, not the vote's delete-then-create-inside-a-SERIALIZABLE-transaction.
+     * That pattern exists there because one thumb replaces one of TWO possible rows
+     * (`WOULD_USE`/`SEE_RISK`) sharing a single "my vote" slot, so a delete on one type
+     * can race a concurrent insert on the other. Here every request names its own exact
+     * `type` — the unique key `(ideaId, userId, type)` already IS the row `upsert`
+     * targets, so Postgres's own `ON CONFLICT` handles a double-click atomically with no
+     * transaction of our own needed.
+     */
+    if (active) {
+      await ctx.db.feedback.upsert({
+        where: { ideaId_userId_type: { ideaId, userId, type } },
+        create: { ideaId, userId, type, comment: parsed.data.comment || null },
+        update: { comment: parsed.data.comment || null },
+      });
+    } else {
+      // Idempotent: removing an already-absent entry is success, not an error (same
+      // "already gone" reasoning as the attachment double-delete fix elsewhere).
+      await ctx.db.feedback.deleteMany({ where: { ideaId, userId, type } });
+    }
+
+    /**
+     * P11 (FR-19) — the demonstrated_demand criterion reads structured feedback
+     * (packages/evaluation/src/factors.ts), so a signal changing must refresh the
+     * current version's score, not wait for the next AI re-analysis. `evaluateVersion`
+     * is pure computation over already-persisted rows — no provider call, no cost, same
+     * "safe to re-run" property `backfillMissingEvaluations` already relies on — so it
+     * runs inline rather than being queued. Best-effort: an idea with no current version
+     * yet, or no analysis yet, returns null and this is simply skipped rather than
+     * thrown — the signal itself is already saved either way, and the next real
+     * analysis (or a future backfill pass) computes it fresh regardless.
+     */
+    if (idea.currentVersionId) {
+      await evaluateVersion(ctx.db, idea.currentVersionId);
+    }
+
+    return summariseSignals(ctx, ideaId, userId);
+  });
+
+  /* ── Personal activity: profile summary + contribution timeline (SPEC §6.1 person page) ── */
+
+  handlers.set("getPersonActivity", async (request, reply, ctx) => {
+    const { userId } = request.params as { userId: string };
+    const exists = await ctx.db.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!exists) return sendError(reply, "NOT_FOUND", "No user with that id");
+
+    return personActivitySummary(ctx, requireActor(request), userId);
   });
 }
 
@@ -507,6 +627,172 @@ async function summariseFeedback(
     up,
     down,
     myVote: mine ? (mine.type === "WOULD_USE" ? ("UP" as const) : ("DOWN" as const)) : null,
+  };
+}
+
+/** The five `FeedbackType` values structured feedback exposes — everything the vote
+ *  above does not already claim. */
+const STRUCTURED_TYPES = [
+  "HAVE_PROBLEM", "SIMILAR_USE_CASE", "CAN_PROVIDE_DATA", "CAN_HELP_IMPLEMENT", "HAVE_IMPROVEMENT",
+] as const;
+
+async function summariseSignals(
+  ctx: Parameters<Handler>[2],
+  ideaId: string,
+  userId: string,
+) {
+  const rows = await ctx.db.feedback.findMany({
+    where: { ideaId, type: { in: [...STRUCTURED_TYPES] } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // `Feedback` has no Prisma relation to `User` (it is a P0-reserved, relation-less
+  // table — see the model's own comment in schema.prisma), so the submitter's name is a
+  // second, batched query rather than a nested `include`, the same pattern
+  // `feedbackForIdeas` already uses in idea/routes.ts for the same reason.
+  const submitterIds = [...new Set(rows.map((r) => r.userId))];
+  const submitters = submitterIds.length
+    ? await ctx.db.user.findMany({
+        where: { id: { in: submitterIds } },
+        select: { id: true, displayName: true },
+      })
+    : [];
+  const submitterById = new Map(submitters.map((u) => [u.id, u]));
+
+  return {
+    ideaId,
+    entries: rows.map((r) => ({
+      id: r.id,
+      type: r.type as (typeof STRUCTURED_TYPES)[number],
+      comment: r.comment,
+      createdAt: r.createdAt.toISOString(),
+      // A submitter row can go missing only if the user itself was hard-deleted, which
+      // this codebase never does (account/routes.ts deactivates, it does not delete) —
+      // the fallback is defensive, not an expected path.
+      submitter: submitterById.get(r.userId) ?? { id: r.userId, displayName: "Former member" },
+    })),
+    mine: rows.filter((r) => r.userId === userId).map((r) => r.type as (typeof STRUCTURED_TYPES)[number]),
+  };
+}
+
+/**
+ * Personal activity summary + contribution timeline (SPEC §6.1 person page).
+ *
+ * Scoped to what `actor` — the signed-in viewer, not the profile's own owner — may
+ * actually read: an idea `readableIdea`'s `can(actor, "idea:read", ...)` check would
+ * refuse contributes to no count and appears in no timeline entry. That means two
+ * different people can see two different counts on the same profile, which is
+ * deliberate — a count is a fact about what happened, but this page is not an audit
+ * export, and an EMPLOYEE viewer must not learn "this person did something to idea X"
+ * for an idea X they are not otherwise allowed to see (permission matrix, P-1).
+ */
+async function personActivitySummary(
+  ctx: Parameters<Handler>[2],
+  actor: { userId: string; roles: readonly Role[] },
+  userId: string,
+) {
+  const readable = (idea: { id: string; submitterId: string; status: string }) =>
+    can(actor, "idea:read", {
+      ideaId: idea.id,
+      submitterId: idea.submitterId,
+      status: idea.status as IdeaStatus,
+    }).allowed;
+
+  // `title` lives on `IdeaVersion`, not `Idea` itself (same reason `toIdeaSummary` in
+  // idea/present.ts reads `idea.currentVersion?.title`) — a nested select, not a flat
+  // column.
+  const ideaSelect = {
+    id: true,
+    status: true,
+    submitterId: true,
+    currentVersion: { select: { title: true } },
+  } as const;
+  const titleOf = (idea: { currentVersion: { title: string } | null }) =>
+    idea.currentVersion?.title ?? "(untitled)";
+
+  const [ideas, feedbackRows, reviews, decisions] = await Promise.all([
+    ctx.db.idea.findMany({
+      where: { submitterId: userId, submittedAt: { not: null } },
+      select: { ...ideaSelect, submittedAt: true },
+      orderBy: { submittedAt: "desc" },
+    }),
+    ctx.db.feedback.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
+    ctx.db.review.findMany({
+      where: { reviewerId: userId },
+      orderBy: { createdAt: "desc" },
+      include: { idea: { select: ideaSelect } },
+    }),
+    ctx.db.leadershipDecision.findMany({
+      where: { decidedById: userId },
+      orderBy: { createdAt: "desc" },
+      include: { idea: { select: ideaSelect } },
+    }),
+  ]);
+
+  // `submittedAt: { not: null }` in the query above does not narrow Prisma's own return
+  // type, so this filter (rather than a non-null assertion — CLAUDE.md forbids `!`
+  // outside tests) is what lets TypeScript see `submittedAt` as a real `Date` below.
+  const submittedIdeas = ideas.filter(
+    (i): i is typeof i & { submittedAt: Date } => i.submittedAt !== null,
+  );
+  const readableIdeas = submittedIdeas.filter(readable);
+
+  // `Feedback` has no Prisma relation to `Idea` (P0-reserved, relation-less table — same
+  // reasoning as `summariseSignals`' user batch above), so its ideas are a second,
+  // batched query rather than a nested `include`.
+  const feedbackIdeaIds = [...new Set(feedbackRows.map((f) => f.ideaId))];
+  const feedbackIdeas = feedbackIdeaIds.length
+    ? await ctx.db.idea.findMany({ where: { id: { in: feedbackIdeaIds } }, select: ideaSelect })
+    : [];
+  const feedbackIdeaById = new Map(feedbackIdeas.map((i) => [i.id, i]));
+
+  const readableFeedback = feedbackRows.flatMap((row) => {
+    const idea = feedbackIdeaById.get(row.ideaId);
+    return idea && readable(idea) ? [{ row, idea }] : [];
+  });
+  const readableReviews = reviews.filter((r) => readable(r.idea));
+  const readableDecisions = decisions.filter((d) => readable(d.idea));
+
+  const entries = [
+    ...readableIdeas.map((i) => ({
+      id: i.id,
+      type: "IDEA_SUBMITTED" as const,
+      at: i.submittedAt.toISOString(),
+      idea: { id: i.id, title: titleOf(i) },
+      detail: null as string | null,
+    })),
+    ...readableFeedback.map(({ row, idea }) => ({
+      id: row.id,
+      type: "FEEDBACK_GIVEN" as const,
+      at: row.createdAt.toISOString(),
+      idea: { id: idea.id, title: titleOf(idea) },
+      detail: row.type as string | null,
+    })),
+    ...readableReviews.map((r) => ({
+      id: r.id,
+      type: "REVIEW_GIVEN" as const,
+      at: r.createdAt.toISOString(),
+      idea: { id: r.idea.id, title: titleOf(r.idea) },
+      detail: r.decision as string | null,
+    })),
+    ...readableDecisions.map((d) => ({
+      id: d.id,
+      type: "DECISION_RECORDED" as const,
+      at: d.createdAt.toISOString(),
+      idea: { id: d.idea.id, title: titleOf(d.idea) },
+      detail: d.status as string | null,
+    })),
+  ].sort((a, b) => (a.at < b.at ? 1 : -1));
+
+  return {
+    userId,
+    counts: {
+      ideasSubmitted: readableIdeas.length,
+      feedbackGiven: readableFeedback.length,
+      reviewsGiven: readableReviews.length,
+      decisionsRecorded: readableDecisions.length,
+    },
+    entries: entries.slice(0, 50),
   };
 }
 

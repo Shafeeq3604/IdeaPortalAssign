@@ -5,8 +5,10 @@ import * as I from "./schemas/idea.js";
 import * as A from "./schemas/analysis.js";
 import * as E from "./schemas/evaluation.js";
 import * as R from "./schemas/review.js";
+import * as L from "./schemas/leadership.js";
 import * as D from "./schemas/discovery.js";
 import * as IC from "./schemas/idea-creation.js";
+import * as AN from "./schemas/analytics.js";
 
 /**
  * The API endpoint registry (P0 deliverables 2b + 3). FROZEN AT P0.
@@ -63,6 +65,7 @@ const IdeaCreationConversationParams = z.object({ conversationId: C.Id });
 const OWN = ["idea:read:own"] as const;
 const READ = ["idea:read"] as const;
 const REVIEW = ["review:write"] as const;
+const LEADERSHIP = ["leadership:decide"] as const;
 // Real permissions only — a string that is not in PERMISSIONS can never be granted,
 // so it silently makes an endpoint permanently 403. A contract test now enforces this.
 const AUDIT = ["audit:read"] as const;
@@ -166,6 +169,16 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     access: { requires: [...OWN] }, params: IdeaParams, response: A.AnalysisRunStatus,
     successStatus: 200, errors: ["NOT_FOUND"],
   },
+  {
+    operationId: "getAnalysisStream", method: "GET", path: "/ideas/{ideaId}/analysis/stream", tag: "analysis",
+    summary:
+      "Live SSE progress for the determinate stepper — the same state getAnalysisStatus " +
+      "returns, pushed on change instead of polled (SPEC §3.3, NFR-06). Reserved at P0 " +
+      "(AcceptedResponse.streamUrl already points here); wired up §14.1.",
+    access: { requires: [...OWN] }, params: IdeaParams,
+    response: z.unknown(), responseKind: "binary",
+    successStatus: 200, errors: ["NOT_FOUND"],
+  },
 
   /* ── evaluation & ranking ── */
   {
@@ -228,10 +241,28 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     errors: ["VALIDATION_FAILED", "CANNOT_REVIEW_OWN_IDEA", "ROLE_NOT_PERMITTED", "NOT_FOUND"],
   },
 
-  /* ── config: read-only in M1, writes are 501 until P10 (SPEC §9.10) ── */
+  /* ── leadership decision (ADR-026) — the final organisational act, separate from the
+   *    AI's advisory ImplementationRecommendation ── */
+  {
+    operationId: "listLeadershipDecisions", method: "GET",
+    path: "/ideas/{ideaId}/leadership-decisions", tag: "leadership",
+    summary: "Leadership decision history for an idea's AI recommendation(s).",
+    access: { requires: [...OWN] }, params: IdeaParams,
+    response: L.ListLeadershipDecisionsResponse, successStatus: 200, errors: ["NOT_FOUND"],
+  },
+  {
+    operationId: "createLeadershipDecision", method: "POST",
+    path: "/ideas/{ideaId}/leadership-decisions", tag: "leadership",
+    summary: "Record the final organisational decision on an AI implementation recommendation. Never itself transitions idea status (P-3).",
+    access: { requires: [...LEADERSHIP] }, params: IdeaParams,
+    body: L.CreateLeadershipDecisionRequest, response: L.LeadershipDecision, successStatus: 201,
+    errors: ["VALIDATION_FAILED", "CANNOT_REVIEW_OWN_IDEA", "ROLE_NOT_PERMITTED", "NOT_FOUND"],
+  },
+
+  /* ── config: read-only view (P9) plus P10's weight-write endpoint (SPEC §9.10) ── */
   {
     operationId: "listCriteria", method: "GET", path: "/config/criteria", tag: "config",
-    summary: "Evaluation criteria. Read-only in M1 — underwrites explainability (NFR-03).",
+    summary: "Evaluation criteria. Read-only — underwrites explainability (NFR-03).",
     access: { requires: ["config:read"] }, response: E.ListCriteriaResponse, successStatus: 200, errors: [],
   },
   {
@@ -241,10 +272,66 @@ export const ENDPOINTS: readonly EndpointDef[] = [
   },
   {
     operationId: "updateProfileWeights", method: "PATCH", path: "/config/profiles/{profileKey}", tag: "config",
-    summary: "M2 (P10). Returns 501 in M1 — an explicit deferral, never a dead button.",
+    summary:
+      "P10 (FR-13). Replaces a profile's whole weight set — a rebalance, not a patch — " +
+      "and always records the reason (SPEC §9.8).",
     access: { requires: [...CONFIG_WRITE] }, params: z.object({ profileKey: z.string() }),
-    body: z.object({ weights: z.array(z.object({ criterionKey: z.string(), weight: z.number() })) }),
-    response: C.OkResponse, successStatus: 200, errors: ["NOT_IMPLEMENTED_UNTIL_M2", "ROLE_NOT_PERMITTED"],
+    body: E.UpdateProfileWeightsRequest,
+    response: C.OkResponse, successStatus: 200,
+    errors: ["NOT_FOUND", "VALIDATION_FAILED", "ROLE_NOT_PERMITTED"],
+  },
+
+  /* ── config: categories write UI (P10) ── */
+  {
+    operationId: "listCategories", method: "GET", path: "/config/categories", tag: "config",
+    summary: "Idea categories, including how many ideas currently use each.",
+    access: { requires: ["config:read"] }, response: E.ListCategoriesResponse, successStatus: 200, errors: [],
+  },
+  {
+    operationId: "createCategory", method: "POST", path: "/config/categories", tag: "config",
+    summary: "P10. Adds a new idea category.",
+    access: { requires: [...CONFIG_WRITE] }, body: E.CreateCategoryRequest,
+    response: E.CategoryDefinition, successStatus: 201, errors: ["VALIDATION_FAILED", "ROLE_NOT_PERMITTED"],
+  },
+  {
+    operationId: "updateCategory", method: "PATCH", path: "/config/categories/{categoryId}", tag: "config",
+    summary: "P10. Renames or (de)activates a category — never deleted, only deactivated.",
+    access: { requires: [...CONFIG_WRITE] }, params: z.object({ categoryId: C.Id }),
+    body: E.UpdateCategoryRequest, response: E.CategoryDefinition, successStatus: 200,
+    errors: ["NOT_FOUND", "VALIDATION_FAILED", "ROLE_NOT_PERMITTED"],
+  },
+
+  /* ── config: existing-solution capability catalogue (P10 — P12 prerequisite, AI-11) ── */
+  {
+    operationId: "listExistingSolutions", method: "GET", path: "/config/existing-solutions", tag: "config",
+    summary: "The curated capability catalogue FR-21's detection searches against.",
+    access: { requires: ["config:read"] }, response: E.ListExistingSolutionsResponse, successStatus: 200, errors: [],
+  },
+  {
+    operationId: "createExistingSolution", method: "POST", path: "/config/existing-solutions", tag: "config",
+    summary: "P10. Adds a catalogue entry. Its embedding is computed server-side, worker-side (SPEC §4.4).",
+    access: { requires: [...CONFIG_WRITE] }, body: E.CreateExistingSolutionRequest,
+    response: E.ExistingSolutionDefinition, successStatus: 201, errors: ["VALIDATION_FAILED", "ROLE_NOT_PERMITTED"],
+  },
+  {
+    operationId: "updateExistingSolution", method: "PATCH", path: "/config/existing-solutions/{solutionId}", tag: "config",
+    summary: "P10. Edits or deactivates a catalogue entry; re-embeds when the description changes.",
+    access: { requires: [...CONFIG_WRITE] }, params: z.object({ solutionId: C.Id }),
+    body: E.UpdateExistingSolutionRequest, response: E.ExistingSolutionDefinition, successStatus: 200,
+    errors: ["NOT_FOUND", "VALIDATION_FAILED", "ROLE_NOT_PERMITTED"],
+  },
+
+  /* ── config: detection thresholds (P12) ── */
+  {
+    operationId: "getDetectionConfig", method: "GET", path: "/config/detection", tag: "config",
+    summary: "P12 similarity/match-cutoff thresholds (AI-10/AI-11).",
+    access: { requires: ["config:read"] }, response: E.DetectionConfigResponse, successStatus: 200, errors: [],
+  },
+  {
+    operationId: "updateDetectionConfig", method: "PATCH", path: "/config/detection", tag: "config",
+    summary: "P12. Retunes the similarity/match-cutoff thresholds.",
+    access: { requires: [...CONFIG_WRITE] }, body: E.UpdateDetectionConfigRequest,
+    response: E.DetectionConfigResponse, successStatus: 200, errors: ["VALIDATION_FAILED", "ROLE_NOT_PERMITTED"],
   },
 
   /* ── management & admin ── */
@@ -253,6 +340,12 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     summary: "The nine counts of REQUIREMENTS §29. Every tile carries its destination href.",
     access: { requires: ["dashboard:read"] }, query: z.object({ departmentId: C.Id.optional() }),
     response: R.DashboardResponse, successStatus: 200, errors: ["ROLE_NOT_PERMITTED"],
+  },
+  {
+    operationId: "getAnalytics", method: "GET", path: "/analytics", tag: "management",
+    summary: "P14 organisational analytics (FR-27). Read-only aggregates; every idea count carries its list href.",
+    access: { requires: ["dashboard:read"] }, query: AN.AnalyticsQuery,
+    response: AN.AnalyticsResponse, successStatus: 200, errors: ["VALIDATION_FAILED", "ROLE_NOT_PERMITTED"],
   },
   {
     operationId: "listAuditEntries", method: "GET", path: "/admin/audit", tag: "admin",
@@ -350,6 +443,32 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     summary: "Record, change or clear your vote. Never affects the ranking (FR-18, P-1).",
     access: { requires: [...OWN] }, params: IdeaParams, body: R.SetFeedbackRequest,
     response: R.IdeaFeedbackSummary, successStatus: 200, errors: ["NOT_FOUND"],
+  },
+  {
+    operationId: "getIdeaSignals", method: "GET", path: "/ideas/{ideaId}/signals", tag: "feedback",
+    summary: "Structured feedback (the five non-vote reasons) — what people said, and this person's own active types (FR-18).",
+    access: { requires: [...OWN] }, params: IdeaParams, response: R.IdeaSignalsSummary,
+    successStatus: 200, errors: ["NOT_FOUND"],
+  },
+  {
+    operationId: "setIdeaSignal", method: "POST", path: "/ideas/{ideaId}/signals", tag: "feedback",
+    summary: "Add, update, or remove one structured-feedback entry. Never affects the ranking (FR-18, P-1).",
+    access: { requires: [...OWN] }, params: IdeaParams, body: R.SetIdeaSignalRequest,
+    response: R.IdeaSignalsSummary, successStatus: 200, errors: ["VALIDATION_FAILED", "NOT_FOUND"],
+  },
+
+  /* ── people (SPEC §6.1 person profile — richer content on the existing /people/:userId page,
+   * no new route, no new §6.2 relationship row: this is more of what that page already
+   * shows, not a new clickable destination) ── */
+  {
+    operationId: "getPersonActivity", method: "GET", path: "/people/{userId}/activity", tag: "people",
+    summary:
+      "A person's own activity: plain counts (ideas submitted, feedback/reviews/decisions " +
+      "given) and a recent, newest-first timeline of the same. Scoped to what the signed-in " +
+      "viewer may read — an idea they cannot see contributes to no count and appears in no " +
+      "entry (P-1, permission matrix).",
+    access: { requires: [] }, params: z.object({ userId: C.Id }), response: R.PersonActivitySummary,
+    successStatus: 200, errors: ["NOT_FOUND"],
   },
 
   /* ── discovery agent (SPC-001) — standalone, no idea linkage ── */

@@ -24,11 +24,16 @@ export type AuditAction =
   | "idea.transition"
   | "idea.revise"
   | "idea.review"
+  | "idea.leadershipDecision"
   | "score.override"
   | "ranking.recompute"
   | "user.signup"
   | "user.create"
-  | "user.update";
+  | "user.update"
+  | "config.profileWeights"
+  | "config.category"
+  | "config.existingSolution"
+  | "config.detectionThresholds";
 
 export interface AuditInput {
   readonly actorId: string | null;
@@ -74,6 +79,15 @@ export function entityHrefFor(entityType: string, entityId: string): string | nu
       return `/rankings/${entityId}`;
     case "user":
       return `/people/${entityId}`;
+    case "evaluation_profile":
+      // No per-profile deep route exists; the profiles list is the canonical destination.
+      return "/config/profiles";
+    case "idea_category":
+      return "/config/categories";
+    case "existing_solution":
+      return "/config/existing-solutions";
+    case "detection_config":
+      return "/config/detection";
     default:
       return null;
   }

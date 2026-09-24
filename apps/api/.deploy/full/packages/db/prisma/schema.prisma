@@ -14,7 +14,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  extensions = [vector]
+  extensions = [vector, pg_trgm]
 }
 
 // ─────────────────────────── ENUMS (mirror @iep/contracts) ───────────────────────────
@@ -53,8 +53,12 @@ enum AnalysisStep {
   RISK
   EFFORT_TIMELINE
   IMPROVEMENT
+  /// ADR-026 — a formal, advisory synthesis of this run's prior findings. Content for a
+  /// human to weigh, never a decision (P-3).
+  IMPLEMENTATION_RECOMMENDATION
   EXPLANATION
 }
+
 enum AnalysisStatus {
   PENDING
   RUNNING
@@ -70,6 +74,7 @@ enum DiscoveryStatus {
   SUCCEEDED
   FAILED
 }
+
 /// Platform-transformation brief §7 — the AI-native idea creation conversation.
 /// Deliberately its own enum, not `DiscoveryStatus` reused: see `IdeaCreationConversation`'s
 /// own comment for why this is a separate domain rather than an overloaded one.
@@ -82,10 +87,12 @@ enum IdeaCreationStatus {
   /// created by this alone (§1 of the brief); this only marks the conversation done.
   HANDED_OFF
 }
+
 enum MessageRole {
   USER
   AI
 }
+
 enum Band {
   NEGLIGIBLE
   LOW
@@ -93,26 +100,31 @@ enum Band {
   HIGH
   VERY_HIGH
 }
+
 enum Confidence {
   LOW
   MEDIUM
   HIGH
 }
+
 enum ScoreSource {
   AI
   HUMAN
   SIGNAL
   FALLBACK
 }
+
 enum UseCaseKind {
   DIRECT
   INDIRECT
 }
+
 enum Horizon {
   SHORT
   MEDIUM
   LONG
 }
+
 enum UserCountBand {
   LT10
   B10_100
@@ -120,24 +132,28 @@ enum UserCountBand {
   B1K_10K
   GT10K
 }
+
 enum FeasibilityStatus {
   HIGHLY_FEASIBLE
   FEASIBLE_WITH_CONDITIONS
   REQUIRES_INVESTIGATION
   NOT_CURRENTLY_FEASIBLE
 }
+
 enum RiskLevel {
   LOW
   MEDIUM
   HIGH
   CRITICAL
 }
+
 enum EffortClass {
   LOW
   MEDIUM
   HIGH
   VERY_HIGH
 }
+
 enum TimelinePhase {
   DISCOVERY
   PROTOTYPE
@@ -145,18 +161,21 @@ enum TimelinePhase {
   TESTING
   DEPLOYMENT
 }
+
 enum RequirementKind {
   PEOPLE
   TECHNOLOGY
   DATA
   ORG
 }
+
 enum DependencyKind {
   INTERNAL
   EXTERNAL
   VENDOR
   DATA
 }
+
 enum CriterionGroup {
   VALUE
   FEASIBILITY
@@ -165,30 +184,45 @@ enum CriterionGroup {
   RISK
   DEMAND
 }
+
 enum CriterionDirection {
   HIGHER_IS_BETTER
   LOWER_IS_BETTER
 }
+
 enum CriterionSourceKind {
   AI_FACTOR
   SIGNAL
   HUMAN
 }
+
+/// FR-21 / AI-11 (P12). Advisory only — never gates a status transition (structural rule,
+/// same as every other AI output; §12.2).
+enum ExistingSolutionRecommendation {
+  BUILD
+  BUY
+  EXTEND
+  INTEGRATE
+}
+
 enum ExplanationSource {
   ENGINE
   ENGINE_PLUS_AI_NARRATIVE
 }
+
 enum RankingEffect {
   LIKELY_UP
   POSSIBLY_UP
   NEUTRAL
   UNKNOWN
 }
+
 enum RecommendationState {
   OPEN
   ADDRESSED
   DISMISSED
 }
+
 enum ReviewDecision {
   VALIDATED
   NEEDS_CLARIFICATION
@@ -197,11 +231,31 @@ enum ReviewDecision {
   REJECTED
   PARKED
 }
+
+/// ADR-026 — the AI's recommended ACTION, never a verdict on the idea's worth (P-1) and
+/// never an authority to act on its own (P-3). See ADR-026's naming rationale.
+enum ImplementationRecommendationAction {
+  RECOMMEND
+  RECOMMEND_WITH_CONDITIONS
+  DO_NOT_RECOMMEND
+  INSUFFICIENT_DATA
+}
+
+/// ADR-026 — the human, final-organisational-decision status. Distinct from
+/// ReviewDecision: this is leadership's own go/no-go act, not a reviewer's evaluation.
+enum LeadershipDecisionStatus {
+  APPROVED
+  REJECTED
+  NEEDS_VALIDATION
+  OVERRIDE_RECOMMENDATION
+}
+
 enum ModelTier {
   A
   B
   C
 }
+
 enum ThinkingMode {
   ADAPTIVE
   BUDGETED
@@ -277,33 +331,34 @@ model Department {
 }
 
 model User {
-  id              String     @id @default(uuid()) @db.Uuid
-  externalSubject String     @unique @map("external_subject")
-  email           String     @unique
-  displayName     String     @map("display_name")
-  departmentId    String?    @map("department_id") @db.Uuid
+  id              String      @id @default(uuid()) @db.Uuid
+  externalSubject String      @unique @map("external_subject")
+  email           String      @unique
+  displayName     String      @map("display_name")
+  departmentId    String?     @map("department_id") @db.Uuid
   department      Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  isActive        Boolean    @default(true) @map("is_active")
+  isActive        Boolean     @default(true) @map("is_active")
 
   /// Argon2id (ADR-023). Null for an account that has never been given a password —
   /// an SSO-only user, or one an admin created but has not set one for yet.
   /// NEVER selected into a response; `AdminUser` has no field it could populate.
-  passwordHash    String?    @map("password_hash")
-  passwordSetAt   DateTime?  @map("password_set_at") @db.Timestamptz(3)
+  passwordHash  String?   @map("password_hash")
+  passwordSetAt DateTime? @map("password_set_at") @db.Timestamptz(3)
   /// Consecutive failures since the last success. Drives lockout (NFR-01).
-  failedLogins    Int        @default(0) @map("failed_logins")
-  lockedUntil     DateTime?  @map("locked_until") @db.Timestamptz(3)
-  lastLoginAt     DateTime?  @map("last_login_at") @db.Timestamptz(3)
+  failedLogins  Int       @default(0) @map("failed_logins")
+  lockedUntil   DateTime? @map("locked_until") @db.Timestamptz(3)
+  lastLoginAt   DateTime? @map("last_login_at") @db.Timestamptz(3)
 
-  roles                UserRole[]
-  ideas                Idea[]                       @relation("Submitter")
-  authoredVersions     IdeaVersion[]                @relation("VersionAuthor")
-  uploads              Attachment[]
-  reviews              Review[]
-  overrides            ScoreOverride[]
-  statusChanges        StatusHistory[]
-  auditEntries         AuditLog[]
-  discoveryQueries     DiscoveryQuery[]
+  roles                     UserRole[]
+  ideas                     Idea[]                     @relation("Submitter")
+  authoredVersions          IdeaVersion[]              @relation("VersionAuthor")
+  uploads                   Attachment[]
+  reviews                   Review[]
+  overrides                 ScoreOverride[]
+  leadershipDecisions       LeadershipDecision[]
+  statusChanges             StatusHistory[]
+  auditEntries              AuditLog[]
+  discoveryQueries          DiscoveryQuery[]
   ideaCreationConversations IdeaCreationConversation[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -335,23 +390,24 @@ model IdeaCategory {
 }
 
 model Idea {
-  id            String        @id @default(uuid()) @db.Uuid
-  submitterId   String        @map("submitter_id") @db.Uuid
-  submitter     User          @relation("Submitter", fields: [submitterId], references: [id], onDelete: Restrict)
-  departmentId  String?       @map("department_id") @db.Uuid
-  department    Department?   @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  categoryId    String?       @map("category_id") @db.Uuid
-  category      IdeaCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  status        IdeaStatus    @default(DRAFT)
-  maturityLevel Int?          @map("maturity_level") // 1..5, derived — SPEC §5.3
-  currentVersionId String?    @unique @map("current_version_id") @db.Uuid
-  submittedAt   DateTime?     @map("submitted_at") @db.Timestamptz(3)
+  id               String        @id @default(uuid()) @db.Uuid
+  submitterId      String        @map("submitter_id") @db.Uuid
+  submitter        User          @relation("Submitter", fields: [submitterId], references: [id], onDelete: Restrict)
+  departmentId     String?       @map("department_id") @db.Uuid
+  department       Department?   @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  categoryId       String?       @map("category_id") @db.Uuid
+  category         IdeaCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  status           IdeaStatus    @default(DRAFT)
+  maturityLevel    Int?          @map("maturity_level") // 1..5, derived — SPEC §5.3
+  currentVersionId String?       @unique @map("current_version_id") @db.Uuid
+  submittedAt      DateTime?     @map("submitted_at") @db.Timestamptz(3)
 
-  versions      IdeaVersion[]  @relation("IdeaVersions")
-  currentVersion IdeaVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
-  reviews       Review[]
-  statusHistory StatusHistory[]
-  rankingEntries RankingEntry[]
+  versions            IdeaVersion[]        @relation("IdeaVersions")
+  currentVersion      IdeaVersion?         @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  reviews             Review[]
+  statusHistory       StatusHistory[]
+  rankingEntries      RankingEntry[]
+  leadershipDecisions LeadershipDecision[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -370,10 +426,10 @@ model Idea {
 }
 
 model IdeaVersion {
-  id            String @id @default(uuid()) @db.Uuid
-  ideaId        String @map("idea_id") @db.Uuid
-  idea          Idea   @relation("IdeaVersions", fields: [ideaId], references: [id], onDelete: Cascade)
-  versionNo     Int    @map("version_no")
+  id        String @id @default(uuid()) @db.Uuid
+  ideaId    String @map("idea_id") @db.Uuid
+  idea      Idea   @relation("IdeaVersions", fields: [ideaId], references: [id], onDelete: Cascade)
+  versionNo Int    @map("version_no")
 
   // Required (SPEC §9.2 / FR-02)
   title            String
@@ -383,18 +439,18 @@ model IdeaVersion {
   expectedOutcome  String @map("expected_outcome")
 
   // Optional
-  existingProcess    String? @map("existing_process")
-  existingSolutions  String? @map("existing_solutions")
-  suggestedTechnology String? @map("suggested_technology")
-  expectedBenefits   String? @map("expected_benefits")
-  estimatedCostNote  String? @map("estimated_cost_note")
-  references         String?
+  existingProcess     String?  @map("existing_process")
+  existingSolutions   String?  @map("existing_solutions")
+  suggestedTechnology String?  @map("suggested_technology")
+  expectedBenefits    String?  @map("expected_benefits")
+  estimatedCostNote   String?  @map("estimated_cost_note")
+  references          String?
   /// The submitter's OWN stated use cases (platform-transformation brief §7) — distinct
   /// from `UseCase` below, which is the AI's post-submission analysis of the idea
   /// (kind/horizon/evidence). This is what the person said, kept structured rather than
   /// folded into `description`, so it survives as real data for later strategic
   /// analysis, discovery, filtering and reporting rather than being lost in prose.
-  useCases           String[] @default([]) @map("use_cases")
+  useCases            String[] @default([]) @map("use_cases")
 
   changeSummary String? @map("change_summary") // null on v1 only — [SPEC] CHECK
   authorId      String  @map("author_id") @db.Uuid
@@ -404,16 +460,17 @@ model IdeaVersion {
   /// RESERVED at P0 for M2 duplicate detection (ADR-012). Unpopulated in M1.
   embedding Unsupported("vector(1536)")? @map("embedding")
 
-  attachments   Attachment[]
-  analyses      AiAnalysis[]
-  feasibility   FeasibilityAssessment?
-  risks         Risk[]
-  dependencies  Dependency[]
-  plan          ImplementationPlan?
-  evaluations   Evaluation[]
-  recommendations ImprovementRecommendation[] @relation("RecommendationVersion")
-  resolvedRecommendations ImprovementRecommendation[] @relation("ResolvedInVersion")
-  currentOf     Idea? @relation("CurrentVersion")
+  attachments                  Attachment[]
+  analyses                     AiAnalysis[]
+  feasibility                  FeasibilityAssessment?
+  risks                        Risk[]
+  dependencies                 Dependency[]
+  plan                         ImplementationPlan?
+  implementationRecommendation AiImplementationRecommendation?
+  evaluations                  Evaluation[]
+  recommendations              ImprovementRecommendation[]     @relation("RecommendationVersion")
+  resolvedRecommendations      ImprovementRecommendation[]     @relation("ResolvedInVersion")
+  currentOf                    Idea?                           @relation("CurrentVersion")
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
@@ -448,24 +505,24 @@ model AiAnalysis {
   step          AnalysisStep
   status        AnalysisStatus @default(PENDING)
 
-  provider        String
-  model           String
-  tier            ModelTier
-  promptVersion   String   @map("prompt_version")
-  inputTokens     Int?     @map("input_tokens")
-  outputTokens    Int?     @map("output_tokens")
-  cachedInputTokens Int?   @map("cached_input_tokens")
-  costUsdMicros   Int?     @map("cost_usd_micros")
-  redactionApplied Boolean @default(false) @map("redaction_applied")
+  provider          String
+  model             String
+  tier              ModelTier
+  promptVersion     String     @map("prompt_version")
+  inputTokens       Int?       @map("input_tokens")
+  outputTokens      Int?       @map("output_tokens")
+  cachedInputTokens Int?       @map("cached_input_tokens")
+  costUsdMicros     Int?       @map("cost_usd_micros")
+  redactionApplied  Boolean    @default(false) @map("redaction_applied")
   escalatedFromTier ModelTier? @map("escalated_from_tier")
-  rawPayload      Json?    @map("raw_payload") // 90-day retention (SPEC §4.5)
-  errorCode       String?  @map("error_code")
-  startedAt       DateTime? @map("started_at") @db.Timestamptz(3)
-  finishedAt      DateTime? @map("finished_at") @db.Timestamptz(3)
+  rawPayload        Json?      @map("raw_payload") // 90-day retention (SPEC §4.5)
+  errorCode         String?    @map("error_code")
+  startedAt         DateTime?  @map("started_at") @db.Timestamptz(3)
+  finishedAt        DateTime?  @map("finished_at") @db.Timestamptz(3)
 
-  proposal     AiStructuredProposal?
-  useCases     UseCase[]
-  valueFindings ValueFinding[]
+  proposal       AiStructuredProposal?
+  useCases       UseCase[]
+  valueFindings  ValueFinding[]
   marketFindings MarketFinding[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -490,16 +547,16 @@ model AiStructuredProposal {
 }
 
 model UseCase {
-  id           String        @id @default(uuid()) @db.Uuid
-  aiAnalysisId String        @map("ai_analysis_id") @db.Uuid
-  aiAnalysis   AiAnalysis    @relation(fields: [aiAnalysisId], references: [id], onDelete: Cascade)
-  kind         UseCaseKind
-  horizon      Horizon
-  title        String
-  description  String
-  departmentScope String[]   @map("department_scope")
+  id                     String        @id @default(uuid()) @db.Uuid
+  aiAnalysisId           String        @map("ai_analysis_id") @db.Uuid
+  aiAnalysis             AiAnalysis    @relation(fields: [aiAnalysisId], references: [id], onDelete: Cascade)
+  kind                   UseCaseKind
+  horizon                Horizon
+  title                  String
+  description            String
+  departmentScope        String[]      @map("department_scope")
   estimatedUserCountBand UserCountBand @map("estimated_user_count_band")
-  isSpeculative Boolean      @default(false) @map("is_speculative")
+  isSpeculative          Boolean       @default(false) @map("is_speculative")
 
   @@map("use_cases")
 }
@@ -520,9 +577,9 @@ model ValueFinding {
 /// Same shape as `ValueFinding` — unscored, ordinal, evidence-backed (see the
 /// `MarketDimension` enum's own comment for why this is not a scoring criterion).
 model MarketFinding {
-  id           String           @id @default(uuid()) @db.Uuid
-  aiAnalysisId String           @map("ai_analysis_id") @db.Uuid
-  aiAnalysis   AiAnalysis       @relation(fields: [aiAnalysisId], references: [id], onDelete: Cascade)
+  id           String          @id @default(uuid()) @db.Uuid
+  aiAnalysisId String          @map("ai_analysis_id") @db.Uuid
+  aiAnalysis   AiAnalysis      @relation(fields: [aiAnalysisId], references: [id], onDelete: Cascade)
   dimension    MarketDimension
   band         Band
   rationale    String
@@ -535,13 +592,13 @@ model MarketFinding {
 // ───────────────────────────── FEASIBILITY ─────────────────────────────
 
 model FeasibilityAssessment {
-  id            String            @id @default(uuid()) @db.Uuid
-  ideaVersionId String            @unique @map("idea_version_id") @db.Uuid
-  ideaVersion   IdeaVersion       @relation(fields: [ideaVersionId], references: [id], onDelete: Cascade)
-  status        FeasibilityStatus
-  summary       String
+  id                  String            @id @default(uuid()) @db.Uuid
+  ideaVersionId       String            @unique @map("idea_version_id") @db.Uuid
+  ideaVersion         IdeaVersion       @relation(fields: [ideaVersionId], references: [id], onDelete: Cascade)
+  status              FeasibilityStatus
+  summary             String
   /// [SPEC] CHECK: status = NOT_CURRENTLY_FEASIBLE requires cardinality > 0 — FR-06
-  constraintCitations String[]    @map("constraint_citations")
+  constraintCitations String[]          @map("constraint_citations")
 
   findings FeasibilityFinding[]
 
@@ -549,8 +606,8 @@ model FeasibilityAssessment {
 }
 
 model FeasibilityFinding {
-  id           String               @id @default(uuid()) @db.Uuid
-  assessmentId String               @map("assessment_id") @db.Uuid
+  id           String                @id @default(uuid()) @db.Uuid
+  assessmentId String                @map("assessment_id") @db.Uuid
   assessment   FeasibilityAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   dimension    FeasibilityDimension
   band         Band
@@ -590,13 +647,13 @@ model Dependency {
 }
 
 model ImplementationPlan {
-  id            String      @id @default(uuid()) @db.Uuid
-  ideaVersionId String      @unique @map("idea_version_id") @db.Uuid
-  ideaVersion   IdeaVersion @relation(fields: [ideaVersionId], references: [id], onDelete: Cascade)
-  effortClass   EffortClass @map("effort_class")
-  costClass     EffortClass @map("cost_class")
+  id                    String      @id @default(uuid()) @db.Uuid
+  ideaVersionId         String      @unique @map("idea_version_id") @db.Uuid
+  ideaVersion           IdeaVersion @relation(fields: [ideaVersionId], references: [id], onDelete: Cascade)
+  effortClass           EffortClass @map("effort_class")
+  costClass             EffortClass @map("cost_class")
   operationalComplexity EffortClass @map("operational_complexity")
-  notes         String?
+  notes                 String?
 
   requirements ImplementationRequirement[]
   timeline     TimelineEstimate[]
@@ -617,17 +674,41 @@ model ImplementationRequirement {
 }
 
 model TimelineEstimate {
-  id       String             @id @default(uuid()) @db.Uuid
-  planId   String             @map("plan_id") @db.Uuid
-  plan     ImplementationPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  phase    TimelinePhase
-  minWeeks Int                @map("min_weeks")
-  maxWeeks Int                @map("max_weeks")
+  id            String             @id @default(uuid()) @db.Uuid
+  planId        String             @map("plan_id") @db.Uuid
+  plan          ImplementationPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  phase         TimelinePhase
+  minWeeks      Int                @map("min_weeks")
+  maxWeeks      Int                @map("max_weeks")
   /// [SPEC] CHECK (is_preliminary) — FR-08. A non-preliminary AI estimate is unstorable.
-  isPreliminary Boolean       @default(true) @map("is_preliminary")
+  isPreliminary Boolean            @default(true) @map("is_preliminary")
 
   @@unique([planId, phase])
   @@map("timeline_estimates")
+}
+
+/// ADR-026 — a formal, advisory synthesis of this run's prior findings (VALUE,
+/// MARKET_CONTEXT, FEASIBILITY, RISK, EFFORT_TIMELINE). One per idea version, written
+/// only by the worker, exactly like every other AI-derived table (P-3). Read by leadership
+/// alongside its own, separate `LeadershipDecision` — recording this row never changes
+/// `Idea.status` on its own.
+model AiImplementationRecommendation {
+  id                 String                             @id @default(uuid()) @db.Uuid
+  ideaVersionId      String                             @unique @map("idea_version_id") @db.Uuid
+  ideaVersion        IdeaVersion                        @relation(fields: [ideaVersionId], references: [id], onDelete: Cascade)
+  recommendation     ImplementationRecommendationAction
+  rationale          String
+  /// [SPEC] CHECK cardinality > 0 — P-7, same evidence discipline as every other finding.
+  supportingEvidence String[]                           @map("supporting_evidence")
+  risks              String[]
+  assumptions        String[]
+  validationNeeds    String[]                           @map("validation_needs")
+
+  leadershipDecisions LeadershipDecision[]
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("ai_implementation_recommendations")
 }
 
 // ─────────────────────────── EVALUATION CONFIG ───────────────────────────
@@ -644,8 +725,8 @@ model EvaluationCriterion {
   sourceKind  CriterionSourceKind @map("source_kind")
   isActive    Boolean             @default(true) @map("is_active")
 
-  weights ProfileWeight[]
-  scores  CriterionScore[]
+  weights         ProfileWeight[]
+  scores          CriterionScore[]
   recommendations ImprovementRecommendation[]
 
   @@map("evaluation_criteria")
@@ -680,16 +761,16 @@ model ProfileWeight {
 
 /// Model routing is CONFIGURATION, not code (ADR-021, SPEC §12.1.2).
 model AiModelRoute {
-  storyKey     String       @id @map("story_key")
-  tier         ModelTier
-  modelId      String       @map("model_id")
-  effort       String?
-  thinkingMode ThinkingMode @map("thinking_mode")
-  thinkingBudgetTokens Int? @map("thinking_budget_tokens")
-  maxTokens    Int          @map("max_tokens")
-  enabled      Boolean      @default(true)
-  updatedById  String?      @map("updated_by") @db.Uuid
-  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  storyKey             String       @id @map("story_key")
+  tier                 ModelTier
+  modelId              String       @map("model_id")
+  effort               String?
+  thinkingMode         ThinkingMode @map("thinking_mode")
+  thinkingBudgetTokens Int?         @map("thinking_budget_tokens")
+  maxTokens            Int          @map("max_tokens")
+  enabled              Boolean      @default(true)
+  updatedById          String?      @map("updated_by") @db.Uuid
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@map("ai_model_routes")
 }
@@ -726,10 +807,10 @@ model CriterionScore {
   criterionId  String              @map("criterion_id") @db.Uuid
   criterion    EvaluationCriterion @relation(fields: [criterionId], references: [id], onDelete: Restrict)
 
-  rawBand      Band?        @map("raw_band")
-  normalized   Decimal      @db.Decimal(6, 3)
-  weight       Decimal      @db.Decimal(5, 4)
-  contribution Decimal      @db.Decimal(6, 3)
+  rawBand      Band?       @map("raw_band")
+  normalized   Decimal     @db.Decimal(6, 3)
+  weight       Decimal     @db.Decimal(5, 4)
+  contribution Decimal     @db.Decimal(6, 3)
   source       ScoreSource
   confidence   Confidence
   rationale    String
@@ -801,13 +882,13 @@ model RankingEntry {
 }
 
 model RankingExplanation {
-  id          String            @id @default(uuid()) @db.Uuid
-  entryId     String            @unique @map("entry_id") @db.Uuid
-  entry       RankingEntry      @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  id              String            @id @default(uuid()) @db.Uuid
+  entryId         String            @unique @map("entry_id") @db.Uuid
+  entry           RankingEntry      @relation(fields: [entryId], references: [id], onDelete: Cascade)
   /// [SPEC] all three CHECK jsonb_array_length > 0 for strengths/constraints — P-2
   strengths       Json
   constraints     Json
-  peerComparisons Json          @map("peer_comparisons")
+  peerComparisons Json              @map("peer_comparisons")
   generatedBy     ExplanationSource @map("generated_by")
 
   @@map("ranking_explanations")
@@ -828,12 +909,12 @@ model ImprovementRecommendation {
   expectedEffect         String        @map("expected_effect")
   projectedRankingEffect RankingEffect @map("projected_ranking_effect")
 
-  targetCriterionId String?              @map("target_criterion_id") @db.Uuid
-  targetCriterion   EvaluationCriterion? @relation(fields: [targetCriterionId], references: [id], onDelete: SetNull)
-  priority          Int // 1..3 — [SPEC] CHECK BETWEEN 1 AND 3
-  status            RecommendationState  @default(OPEN)
-  resolvedInVersionId String?            @map("resolved_in_version_id") @db.Uuid
-  resolvedInVersion   IdeaVersion?       @relation("ResolvedInVersion", fields: [resolvedInVersionId], references: [id], onDelete: SetNull)
+  targetCriterionId   String?              @map("target_criterion_id") @db.Uuid
+  targetCriterion     EvaluationCriterion? @relation(fields: [targetCriterionId], references: [id], onDelete: SetNull)
+  priority            Int // 1..3 — [SPEC] CHECK BETWEEN 1 AND 3
+  status              RecommendationState  @default(OPEN)
+  resolvedInVersionId String?              @map("resolved_in_version_id") @db.Uuid
+  resolvedInVersion   IdeaVersion?         @relation("ResolvedInVersion", fields: [resolvedInVersionId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
@@ -855,19 +936,46 @@ model Review {
   createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@index([ideaId, createdAt(sort: Desc)])
+  // Same shape as AuditLog's actor index — "reviews this person gave" is now a real
+  // query (personal activity summary/timeline), not just "reviews on this idea".
+  @@index([reviewerId, createdAt(sort: Desc)])
   @@map("reviews")
 }
 
+/// ADR-026 — the final organisational decision, responding to an `AiImplementationRecommendation`.
+/// The ONLY place this feature records a decision — the AI recommendation it references is
+/// advisory content, never itself a decision. Creating one never transitions `Idea.status`
+/// (P-3); moving the idea's lifecycle stays the separate, existing, role-gated act it
+/// already is (`lifecycle.ts`'s `TRANSITIONS` table).
+model LeadershipDecision {
+  id               String                         @id @default(uuid()) @db.Uuid
+  ideaId           String                         @map("idea_id") @db.Uuid
+  idea             Idea                           @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  recommendationId String                         @map("recommendation_id") @db.Uuid
+  recommendation   AiImplementationRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Restrict)
+  decidedById      String                         @map("decided_by") @db.Uuid
+  decidedBy        User                           @relation(fields: [decidedById], references: [id], onDelete: Restrict)
+  status           LeadershipDecisionStatus
+  /// [SPEC] CHECK: rationale IS NOT NULL and non-empty — a final decision always states why.
+  rationale        String
+  createdAt        DateTime                       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([ideaId, createdAt(sort: Desc)])
+  // "decisions this person recorded" — same reasoning as Review.reviewerId above.
+  @@index([decidedById, createdAt(sort: Desc)])
+  @@map("leadership_decisions")
+}
+
 model StatusHistory {
-  id         String     @id @default(uuid()) @db.Uuid
-  ideaId     String     @map("idea_id") @db.Uuid
-  idea       Idea       @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  id         String      @id @default(uuid()) @db.Uuid
+  ideaId     String      @map("idea_id") @db.Uuid
+  idea       Idea        @relation(fields: [ideaId], references: [id], onDelete: Cascade)
   fromStatus IdeaStatus? @map("from_status")
-  toStatus   IdeaStatus @map("to_status")
-  actorId    String     @map("actor_id") @db.Uuid
-  actor      User       @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  toStatus   IdeaStatus  @map("to_status")
+  actorId    String      @map("actor_id") @db.Uuid
+  actor      User        @relation(fields: [actorId], references: [id], onDelete: Restrict)
   reason     String?
-  at         DateTime   @default(now()) @db.Timestamptz(3)
+  at         DateTime    @default(now()) @db.Timestamptz(3)
 
   @@index([ideaId, at(sort: Desc)])
   @@map("status_history")
@@ -916,25 +1024,28 @@ model Feedback {
   createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@unique([ideaId, userId, type])
+  // "feedback this person gave" (personal activity summary/timeline) — the unique key
+  // above leads with ideaId, which does not serve a userId-only lookup.
+  @@index([userId, createdAt(sort: Desc)])
   @@map("feedback")
 }
 
 model DemandSignal {
-  id          String   @id @default(uuid()) @db.Uuid
-  ideaId      String   @map("idea_id") @db.Uuid
-  signalKey   String   @map("signal_key")
-  value       Decimal  @db.Decimal(10, 3)
-  computedAt  DateTime @default(now()) @map("computed_at") @db.Timestamptz(3)
+  id         String   @id @default(uuid()) @db.Uuid
+  ideaId     String   @map("idea_id") @db.Uuid
+  signalKey  String   @map("signal_key")
+  value      Decimal  @db.Decimal(10, 3)
+  computedAt DateTime @default(now()) @map("computed_at") @db.Timestamptz(3)
 
   @@unique([ideaId, signalKey])
   @@map("demand_signals")
 }
 
 model SimilarIdea {
-  id         String  @id @default(uuid()) @db.Uuid
-  ideaId     String  @map("idea_id") @db.Uuid
-  similarTo  String  @map("similar_to") @db.Uuid
-  similarity Decimal @db.Decimal(5, 4)
+  id                String  @id @default(uuid()) @db.Uuid
+  ideaId            String  @map("idea_id") @db.Uuid
+  similarTo         String  @map("similar_to") @db.Uuid
+  similarity        Decimal @db.Decimal(5, 4)
   differenceSummary String? @map("difference_summary")
 
   @@unique([ideaId, similarTo])
@@ -944,16 +1055,65 @@ model SimilarIdea {
 /// The curated capability catalogue. PRIMARY source for FR-21 (SPEC §12.3 AI-11).
 /// MCP retrieval is optional enrichment, never a dependency.
 model ExistingSolution {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String   @unique
-  kind        String // INTERNAL_SYSTEM | APPROVED_VENDOR | PLATFORM_CAPABILITY
-  description String
-  ownerDepartmentId String? @map("owner_department_id") @db.Uuid
-  categories  String[]
-  isActive    Boolean  @default(true) @map("is_active")
-  embedding   Unsupported("vector(1536)")?
+  id                String                       @id @default(uuid()) @db.Uuid
+  name              String                       @unique
+  kind              String // INTERNAL_SYSTEM | APPROVED_VENDOR | PLATFORM_CAPABILITY
+  description       String
+  ownerDepartmentId String?                      @map("owner_department_id") @db.Uuid
+  categories        String[]
+  isActive          Boolean                      @default(true) @map("is_active")
+  embedding         Unsupported("vector(1536)")?
+
+  matches ExistingSolutionMatch[]
 
   @@map("existing_solutions")
+}
+
+/// FR-21 / AI-11 (P12) — one row per idea version, replaced on re-run (same
+/// replace-not-append convention as FeasibilityAssessment/ImplementationPlan).
+/// No model call at all when `source = FALLBACK`: `recommendation`/`rationale` are then
+/// null and `matches` alone (catalogue lookup by category) is what the reviewer sees.
+model ExistingSolutionAssessment {
+  id             String                          @id @default(uuid()) @db.Uuid
+  ideaVersionId  String                          @unique @map("idea_version_id") @db.Uuid
+  recommendation ExistingSolutionRecommendation?
+  rationale      String?
+  confidence     Confidence?
+  source         ScoreSource
+  computedAt     DateTime                        @default(now()) @map("computed_at") @db.Timestamptz(3)
+
+  matches ExistingSolutionMatch[]
+
+  @@map("existing_solution_assessments")
+}
+
+model ExistingSolutionMatch {
+  id                 String                     @id @default(uuid()) @db.Uuid
+  assessmentId       String                     @map("assessment_id") @db.Uuid
+  assessment         ExistingSolutionAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  existingSolutionId String                     @map("existing_solution_id") @db.Uuid
+  existingSolution   ExistingSolution           @relation(fields: [existingSolutionId], references: [id], onDelete: Restrict)
+  similarity         Decimal                    @db.Decimal(5, 4)
+
+  @@unique([assessmentId, existingSolutionId])
+  @@map("existing_solution_matches")
+}
+
+/// Admin-editable detection thresholds (P12) — a singleton row, same "config as data, not
+/// a code literal" reasoning as `AiModelRoute` (ADR-021). Defaults are a starting point,
+/// not a fixed business number — see CONTRACT-LOG.md's P12 entry.
+model DetectionConfig {
+  /// Always "default" — enforced by the seed, never by a CHECK (no other row is ever
+  /// created; a second row would just be ignored by every reader, which is safe enough
+  /// for a singleton with no concurrent-writer risk).
+  id                        String   @id @default("default")
+  similarIdeaThreshold      Decimal  @default(0.85) @map("similar_idea_threshold") @db.Decimal(4, 3)
+  existingSolutionThreshold Decimal  @default(0.75) @map("existing_solution_threshold") @db.Decimal(4, 3)
+  existingSolutionTopN      Int      @default(5) @map("existing_solution_top_n")
+  updatedById               String?  @map("updated_by") @db.Uuid
+  updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("detection_config")
 }
 
 model Notification {
@@ -970,11 +1130,11 @@ model Notification {
 }
 
 model KpiDefinition {
-  id          String @id @default(uuid()) @db.Uuid
-  ideaId      String @map("idea_id") @db.Uuid
-  name        String
-  unit        String
-  targetValue Decimal? @map("target_value") @db.Decimal(14, 3)
+  id             String   @id @default(uuid()) @db.Uuid
+  ideaId         String   @map("idea_id") @db.Uuid
+  name           String
+  unit           String
+  targetValue    Decimal? @map("target_value") @db.Decimal(14, 3)
   predictedValue Decimal? @map("predicted_value") @db.Decimal(14, 3)
 
   measurements KpiMeasurement[]
@@ -1030,8 +1190,8 @@ model DiscoveryQuery {
   /// SUCCEEDED; always AI-generated content, presented with provenance (SPEC §7.4).
   items   Json?
 
-  provider String? // "anthropic" | "stub" — which produced this result
-  model    String?
+  provider  String? // "anthropic" | "stub" — which produced this result
+  model     String?
   errorCode String? @map("error_code")
 
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1059,13 +1219,13 @@ model IdeaCreationConversation {
   userId String @map("user_id") @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  status    IdeaCreationStatus @default(ACTIVE)
-  turnCount Int                @default(0) @map("turn_count")
+  status           IdeaCreationStatus @default(ACTIVE)
+  turnCount        Int                @default(0) @map("turn_count")
   /// The AI's own signal that the draft is developed enough to review (brief §3). Never
   /// gates the "Review my idea" action shut — purely advisory, read by the UI.
-  readyToReview    Boolean  @default(false) @map("ready_to_review")
+  readyToReview    Boolean            @default(false) @map("ready_to_review")
   /// The most recent AI turn's suggested next things to say — empty once handed off.
-  suggestedReplies String[] @default([]) @map("suggested_replies")
+  suggestedReplies String[]           @default([]) @map("suggested_replies")
 
   /// `IdeaCreationDraft` (see @iep/contracts) — title/problemStatement/proposedSolution/
   /// targetUsers/useCases/expectedOutcome, each with a CONFIRMED/INFERRED/MISSING status,
@@ -1087,9 +1247,9 @@ model IdeaCreationConversation {
 }
 
 model IdeaCreationMessage {
-  id             String                    @id @default(uuid()) @db.Uuid
-  conversationId String                    @map("conversation_id") @db.Uuid
-  conversation   IdeaCreationConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  id             String                   @id @default(uuid()) @db.Uuid
+  conversationId String                   @map("conversation_id") @db.Uuid
+  conversation   IdeaCreationConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   role    MessageRole
   content String

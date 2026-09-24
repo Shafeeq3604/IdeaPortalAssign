@@ -49,6 +49,9 @@
   --color-input: var(--border);
   --color-ring: var(--focus-ring);
 
+  /* Aurora glass (dark mode only — see tokens.css). Zero-effect defaults in light mode. */
+  --color-glass-line: var(--glass-line);
+
   /* Dark-mode refinement pass: the sidebar/header rail as its own surface, distinct from
      a card (see tokens.css). Equal to --surface/--surface-sunken in light mode. */
   --color-sidebar: var(--sidebar);
@@ -167,6 +170,8 @@
   --shadow-e2: var(--e-2);
   --shadow-e3: var(--e-3);
   --shadow-e4: var(--e-4);
+  /* "-lit" token (visual-identity pass) — reserved for a page's one focal card. */
+  --shadow-e4-lit: var(--e-4-lit);
 
   /* ── Motion (SPEC §8.2) ── */
   --animate-duration-instant: var(--dur-instant);

@@ -10,9 +10,9 @@ import {
 } from "@iep/ui";
 import { IdeaStatus } from "@iep/contracts";
 import type { IdeaSummary } from "@iep/contracts";
-import { InlineStat, PageHeading } from "../../app/PageHero";
+import { HeadingStat, PageHeading } from "../../app/PageHero";
 import { STATUS_LABEL, parseSort, useIdeaList, type IdeaSort } from "./api";
-import { IdeaCard } from "./IdeaCard";
+import { FeaturedIdeaCard, IdeaCard } from "./IdeaCard";
 import { useSession } from "../../app/use-session";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
@@ -129,7 +129,15 @@ function SearchBox({ value, onSubmit }: { value: string; onSubmit: (v: string) =
 
   return (
     <form
-      className="relative"
+      /*
+       * `basis-full` on the same row as the status pills below (UI audit finding):
+       * at a phone width, `w-56` alone left just enough leftover space in the flex-wrap
+       * row for ONE pill ("Draft") to squeeze in beside the search box before the rest
+       * wrapped to their own line — so the filter group visually split in two instead of
+       * flowing together. Forcing the search box onto its own line below `sm` means every
+       * pill wraps as one group underneath it instead.
+       */
+      className="relative w-full basis-full sm:w-auto sm:basis-auto"
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit(draft.trim());
@@ -145,7 +153,7 @@ function SearchBox({ value, onSubmit }: { value: string; onSubmit: (v: string) =
         onChange={(e) => setDraft(e.target.value)}
         placeholder="Search ideas"
         aria-label="Search ideas"
-        className="h-9 w-56 pl-9"
+        className="h-9 w-full pl-9 sm:w-56"
       />
     </form>
   );
@@ -163,6 +171,8 @@ interface Props {
  *   - the WHOLE ROW navigates, not just the title
  *   - filters and paging live in the URL, so Back restores them (§6.3 assertion 4)
  */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function IdeaListPage({ scope }: Props) {
   const [params, setParams] = useSearchParams();
   const session = useSession();
@@ -170,6 +180,18 @@ export function IdeaListPage({ scope }: Props) {
 
   const status = params.getAll("status").filter(isStatus);
   const search = params.get("q") ?? "";
+
+  /**
+   * Department / category scoping — declared in the nav map's searchParams since P0 but
+   * never read here, so a department-scoped dashboard tile (and every P14 analytics row)
+   * opened an UNFILTERED list whose count disagreed with the one clicked. `departmentId`
+   * is still accepted: it is what dashboard tile hrefs carried before this fix, and old
+   * links should not silently lose their filter. Anything that is not a uuid is ignored
+   * rather than sent to the API as a 400.
+   */
+  const uuidOrUndefined = (v: string | null) => (v && UUID.test(v) ? v : undefined);
+  const departmentId = uuidOrUndefined(params.get("department") ?? params.get("departmentId"));
+  const categoryId = uuidOrUndefined(params.get("category"));
 
   /**
    * There is no sort control on this page — the URL's `sort` wins when someone links to
@@ -184,6 +206,8 @@ export function IdeaListPage({ scope }: Props) {
     page,
     ...(scope === "mine" && session.data ? { submitterId: session.data.user.id } : {}),
     ...(search ? { q: search } : {}),
+    ...(departmentId ? { departmentId } : {}),
+    ...(categoryId ? { categoryId } : {}),
     ...(status.length > 0 ? { status } : {}),
     sort,
   });
@@ -242,6 +266,17 @@ export function IdeaListPage({ scope }: Props) {
   const setView = (next: "grid" | "table") =>
     update((n) => (next === "grid" ? n.delete("view") : n.set("view", next)));
 
+  /**
+   * The board's own #1, only on the true default view — unfiltered, page 1, no search.
+   * A search or a status filter narrows the list to what the reader asked for; a
+   * "featured" card that isn't necessarily part of that narrowed set (or reads as
+   * unexplained if it happens to be) has no place there.
+   */
+  const featured =
+    page === 1 && !search && status.length === 0 && !departmentId && !categoryId
+      ? list.data?.items.find((i) => i.rank === 1)
+      : undefined;
+
   return (
     <main className="page">
       {/*
@@ -275,7 +310,8 @@ export function IdeaListPage({ scope }: Props) {
         }
         stats={
           list.data ? (
-            <InlineStat
+            <HeadingStat
+              icon={Lightbulb}
               value={String(list.data.meta.total)}
               label={scope === "mine" ? "your ideas" : "ideas on the board"}
             />
@@ -362,7 +398,23 @@ export function IdeaListPage({ scope }: Props) {
           Archived
         </Button>
 
-        {status.length > 0 || search ? (
+        {departmentId ? (
+          <Button
+            variant="outline" size="sm" className="rounded-full"
+            onClick={() => update((n) => { n.delete("department"); n.delete("departmentId"); })}
+          >
+            {list.data?.items[0]?.department?.name ?? "One department"}
+            <X aria-label="Remove department filter" className="size-3.5" />
+          </Button>
+        ) : null}
+        {categoryId ? (
+          <Button variant="outline" size="sm" className="rounded-full" onClick={() => update((n) => n.delete("category"))}>
+            {list.data?.items[0]?.category?.label ?? "One category"}
+            <X aria-label="Remove category filter" className="size-3.5" />
+          </Button>
+        ) : null}
+
+        {status.length > 0 || search || departmentId || categoryId ? (
           <Button variant="ghost" size="sm" className="rounded-full" onClick={() => setParams(new URLSearchParams())}>
             <X aria-hidden className="size-4" />
             Clear
@@ -473,13 +525,30 @@ export function IdeaListPage({ scope }: Props) {
           {view === "table" ? (
             <IdeaTable items={list.data.items} />
           ) : (
-            <ul className="grid list-none gap-4 p-0 lg:grid-cols-2 xl:grid-cols-3">
-              {list.data.items.map((idea) => (
-                <li key={idea.id}>
-                  <IdeaCard idea={idea} />
-                </li>
-              ))}
-            </ul>
+            <>
+              {/*
+                Featured opportunity (visual-composition pass §9): the board's own #1,
+                given a real focal point instead of sitting in the grid as one more equal
+                tile. Scoped tightly to the true default view — unfiltered, page 1, no
+                search — the same gating `IdeaListPage`'s own "My ideas" low-volume panel
+                already uses, so a search or a status filter never hides a result the
+                reader asked for behind a "featured" card they didn't ask to see.
+              */}
+              {featured ? (
+                <div className="mb-4">
+                  <FeaturedIdeaCard idea={featured} />
+                </div>
+              ) : null}
+              <ul className="grid list-none gap-4 p-0 lg:grid-cols-2 xl:grid-cols-3">
+                {list.data.items
+                  .filter((idea) => idea.id !== featured?.id)
+                  .map((idea) => (
+                    <li key={idea.id}>
+                      <IdeaCard idea={idea} />
+                    </li>
+                  ))}
+              </ul>
+            </>
           )}
 
           {/*

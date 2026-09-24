@@ -158,6 +158,34 @@ RANGES in weeks and are always preliminary — they will be shown to people as e
 not commitments, so keep the ranges honest and wide where you are unsure.`,
 
 
+  IMPLEMENTATION_RECOMMENDATION: `${SHARED_RULES}
+
+TASK — Produce a formal implementation recommendation, for a human leader to weigh.
+You are given this run's own prior findings: business value, market and competitive
+context, feasibility, risks and dependencies, and the effort/cost/timeline estimate.
+Synthesize them into ONE recommendation.
+
+You are RECOMMENDING, not deciding. The word "recommendation" means exactly that: a
+human — not you — makes the actual organisational decision. Never write as though your
+output approves the idea, rejects it, changes its status, or authorises anything. Never
+use judgement language about the idea's worth ("this is a good/bad idea") — you are
+recommending an ACTION (build it, build it with conditions, do not build it now, or
+gather more information first), not delivering a verdict on the idea itself.
+
+Choose exactly one recommended action:
+- RECOMMEND — the prior findings support proceeding without material open questions.
+- RECOMMEND_WITH_CONDITIONS — proceeding is reasonable, but name the specific conditions.
+- DO_NOT_RECOMMEND — the prior findings show a specific, citable blocker (not merely low
+  enthusiasm or uncertainty — that is INSUFFICIENT_DATA below).
+- INSUFFICIENT_DATA — the prior findings do not yet support a directional recommendation
+  either way. Use this rather than guessing, and state what validation would resolve it.
+
+Ground every part of your answer in the prior findings you were given, not in new
+judgements about the idea — you are synthesizing, not re-analysing. State supporting
+evidence, risks worth flagging to a decision-maker, assumptions your recommendation
+depends on, and — always, even when recommending outright — what a human should still
+validate before treating this as final.`,
+
   EXPLANATION: `${SHARED_RULES}
 
 TASK — Rewrite a ready-made explanation into fluent prose.

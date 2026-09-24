@@ -7,7 +7,7 @@ import {
   analyseStep, stepInputHash, stepInputText, systemPromptFor,
   type AiProvider, type ModelRoute,
   type StructureOutput, type UseCaseOutput, type ValueOutput, type MarketOutput,
-  type FeasibilityOutput, type RiskOutput, type EffortTimelineOutput,
+  type FeasibilityOutput, type RiskOutput, type EffortTimelineOutput, type RecommendationOutput,
 } from "@iep/ai";
 import type { ObservabilityClient } from "./observability.js";
 
@@ -20,6 +20,8 @@ const STEP_AGENT_NAMES: Record<AnalysisStep, string> = {
   FEASIBILITY: "Feasibility Assessment",
   RISK: "Risk Assessment",
   EFFORT_TIMELINE: "Effort & Timeline Estimation",
+  // ADR-026 — synthesizes the five findings above into a formal, advisory recommendation.
+  IMPLEMENTATION_RECOMMENDATION: "Implementation Recommendation",
   // Not a member of PIPELINE_STEPS (the Improvement feature was removed — CONTRACT-LOG
   // 2026-08-28) but `AnalysisStep` itself still carries it, so `Record<AnalysisStep, _>`
   // requires an entry. Unreachable in this file's loop, which only ever iterates
@@ -114,6 +116,46 @@ function fieldsOf(version: {
     // work over `Record<string, string | null>`, not arbitrary shapes. The submitter's
     // OWN stated use cases (distinct from the AI's own USE_CASES step output).
     useCases: version.useCases.length > 0 ? version.useCases.map((u) => `- ${u}`).join("\n") : null,
+  };
+}
+
+/**
+ * ADR-026 — the prior findings IMPLEMENTATION_RECOMMENDATION synthesizes, read back from
+ * what this same run already persisted (VALUE/MARKET_CONTEXT/FEASIBILITY/RISK/
+ * EFFORT_TIMELINE all run earlier — `PIPELINE_STEPS` places this step last). Shaped
+ * plainly, not as the full contract response: this is what goes INTO the model, not what
+ * a client reads back.
+ */
+async function loadRecommendationContext(
+  db: PrismaClient,
+  ideaVersionId: string,
+): Promise<Record<string, unknown>> {
+  const [valueFindings, marketFindings, feasibility, risks, dependencies, plan] =
+    await Promise.all([
+      db.valueFinding.findMany({ where: { aiAnalysis: { ideaVersionId } } }),
+      db.marketFinding.findMany({ where: { aiAnalysis: { ideaVersionId } } }),
+      db.feasibilityAssessment.findUnique({ where: { ideaVersionId }, include: { findings: true } }),
+      db.risk.findMany({ where: { ideaVersionId } }),
+      db.dependency.findMany({ where: { ideaVersionId } }),
+      db.implementationPlan.findUnique({ where: { ideaVersionId }, include: { requirements: true, timeline: true } }),
+    ]);
+
+  return {
+    valueFindings: valueFindings.map((f) => ({ dimension: f.dimension, band: f.band, rationale: f.rationale })),
+    marketFindings: marketFindings.map((f) => ({ dimension: f.dimension, band: f.band, rationale: f.rationale })),
+    feasibility: feasibility && {
+      status: feasibility.status,
+      summary: feasibility.summary,
+      findings: feasibility.findings.map((f) => ({ dimension: f.dimension, band: f.band, finding: f.finding })),
+    },
+    risks: risks.map((r) => ({ category: r.category, description: r.description, level: r.level })),
+    dependencies: dependencies.map((d) => ({ kind: d.kind, description: d.description, blocking: d.blocking })),
+    plan: plan && {
+      effortClass: plan.effortClass,
+      costClass: plan.costClass,
+      operationalComplexity: plan.operationalComplexity,
+      timeline: plan.timeline.map((t) => ({ phase: t.phase, minWeeks: t.minWeeks, maxWeeks: t.maxWeeks })),
+    },
   };
 }
 
@@ -214,6 +256,17 @@ export async function runPipeline(
       },
     });
 
+    // ADR-026: IMPLEMENTATION_RECOMMENDATION synthesizes this run's OWN prior findings,
+    // not new judgement about the submission — so it is given them as `trustedContext`
+    // (engine-derived, not user-supplied — see providers/anthropic.ts), separate from
+    // `fields`/`ideaText` above. By this point in the loop every earlier step for this
+    // version has already committed (each iteration's transaction commits before the next
+    // begins), whether freshly run or carried forward, so a plain read is enough.
+    const trustedContext =
+      step === "IMPLEMENTATION_RECOMMENDATION"
+        ? await loadRecommendationContext(db, input.ideaVersionId)
+        : undefined;
+
     const stepStarted = Date.now();
     const outcome = await analyseStep(provider, {
       step,
@@ -221,6 +274,7 @@ export async function runPipeline(
       // declares, skipping it would be unsound.
       ideaText: stepInputText(step, fields),
       fields,
+      trustedContext,
       redactionEnabled: deps.redactionEnabled,
       budgetRemainingUsd: deps.budgetPerVersionUsd - spent,
       routes,
@@ -474,6 +528,23 @@ async function persistStep(
               isPreliminary: true,
             })),
           },
+        },
+      });
+      return;
+    }
+
+    case "IMPLEMENTATION_RECOMMENDATION": {
+      const p = data as RecommendationOutput;
+      await db.aiImplementationRecommendation.deleteMany({ where: { ideaVersionId } });
+      await db.aiImplementationRecommendation.create({
+        data: {
+          ideaVersionId,
+          recommendation: p.recommendation,
+          rationale: p.rationale,
+          supportingEvidence: p.supportingEvidence,
+          risks: p.risks,
+          assumptions: p.assumptions,
+          validationNeeds: p.validationNeeds,
         },
       });
       return;

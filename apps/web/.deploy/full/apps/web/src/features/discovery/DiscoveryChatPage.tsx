@@ -8,6 +8,7 @@ import {
 } from "@iep/ui";
 import type { DiscoveryResultItem } from "@iep/contracts";
 import { useCreateDiscoveryQuery, useDiscoveryHistory, useDiscoveryQuery } from "./api";
+import { BrandMark } from "../../app/BrandMark";
 
 /**
  * The empty state used to show exactly one static example, always the same one, and
@@ -397,7 +398,13 @@ export function DiscoveryChatPage() {
         "explain the feature" to "capture the question and report what the tool has
         actually done" (change 3).
       */}
-      <div className="dash-hero relative overflow-hidden rounded-2xl p-6 text-grad-ink shadow-e4 sm:p-7">
+      <div className="dash-hero relative overflow-hidden rounded-2xl p-6 text-grad-ink shadow-e4-lit sm:p-7">
+        {/* The product's own mark, as a large watermark (visual-identity pass) — see
+            `WelcomeShell`'s gradient panel for the full reasoning. */}
+        <BrandMark
+          aria-hidden
+          className="pointer-events-none absolute -right-12 -top-12 size-72 text-grad-ink opacity-[0.06]"
+        />
         <div className="relative grid gap-6 lg:grid-cols-[1.5fr_1fr]">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full bg-grad-ink/10 px-3 py-1 text-100 uppercase tracking-[0.06em] text-grad-ink-soft ring-1 ring-grad-rule">

@@ -1,10 +1,10 @@
 import type { PrismaClient } from "@iep/db";
-import { CRITERIA } from "@iep/contracts";
+import { CRITERIA, StructuredFeedbackType } from "@iep/contracts";
 import type {
   Band, Confidence, CriterionDef, EffortClass, FeasibilityStatus, Horizon, ProfileDef,
   RiskLevel, ScoreSource, UserCountBand,
 } from "@iep/contracts";
-import type { CompletenessInput, EngineConfig, FactorSet } from "@iep/scoring";
+import type { CompletenessInput, EngineConfig, EvidencedFactor, FactorSet } from "@iep/scoring";
 
 /**
  * The bridge between the database and the pure engine (P4's missing half).
@@ -132,7 +132,7 @@ export async function buildFactorSet(
    * reason to fire the other seven for an idea version that doesn't exist) makes
    * `version.ideaId` available up front instead.
    */
-  const [analyses, feasibility, risks, plan, demandSignals, kpiCount, pilot] =
+  const [analyses, feasibility, risks, plan, structuredFeedback, kpiCount, pilot] =
     await Promise.all([
       db.aiAnalysis.findMany({
         where: { ideaVersionId },
@@ -143,7 +143,18 @@ export async function buildFactorSet(
       }),
       db.risk.findMany({ where: { ideaVersionId } }),
       db.implementationPlan.findUnique({ where: { ideaVersionId }, include: { timeline: true } }),
-      db.demandSignal.findMany({ where: { ideaId: version.ideaId } }),
+      // P11 — demand signals as a ranking input. Deliberately the five STRUCTURED
+      // reasons (FeedbackType minus the thumb vote's WOULD_USE/SEE_RISK), never the
+      // thumb vote itself: REQUIREMENTS §14 is explicit that "popularity must not
+      // directly determine the ranking," and the thumb is exactly that — an opinion,
+      // shown separately as "Team Feedback." A structured reason is a person stating a
+      // concrete stake (has the problem, can provide data, can help implement it), which
+      // is the "real people want this" evidence demonstrated_demand's own description
+      // calls for, not popularity. See buildDemandSignal below.
+      db.feedback.findMany({
+        where: { ideaId: version.ideaId, type: { in: [...StructuredFeedbackType.options] } },
+        select: { userId: true, type: true },
+      }),
       db.kpiDefinition.count({ where: { ideaId: version.ideaId } }),
       db.pilotRecord.findUnique({ where: { ideaId: version.ideaId } }),
     ]);
@@ -240,18 +251,92 @@ export async function buildFactorSet(
         : "No timeline produced",
       ...planProv,
     },
-    // P11 collects these. The empty record is deliberate: the criterion exists, is
-    // weighted 0, and reports "not yet collected" rather than silently scoring 50.
-    signals: {},
+    // P11. `demonstrated_demand` starts at weight 0 in every seeded profile (P10's
+    // weight-write UI is what would ever turn that dial), so a real-but-unweighted
+    // number here cannot distort a rank on its own — it just makes the dial usable.
+    signals: { demonstrated_demand: buildDemandSignal(structuredFeedback) },
     completeness: completenessOf({
       version,
       hasUseCases: useCaseRows.length > 0,
       hasPlan: Boolean(plan),
       hasRisks: risks.length > 0,
-      hasDemand: demandSignals.length > 0,
+      // The DemandSignal table (schema.prisma) is a reserved, still-unpopulated M2/M3
+      // cache (ADR-012) — nothing writes to it. Real demand evidence, as of P11, is the
+      // structured feedback this same function now scores.
+      hasDemand: structuredFeedback.length > 0,
       hasPilot: Boolean(pilot),
       kpiCount,
     }),
+  };
+}
+
+/** Human-readable per-reason phrasing for the engine's own evidence lines (server-side
+ *  only — the client's own label map, features/feedback/labels.ts, is separate and not
+ *  reachable from this package). */
+// Gerund/adjective phrasing deliberately — "N people {phrase}" must read correctly for
+// N=1 and N>1 alike without a second has/have branch for every entry.
+const SIGNAL_PHRASE: Record<(typeof StructuredFeedbackType.options)[number], string> = {
+  HAVE_PROBLEM: "reporting this exact problem",
+  SIMILAR_USE_CASE: "reporting a similar use case",
+  CAN_PROVIDE_DATA: "able to provide data",
+  CAN_HELP_IMPLEMENT: "able to help implement it",
+  HAVE_IMPROVEMENT: "suggesting an improvement",
+};
+
+/**
+ * P11 (FR-19) — demand signals as a ranking input.
+ *
+ * Deliberately conservative: 10 distinct people registering a real, structured stake
+ * maxes the criterion out (`demonstrated_demand`'s own description names "pilot
+ * volunteers" as the bar, not a crowd) — REQUIREMENTS §14 already warns against letting
+ * volume alone carry a decision, and nothing in SPEC specifies a formula here, so this
+ * stays a small, named, easily-revisited rule rather than a precisely tuned model. It is
+ * always active weight 0 (every seeded profile) — an admin opts in via P10's weight
+ * editor when they decide this should actually count.
+ *
+ * Counted by DISTINCT PERSON, not by row: one person giving all five reasons is one
+ * person's demand, not five people's — the criterion's own wording is "real people want
+ * this," plural people, not plural reasons from the same person.
+ */
+function buildDemandSignal(
+  rows: readonly { userId: string; type: string }[],
+): EvidencedFactor<number> {
+  const byPerson = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const types = byPerson.get(row.userId) ?? new Set<string>();
+    types.add(row.type);
+    byPerson.set(row.userId, types);
+  }
+
+  if (byPerson.size === 0) {
+    return {
+      value: 0,
+      evidence: ["No colleague has registered a structured demand signal on this idea yet"],
+      rationale: "No structured demand signal recorded",
+      source: "SIGNAL",
+      confidence: "LOW",
+    };
+  }
+
+  const countByType = new Map<string, number>();
+  for (const types of byPerson.values()) {
+    for (const type of types) countByType.set(type, (countByType.get(type) ?? 0) + 1);
+  }
+  const evidence = [...countByType.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => {
+      const phrase = SIGNAL_PHRASE[type as (typeof StructuredFeedbackType.options)[number]];
+      return `${count} ${count === 1 ? "person" : "people"} ${phrase}`;
+    });
+
+  return {
+    value: Math.min(100, byPerson.size * 10),
+    evidence,
+    rationale:
+      `${byPerson.size} distinct ${byPerson.size === 1 ? "colleague has" : "colleagues have"} ` +
+      "registered a structured demand signal on this idea",
+    source: "SIGNAL",
+    confidence: "MEDIUM",
   };
 }
 

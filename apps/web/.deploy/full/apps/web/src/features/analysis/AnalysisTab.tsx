@@ -1,4 +1,8 @@
+import type * as React from "react";
 import { Link, useParams } from "react-router-dom";
+import {
+  AlertTriangle, Clock, Gauge, ListChecks,
+} from "lucide-react";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Card, CardContent,
   CardHeader, CardTitle, EmptyState, ErrorState, EvidenceList, Provenance, Skeleton, StatusPill,
@@ -11,9 +15,10 @@ import { IdeaShell } from "../ideas/IdeaShell";
 import { AnalysisProgress } from "./AnalysisProgress";
 import {
   BAND_LABEL, BAND_STEPS, DEPENDENCY_KIND_LABEL, EFFORT_LABEL, FEASIBILITY_DIMENSION_LABEL,
-  FEASIBILITY_LABEL, HORIZON_LABEL, MARKET_DIMENSION_LABEL, REQUIREMENT_KIND_LABEL,
-  RISK_CATEGORY_LABEL, RISK_LEVEL_LABEL, TIMELINE_PHASE_LABEL, USER_COUNT_LABEL,
-  USE_CASE_KIND_LABEL, VALUE_DIMENSION_LABEL, provenanceState, useAnalysis, validatedByOf,
+  FEASIBILITY_LABEL, HORIZON_LABEL, MARKET_DIMENSION_LABEL, RECOMMENDATION_ACTION_LABEL,
+  REQUIREMENT_KIND_LABEL, RISK_CATEGORY_LABEL, RISK_LEVEL_LABEL, TIMELINE_PHASE_LABEL,
+  USER_COUNT_LABEL, USE_CASE_KIND_LABEL, VALUE_DIMENSION_LABEL, provenanceState, useAnalysis,
+  validatedByOf,
 } from "./api";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
@@ -113,7 +118,8 @@ export function AnalysisTab() {
         const source: ScoreSource = a.run.steps.some((s) => s.usedFallback) ? "FALLBACK" : "AI";
         const hasAnything =
           a.proposal || a.useCases.length > 0 || a.valueFindings.length > 0 ||
-          a.marketFindings.length > 0 || a.feasibility || a.risks.length > 0 || a.plan;
+          a.marketFindings.length > 0 || a.feasibility || a.risks.length > 0 || a.plan ||
+          a.recommendation;
 
         if (!hasAnything) {
           return (
@@ -184,16 +190,16 @@ export function AnalysisTab() {
             */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {a.feasibility ? (
-                <GlanceStat label="Feasibility" value={FEASIBILITY_LABEL[a.feasibility.status]} />
+                <GlanceStat icon={Gauge} label="Feasibility" value={FEASIBILITY_LABEL[a.feasibility.status]} />
               ) : null}
               {a.plan ? (
-                <GlanceStat label="Estimated effort" value={EFFORT_LABEL[a.plan.effortClass]} />
+                <GlanceStat icon={Clock} label="Estimated effort" value={EFFORT_LABEL[a.plan.effortClass]} />
               ) : null}
               {a.useCases.length > 0 ? (
-                <GlanceStat label="Potential use cases" value={String(a.useCases.length)} />
+                <GlanceStat icon={ListChecks} label="Potential use cases" value={String(a.useCases.length)} />
               ) : null}
               {a.risks.length > 0 ? (
-                <GlanceStat label="Risks identified" value={String(a.risks.length)} />
+                <GlanceStat icon={AlertTriangle} label="Risks identified" value={String(a.risks.length)} />
               ) : null}
             </div>
 
@@ -652,6 +658,71 @@ export function AnalysisTab() {
                 ) : null}
               </Card>
             ) : null}
+
+            {/*
+              ── AI Implementation Recommendation (ADR-026) ──
+              A formal synthesis of everything above, clearly labeled as AI-authored and
+              advisory (P-3 · P-1) — never the final organisational decision. That decision
+              is a SEPARATE, human-authored record (features/leadership), deliberately not
+              rendered on this tab: this card says what the AI recommends and why; the
+              Leadership Decision surface is where a human accepts, rejects, or overrides it.
+            */}
+            {a.recommendation ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex flex-wrap items-center gap-2 font-serif">
+                    Implementation recommendation
+                    <Badge variant="outline">AI Recommendation</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Provenance
+                    state={provenanceState(a.recommendation.provenance)}
+                    validatedBy={validatedByOf(a.recommendation.provenance)}
+                  >
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-300 font-semibold">
+                          {RECOMMENDATION_ACTION_LABEL[a.recommendation.recommendation]}
+                        </p>
+                        <p className="text-100 text-muted-foreground">
+                          Generated {new Date(a.recommendation.generatedAt).toLocaleString()}.
+                          A recommendation, not a decision — the final call is a separate,
+                          human record.
+                          {idea.permissions.canDecideLeadership ? (
+                            <>
+                              {" "}
+                              <Link to={`/ideas/${ideaId}/leadership-decision`}>
+                                Go to the leadership decision
+                              </Link>
+                            </>
+                          ) : null}
+                        </p>
+                      </div>
+
+                      <p className="text-200">{a.recommendation.rationale}</p>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Bullets label="Risks to weigh" items={a.recommendation.risks} />
+                        <Bullets label="Assumptions relied on" items={a.recommendation.assumptions} />
+                      </div>
+                      <Bullets
+                        label="Still needs validation"
+                        items={a.recommendation.validationNeeds}
+                      />
+                      {a.recommendation.supportingEvidence.length > 0 ? (
+                        <div>
+                          <h4 className="text-100 font-medium text-muted-foreground">
+                            Supporting evidence
+                          </h4>
+                          <EvidenceList evidence={a.recommendation.supportingEvidence} source={source} />
+                        </div>
+                      ) : null}
+                    </div>
+                  </Provenance>
+                </CardContent>
+              </Card>
+            ) : null}
           </div>
         );
       }}
@@ -663,11 +734,28 @@ export function AnalysisTab() {
 
 /** One "at a glance" tile — a quiet card, not a KPI dashboard; this page's whole argument
  * is the detail underneath, so these four figures stay understated. */
-function GlanceStat({ label, value }: { label: string; value: string }) {
+/**
+ * Same tile language as `PageHero.tsx`'s `HeadingStat` and `PersonActivity.tsx`'s
+ * Activity tiles (design-review finding: this was the one plain, colourless "at a
+ * glance" block left on a page — Analysis — that otherwise sits beside Dashboard,
+ * Rankings and the person page, which all already read as one considered product).
+ * Always the "lit" treatment, never the dimmed zero-state those two use: every one of
+ * these four only renders at all once its value is real (see the `? … : null` guards
+ * above), so there is no zero to distinguish from a real figure here.
+ */
+function GlanceStat({
+  icon: Icon, label, value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
   return (
-    <div className="rounded-xl border border-border bg-card p-3.5">
-      <p className="text-100 text-muted-foreground">{label}</p>
-      <p className="mt-0.5 text-300 font-semibold text-foreground">{value}</p>
+    <div className="relative overflow-hidden rounded-xl bg-accent-050 p-3.5 shadow-e1 ring-1 ring-inset ring-ramp-2">
+      <span aria-hidden className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-ramp-3 to-ramp-5" />
+      <Icon aria-hidden className="size-3.5 text-accent-700" />
+      <p className="mt-1 text-100 text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-300 font-semibold text-accent-700">{value}</p>
     </div>
   );
 }

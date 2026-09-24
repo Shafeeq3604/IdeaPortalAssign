@@ -79,6 +79,15 @@ export async function seedEvaluationConfig(prisma: PrismaClient): Promise<void> 
     ]);
   }
 
+  // P12 detection thresholds — a singleton row, same "config as data" reasoning as the
+  // model routes below. `upsert` with an empty `update` guarantees the row exists without
+  // ever overwriting an admin's own edit on a re-seed.
+  await prisma.detectionConfig.upsert({
+    where: { id: "default" },
+    update: {},
+    create: { id: "default" },
+  });
+
   // Model routing is configuration, not code (ADR-021).
   for (const r of DEFAULT_ROUTES) {
     await prisma.aiModelRoute.upsert({

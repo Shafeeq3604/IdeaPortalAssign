@@ -213,6 +213,19 @@ export class StubProvider implements AiProvider {
           evidence: [cite],
         };
 
+      case "IMPLEMENTATION_RECOMMENDATION":
+        return {
+          recommendation: pick(
+            ["RECOMMEND", "RECOMMEND_WITH_CONDITIONS", "DO_NOT_RECOMMEND", "INSUFFICIENT_DATA"] as const,
+            seed, 8,
+          ),
+          rationale: "Synthesized from this run's own value, market, feasibility, risk and effort findings.",
+          supportingEvidence: [cite],
+          risks: ["Carries forward whatever this run's own risk findings already identified."],
+          assumptions: ["The prior findings this recommendation is built on remain accurate."],
+          validationNeeds: ["A human reviewer should confirm this before treating it as final."],
+        };
+
       case "EXPLANATION":
         return {
           summary: "This idea ranks where it does because of the factors listed below.",

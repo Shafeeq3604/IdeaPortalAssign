@@ -9,6 +9,12 @@ import { PrismaClient } from "@prisma/client";
 
 export * from "@prisma/client";
 export { grantRole } from "./grant-role.js";
+export {
+  setIdeaVersionEmbedding, setExistingSolutionEmbedding, clearExistingSolutionEmbedding,
+  findSimilarIdeaVersions, findSimilarIdeaVersionsByTrigram, findMatchingExistingSolutions,
+  findExistingSolutionsMissingEmbedding, findExistingSolutionIdsWithEmbedding,
+  type SimilarIdeaVersionMatch, type ExistingSolutionMatchRow,
+} from "./vector.js";
 
 let client: PrismaClient | undefined;
 

@@ -234,7 +234,139 @@ export const ProfileDefinition = z.object({
 });
 export type ProfileDefinition = z.infer<typeof ProfileDefinition>;
 
+/** M2 (P10): FR-13's weight-write UI. Same `reason` shape as `RecomputeRequest` above —
+ *  a config-level act always records why it happened. The whole set replaces a profile's
+ *  weights (a rebalance, not a patch): the DB's deferred `trg_profile_weights_balanced`
+ *  trigger (packages/db/prisma/migrations) rejects an active profile whose weights do
+ *  not sum to 1.0000±0.0001 at commit, and this schema's own refine below gives the same
+ *  rule a client-facing VALIDATION_FAILED instead of a raw constraint-trigger error. */
+export const UpdateProfileWeightsRequest = z
+  .object({
+    weights: z
+      .array(z.object({ criterionKey: z.string().min(1), weight: Weight }))
+      .min(1),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .refine(
+    (v) => new Set(v.weights.map((w) => w.criterionKey)).size === v.weights.length,
+    { path: ["weights"], message: "each criterion may appear at most once" },
+  )
+  .refine(
+    (v) => Math.abs(v.weights.reduce((sum, w) => sum + w.weight, 0) - 1) <= 0.0001,
+    { path: ["weights"], message: "weights must sum to 1.0000 (±0.0001) — FR-13" },
+  );
+export type UpdateProfileWeightsRequest = z.infer<typeof UpdateProfileWeightsRequest>;
+
 export const ListCriteriaResponse = z.object({ items: z.array(CriterionDefinition) });
-export const ListProfilesResponse = z.object({ items: z.array(ProfileDefinition) });
+/** `canEditWeights` is a role-level flag (config:write), computed server-side the same
+ *  way `IdeaDetail.permissions` is — the client reads it rather than re-deriving
+ *  permission logic (D-09: one place decides, everywhere else reads). */
+export const ListProfilesResponse = z.object({
+  items: z.array(ProfileDefinition),
+  canEditWeights: z.boolean(),
+});
 export type ListCriteriaResponse = z.infer<typeof ListCriteriaResponse>;
 export type ListProfilesResponse = z.infer<typeof ListProfilesResponse>;
+
+/* ── Categories, write UI (M2, P10) ── */
+
+export const CategoryDefinition = z.object({
+  id: Id,
+  key: z.string(),
+  label: z.string(),
+  isActive: z.boolean(),
+  /** So deactivating one that is still in use is a deliberate, informed choice, same
+   *  reasoning as `CriterionDefinition.usedInProfiles` above. */
+  ideaCount: z.number().int().min(0),
+});
+export type CategoryDefinition = z.infer<typeof CategoryDefinition>;
+
+export const ListCategoriesResponse = z.object({
+  items: z.array(CategoryDefinition),
+  canWrite: z.boolean(),
+});
+export type ListCategoriesResponse = z.infer<typeof ListCategoriesResponse>;
+
+const CategoryKey = z.string().trim().min(1).max(60).regex(/^[a-z0-9_]+$/, "lowercase, digits, underscore only");
+const CategoryLabel = z.string().trim().min(1).max(100);
+
+export const CreateCategoryRequest = z.object({ key: CategoryKey, label: CategoryLabel });
+export type CreateCategoryRequest = z.infer<typeof CreateCategoryRequest>;
+
+/** Renaming and (de)activating only — no delete: a category may already be referenced by
+ *  an idea (FR-23 territory: statuses/categories are structural once used, same reasoning
+ *  as `EvaluationCriterion` never being deletable, only deactivated). */
+export const UpdateCategoryRequest = z.object({
+  label: CategoryLabel.optional(),
+  isActive: z.boolean().optional(),
+});
+export type UpdateCategoryRequest = z.infer<typeof UpdateCategoryRequest>;
+
+/* ── Existing-solution capability catalogue (M2, P10 — P12 prerequisite, AI-11) ── */
+
+export const ExistingSolutionKind = z.enum(["INTERNAL_SYSTEM", "APPROVED_VENDOR", "PLATFORM_CAPABILITY"]);
+export type ExistingSolutionKind = z.infer<typeof ExistingSolutionKind>;
+
+export const ExistingSolutionDefinition = z.object({
+  id: Id,
+  name: z.string(),
+  kind: ExistingSolutionKind,
+  description: z.string(),
+  ownerDepartment: z.object({ id: Id, name: z.string() }).nullable(),
+  categories: z.array(z.string()),
+  isActive: z.boolean(),
+  /** Whether AI-11's cosine search can use this entry yet — false until its next
+   *  detection run picks up the embedding (server-computed, no model call from the
+   *  client; SPEC §4.6 keeps every provider call worker-side). */
+  hasEmbedding: z.boolean(),
+});
+export type ExistingSolutionDefinition = z.infer<typeof ExistingSolutionDefinition>;
+
+export const ListExistingSolutionsResponse = z.object({
+  items: z.array(ExistingSolutionDefinition),
+  canWrite: z.boolean(),
+});
+export type ListExistingSolutionsResponse = z.infer<typeof ListExistingSolutionsResponse>;
+
+const SolutionName = z.string().trim().min(1).max(200);
+const SolutionDescription = z.string().trim().min(1).max(2_000);
+const SolutionCategories = z.array(z.string().trim().min(1).max(60)).max(20).default([]);
+
+export const CreateExistingSolutionRequest = z.object({
+  name: SolutionName,
+  kind: ExistingSolutionKind,
+  description: SolutionDescription,
+  ownerDepartmentId: Id.nullable().optional(),
+  categories: SolutionCategories,
+});
+export type CreateExistingSolutionRequest = z.infer<typeof CreateExistingSolutionRequest>;
+
+export const UpdateExistingSolutionRequest = z.object({
+  name: SolutionName.optional(),
+  kind: ExistingSolutionKind.optional(),
+  description: SolutionDescription.optional(),
+  ownerDepartmentId: Id.nullable().optional(),
+  categories: SolutionCategories.optional(),
+  isActive: z.boolean().optional(),
+});
+export type UpdateExistingSolutionRequest = z.infer<typeof UpdateExistingSolutionRequest>;
+
+/* ── Detection thresholds (M2, P12) ── */
+
+export const DetectionConfigResponse = z.object({
+  similarIdeaThreshold: z.number().min(0).max(1),
+  existingSolutionThreshold: z.number().min(0).max(1),
+  existingSolutionTopN: z.number().int().min(1).max(20),
+  canWrite: z.boolean(),
+});
+export type DetectionConfigResponse = z.infer<typeof DetectionConfigResponse>;
+
+/** Same "configurable, not a code literal" reasoning as `UpdateProfileWeightsRequest` —
+ *  these are the sensible-defaults thresholds CONTRACT-LOG.md's P12 entry names, not a
+ *  fixed business number; an admin may retune them once reviewers see real matches. */
+export const UpdateDetectionConfigRequest = z.object({
+  similarIdeaThreshold: z.number().min(0).max(1),
+  existingSolutionThreshold: z.number().min(0).max(1),
+  existingSolutionTopN: z.number().int().min(1).max(20),
+});
+export type UpdateDetectionConfigRequest = z.infer<typeof UpdateDetectionConfigRequest>;

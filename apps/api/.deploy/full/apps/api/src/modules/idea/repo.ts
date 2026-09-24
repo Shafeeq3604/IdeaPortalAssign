@@ -3,6 +3,30 @@ import { writeAudit } from "../../lib/audit.js";
 import type { PrismaClient, Prisma } from "@iep/db";
 import type { IdeaScope, IdeaStatus } from "@iep/contracts";
 
+/** Thrown by `transition()` when the idea's status moved out from under a concurrent
+    request — see the comment at its `updateMany` call. Caught in routes.ts and mapped to
+    the CONCURRENT_MODIFICATION error code (409), same as this codebase's other
+    read-then-write conflicts. */
+export class TransitionConflict extends Error {
+  constructor(
+    public readonly ideaId: string,
+    public readonly expectedFrom: IdeaStatus,
+    public readonly to: IdeaStatus,
+  ) {
+    super(`Idea ${ideaId} was not in status ${expectedFrom} when the move to ${to} committed`);
+  }
+}
+
+/** Thrown by `updateDraftVersion()` when the idea stopped being a DRAFT (e.g. a concurrent
+    submit or transition) between the caller's own `idea:edit` permission check and this
+    write actually committing — see the comment at its `updateMany` calls. Caught in
+    routes.ts and mapped to CONCURRENT_MODIFICATION (409), same as `TransitionConflict`. */
+export class DraftEditConflict extends Error {
+  constructor(public readonly ideaId: string) {
+    super(`Idea ${ideaId} was no longer a DRAFT when this edit committed`);
+  }
+}
+
 /**
  * Idea persistence (P2).
  *
@@ -238,16 +262,46 @@ export function makeIdeaRepo(db: PrismaClient) {
       });
     },
 
-    /** Edit a draft in place. Only reachable while the idea is still the author's. */
+    /**
+     * Edit a draft in place. Only reachable while the idea is still the author's.
+     *
+     * `routes.ts`'s `updateDraft` handler checks `idea:edit` against the idea's status
+     * BEFORE calling this — but that check and this write are not atomic, so a concurrent
+     * submit/transition (another tab, a double-click) can move the idea out of DRAFT in
+     * between. An unconditional update would silently mutate a version that is by then
+     * SUBMITTED (and possibly already enqueued for analysis under its old `contentHash`),
+     * breaking the "a submitted version is immutable" invariant. Same guarded-`updateMany`
+     * shape as `transition()` above: both writes re-check DRAFT in their own WHERE clause,
+     * inside one transaction so a department/category change and the version edit either
+     * both land or neither does.
+     */
     async updateDraftVersion(
+      ideaId: string,
       versionId: string,
       fields: Record<string, string | readonly string[] | null>,
+      ideaFields?: { departmentId?: string | null; categoryId?: string | null },
     ) {
-      const data: Prisma.IdeaVersionUpdateInput = { contentHash: contentHash(fields) };
-      for (const [k, v] of Object.entries(fields)) {
-        if (v !== undefined) (data as Record<string, unknown>)[k] = v;
-      }
-      return db.ideaVersion.update({ where: { id: versionId }, data });
+      return db.$transaction(async (tx) => {
+        if (ideaFields && (ideaFields.departmentId !== undefined || ideaFields.categoryId !== undefined)) {
+          const ideaResult = await tx.idea.updateMany({
+            where: { id: ideaId, status: "DRAFT" },
+            data: ideaFields,
+          });
+          if (ideaResult.count === 0) throw new DraftEditConflict(ideaId);
+        }
+
+        const data: Prisma.IdeaVersionUpdateInput = { contentHash: contentHash(fields) };
+        for (const [k, v] of Object.entries(fields)) {
+          if (v !== undefined) (data as Record<string, unknown>)[k] = v;
+        }
+        const versionResult = await tx.ideaVersion.updateMany({
+          where: { id: versionId, idea: { status: "DRAFT" } },
+          data,
+        });
+        if (versionResult.count === 0) throw new DraftEditConflict(ideaId);
+
+        return tx.ideaVersion.findUniqueOrThrow({ where: { id: versionId } });
+      });
     },
 
     /** Revision: v(n+1). The previous version becomes immutable by convention and by policy. */
@@ -382,8 +436,20 @@ export function makeIdeaRepo(db: PrismaClient) {
           where: { id: input.ideaId },
           select: { submittedAt: true },
         });
-        await tx.idea.update({
-          where: { id: input.ideaId },
+        /**
+         * `updateMany` with `status: input.from` in the `where`, not `update` with just
+         * `{ id }` — the caller (`routes.ts`'s `transitionIdea`) reads `from` and validates
+         * the move via `canTransition()` BEFORE this transaction opens, so two concurrent
+         * requests against the same idea (a double-click, or two reviewers acting at once)
+         * can both pass that check against the same stale `from` and both reach here. An
+         * unconditional update would let the second one silently overwrite the first's
+         * result, and `statusHistory` would carry a row whose `fromStatus` was no longer
+         * true by the time it was written. Guarding the WHERE clause on `from` makes
+         * Postgres itself the referee: only the request that still matches the idea's
+         * current status can win the row, and the loser's `count` comes back 0.
+         */
+        const result = await tx.idea.updateMany({
+          where: { id: input.ideaId, status: input.from },
           data: {
             status: input.to,
             ...(input.to === "SUBMITTED" && current.submittedAt === null
@@ -391,6 +457,9 @@ export function makeIdeaRepo(db: PrismaClient) {
               : {}),
           },
         });
+        if (result.count === 0) {
+          throw new TransitionConflict(input.ideaId, input.from, input.to);
+        }
         await tx.statusHistory.create({
           data: {
             ideaId: input.ideaId,

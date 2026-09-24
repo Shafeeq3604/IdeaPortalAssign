@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   AnalysisRunStatus, AnalysisStep, Band, DependencyKind, EffortClass,
-  FeasibilityDimension, FeasibilityStatus, Horizon, IdeaAnalysisResponse, MarketDimension,
+  FeasibilityDimension, FeasibilityStatus, Horizon, IdeaAnalysisResponse,
+  ImplementationRecommendationAction, MarketDimension,
   Provenance, RequirementKind, RiskCategory, RiskLevel, TimelinePhase, UseCaseKind,
   UserCountBand, ValueDimension,
 } from "@iep/contracts";
@@ -11,12 +13,14 @@ import { queryKeys } from "../../app/query-keys";
 /**
  * Analysis data access (P3).
  *
- * PROGRESS IS POLLED, NOT STREAMED. SPEC §14 P3 names SSE, but the frozen P0 endpoint
- * list has no stream route, and adding one is a contract amendment (SPEC §14.1) rather
- * than something to invent mid-slice. Polling `/analysis/status` on a 2s interval meets
- * the acceptance criterion in §9.3 — "each step's real state, updated within 2s of the
- * job event" — using only frozen contracts. The stepper is driven by real per-step rows
- * either way; only the transport differs. Recorded in docs/adr/CONTRACT-LOG.md.
+ * Progress is pushed over SSE (`getAnalysisStream`, wiring up the `streamUrl` P0 already
+ * reserved — docs/adr/CONTRACT-LOG.md 2026-09-23) when the browser supports it, and falls
+ * back to polling `/analysis/status` otherwise — jsdom (this repo's test environment) has
+ * no `EventSource`, an old browser might not, and a corporate proxy might buffer or drop a
+ * long-lived connection outright. Either transport meets the same §9.3 acceptance
+ * criterion ("each step's real state, updated within 2s of the job event"); only the
+ * plumbing differs, and `AnalysisProgress`/`AnalysisTab` do not know or care which one is
+ * live — they only ever read this hook's ordinary TanStack Query result.
  */
 
 /** Terminal states stop the poll. A finished run must not keep hitting the API forever. */
@@ -25,13 +29,54 @@ const LIVE: ReadonlySet<AnalysisRunStatus["overall"]> = new Set(["PENDING", "RUN
 const POLL_MS = 2_000;
 
 export function useAnalysisStatus(ideaId: string, enabled = true) {
-  return useQuery({
+  const queryClient = useQueryClient();
+  // Starts false — the query keeps polling until an SSE connection actually proves
+  // itself by delivering a real frame, rather than assuming the stream works the moment
+  // it is opened.
+  const [streamHealthy, setStreamHealthy] = useState(false);
+
+  const query = useQuery({
     queryKey: queryKeys.ideas.analysisStatus(ideaId),
     queryFn: () => api<AnalysisRunStatus>(`/ideas/${ideaId}/analysis/status`),
     enabled: Boolean(ideaId) && enabled,
-    refetchInterval: (query) =>
-      query.state.data && LIVE.has(query.state.data.overall) ? POLL_MS : false,
+    refetchInterval: (q) =>
+      q.state.data && LIVE.has(q.state.data.overall) && !streamHealthy ? POLL_MS : false,
   });
+
+  useEffect(() => {
+    if (!ideaId || !enabled) return;
+    // No polyfill, no assumption the transport exists — an environment without a real
+    // EventSource (jsdom, chiefly) just keeps using the polling above.
+    if (typeof EventSource === "undefined") return;
+
+    // Not reset to false here on purpose (that would be a synchronous setState in the
+    // effect body, which is what triggered this comment) — a stale `true` from a
+    // previous ideaId self-corrects within one `onerror`/`status` event below, and in
+    // practice a route change remounts this hook entirely rather than reusing it across
+    // ideas.
+    const source = new EventSource(`/api/ideas/${ideaId}/analysis/stream`);
+    const queryKey = queryKeys.ideas.analysisStatus(ideaId);
+
+    source.addEventListener("status", (event) => {
+      setStreamHealthy(true);
+      const data = JSON.parse((event as MessageEvent<string>).data) as AnalysisRunStatus;
+      queryClient.setQueryData(queryKey, data);
+    });
+    source.addEventListener("done", () => source.close());
+    // A network hiccup, a proxy that does not forward SSE (see the API handler's own
+    // X-Accel-Buffering comment), or the connection simply dying — any of it falls back
+    // to the polling above. The browser's default auto-reconnect is deliberately not
+    // relied on: a stream that failed once for this view stays failed for this view,
+    // rather than retrying indefinitely alongside an already-working poll.
+    source.onerror = () => {
+      setStreamHealthy(false);
+      source.close();
+    };
+
+    return () => source.close();
+  }, [ideaId, enabled, queryClient]);
+
+  return query;
 }
 
 export function useAnalysis(ideaId: string, enabled = true) {
@@ -74,7 +119,20 @@ export const STEP_LABEL: Record<AnalysisStep, string> = {
   FEASIBILITY: "Checking feasibility",
   RISK: "Identifying risks",
   EFFORT_TIMELINE: "Estimating effort and timeline",
+  IMPLEMENTATION_RECOMMENDATION: "Forming an implementation recommendation",
   EXPLANATION: "Writing the explanation",
+};
+
+/**
+ * ADR-026 — the recommended ACTION for a human to weigh, never a verdict on the idea's
+ * worth (P-1). "Recommend" language throughout, deliberately: this is advice, not the
+ * final organisational decision (that is `LeadershipDecisionStatus`, in features/leadership).
+ */
+export const RECOMMENDATION_ACTION_LABEL: Record<ImplementationRecommendationAction, string> = {
+  RECOMMEND: "Recommend proceeding",
+  RECOMMEND_WITH_CONDITIONS: "Recommend proceeding, with conditions",
+  DO_NOT_RECOMMEND: "Do not recommend proceeding",
+  INSUFFICIENT_DATA: "Not enough to recommend either way",
 };
 
 export const BAND_LABEL: Record<Band, string> = {

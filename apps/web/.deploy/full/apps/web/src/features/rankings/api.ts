@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CompareResponse, DashboardResponse, ListProfilesResponse, ListRankingsResponse,
-  RankingRunMeta, RecomputeRequest,
+  OkResponse, RankingRunMeta, RecomputeRequest, UpdateProfileWeightsRequest,
 } from "@iep/contracts";
 import { api } from "../../app/api-client";
 import { invalidateAfter, queryKeys } from "../../app/query-keys";
@@ -88,6 +88,25 @@ export function useRecompute() {
       api<RankingRunMeta>("/rankings/recompute", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       for (const key of invalidateAfter.recompute()) {
+        void qc.invalidateQueries({ queryKey: key });
+      }
+    },
+  });
+}
+
+/** P10 (FR-13) — replaces a profile's whole weight set. Does not itself move a rank
+ *  (ADR-008: rankings are immutable snapshot runs) — `invalidateAfter.profileWeightsUpdate`
+ *  refreshes config + the audit trail only, deliberately not `rankings`/`dashboard`. */
+export function useUpdateProfileWeights() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ profileKey, ...body }: UpdateProfileWeightsRequest & { profileKey: string }) =>
+      api<OkResponse>(`/config/profiles/${profileKey}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      for (const key of invalidateAfter.profileWeightsUpdate()) {
         void qc.invalidateQueries({ queryKey: key });
       }
     },

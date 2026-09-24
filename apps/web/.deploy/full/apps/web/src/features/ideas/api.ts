@@ -45,6 +45,8 @@ export interface IdeaListFilters {
   readonly perPage?: number;
   readonly status?: readonly IdeaStatus[] | undefined;
   readonly submitterId?: string | undefined;
+  readonly departmentId?: string | undefined;
+  readonly categoryId?: string | undefined;
   readonly q?: string | undefined;
   readonly sort?: IdeaSort | undefined;
 }

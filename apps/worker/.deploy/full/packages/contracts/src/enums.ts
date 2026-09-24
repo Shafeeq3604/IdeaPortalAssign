@@ -50,14 +50,21 @@ export const AnalysisStep = z.enum([
   // guessed at. `MARKET_CONTEXT` is the opposite case: added HERE and everywhere else a
   // `Record<AnalysisStep, ...>` requires it, in the same PR (§14.1 additive amendment;
   // CONTRACT-LOG.md 2026-09-21) — a live, wired-up step, not a name added in isolation.
+  // IMPLEMENTATION_RECOMMENDATION: added the same way, ADR-026 (CONTRACT-LOG.md
+  // 2026-09-22) — a formal, advisory synthesis of the run's prior findings. It is content
+  // for a human to weigh, not a decision (P-3); see ADR-026 for the naming rationale.
+  "IMPLEMENTATION_RECOMMENDATION",
   "EXPLANATION",
 ]);
 export type AnalysisStep = z.infer<typeof AnalysisStep>;
 
-/** The seven steps of the submission pipeline, in order (SPEC §3.3; amended §14.1 to add
- *  MARKET_CONTEXT — CONTRACT-LOG.md 2026-09-21). Drives the UI stepper. */
+/** The eight steps of the submission pipeline, in order (SPEC §3.3; amended §14.1 to add
+ *  MARKET_CONTEXT — CONTRACT-LOG.md 2026-09-21 — and IMPLEMENTATION_RECOMMENDATION —
+ *  CONTRACT-LOG.md 2026-09-22, ADR-026). Drives the UI stepper. Recommendation runs last:
+ *  it synthesizes every other step's findings. */
 export const PIPELINE_STEPS = [
   "STRUCTURE", "USE_CASES", "VALUE", "MARKET_CONTEXT", "FEASIBILITY", "RISK", "EFFORT_TIMELINE",
+  "IMPLEMENTATION_RECOMMENDATION",
 ] as const satisfies readonly AnalysisStep[];
 
 export const AnalysisStatus = z.enum(["PENDING", "RUNNING", "SUCCEEDED", "FAILED", "SKIPPED"]);
@@ -163,6 +170,18 @@ export const ReviewDecision = z.enum([
   "APPROVED_FOR_PROTOTYPE", "REJECTED", "PARKED",
 ]);
 export type ReviewDecision = z.infer<typeof ReviewDecision>;
+
+/**
+ * ADR-026: the human, final-organisational-decision record that responds to an AI
+ * `ImplementationRecommendation`. Deliberately a distinct enum from `ReviewDecision` —
+ * this is leadership's own go/no-go act, not a reviewer's evaluation judgment, and
+ * `OVERRIDE_RECOMMENDATION` exists precisely so a human can disagree with the AI on
+ * record, never the other way around (P-3).
+ */
+export const LeadershipDecisionStatus = z.enum([
+  "APPROVED", "REJECTED", "NEEDS_VALIDATION", "OVERRIDE_RECOMMENDATION",
+]);
+export type LeadershipDecisionStatus = z.infer<typeof LeadershipDecisionStatus>;
 
 /** Maturity is independent of score and never feeds it (SPEC §5.3, P-5). */
 export const MaturityLevel = z.union([

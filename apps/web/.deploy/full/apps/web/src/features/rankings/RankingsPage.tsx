@@ -1,9 +1,9 @@
 import * as React from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { Target, Trophy } from "lucide-react";
+import { ChevronDown, Layers, Target, TrendingUp, Trophy } from "lucide-react";
 import { Button, Checkbox, EmptyState, ErrorState, Skeleton, StatusPill } from "@iep/ui";
 import type { ExplanationItem, ListRankingsResponse, RankingEntry } from "@iep/contracts";
-import { InlineStat, PageHeading } from "../../app/PageHero";
+import { HeadingStat, PageHeading } from "../../app/PageHero";
 import { FEASIBILITY_LABEL } from "../analysis/api";
 import { useProfiles, useRankingRun, useRankings } from "./api";
 import { RankDelta } from "./DashboardHero";
@@ -111,8 +111,12 @@ export function RankingsPage({ mode = "current" }: { mode?: "current" | "run" })
         stats={
           query.data ? (
             <>
-              <InlineStat value={String(query.data.run.cohortSize)} label="on the board" />
-              <InlineStat value={leader ? leader.compositeScore.toFixed(1) : "—"} label="top score" />
+              <HeadingStat icon={Layers} value={String(query.data.run.cohortSize)} label="on the board" />
+              <HeadingStat
+                icon={TrendingUp}
+                value={leader ? leader.compositeScore.toFixed(1) : "—"}
+                label="top score"
+              />
             </>
           ) : undefined
         }
@@ -309,7 +313,7 @@ function PodiumCard({
         first
           // `card-texture` + `shadow-e4` (visual-richness pass — hero-card depth): the
           // top-ranked card should read as more elevated than 2nd/3rd, not just bigger.
-          ? "card-texture relative overflow-hidden rounded-2xl bg-card p-6 shadow-e4 ring-2 ring-inset ring-accent-100 transition-transform duration-[var(--dur-base)] hover:-translate-y-1"
+          ? "card-texture relative overflow-hidden rounded-2xl bg-card p-6 shadow-e4-lit ring-2 ring-inset ring-accent-100 transition-transform duration-[var(--dur-base)] hover:-translate-y-1"
           : "relative overflow-hidden rounded-2xl bg-card p-5 shadow-e2 ring-1 ring-inset ring-border"
       }
     >
@@ -419,6 +423,126 @@ function PodiumCard({
   );
 }
 
+/** Group by `criterionLabel`, count occurrences, sorted loudest first, capped to 3 —
+ *  a "pattern" is a top few, not a full re-listing of every criterion on the board. */
+function topFactors(
+  items: readonly RankingEntry[],
+  pick: (row: RankingEntry) => ExplanationItem | null,
+): readonly (readonly [string, number])[] {
+  const counts = new Map<string, number>();
+  for (const row of items) {
+    const item = pick(row);
+    if (item) counts.set(item.criterionLabel, (counts.get(item.criterionLabel) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+}
+
+function FactorList({
+  title, rows, total, tone,
+}: {
+  title: string;
+  rows: readonly (readonly [string, number])[];
+  total: number;
+  tone: "up" | "down";
+}) {
+  if (rows.length === 0) {
+    return (
+      <div>
+        <p className="text-100 font-bold uppercase tracking-[0.1em] text-muted-foreground">
+          {title}
+        </p>
+        <p className="mt-2 text-200 text-muted-foreground">Nothing stood out yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="text-100 font-bold uppercase tracking-[0.1em] text-muted-foreground">
+        {title}
+      </p>
+      <ul className="mt-2 flex flex-col gap-2">
+        {rows.map(([label, count]) => (
+          <li key={label}>
+            <div className="flex items-baseline justify-between gap-3 text-200">
+              <span className="font-medium">{label}</span>
+              <span className={`text-100 tabular-nums ${tone === "up" ? "text-factor-up" : "text-factor-down"}`}>
+                {count} of {total} ideas
+              </span>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className={`h-full rounded-full ${tone === "up" ? "bg-factor-up" : "bg-factor-down"}`}
+                style={{ width: `${Math.max(4, (count / total) * 100)}%` }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function AssessmentOverview({ items }: { items: readonly RankingEntry[] }) {
+  const strengths = topFactors(items, (r) => r.topStrength);
+  const constraints = topFactors(items, (r) => r.topConstraint);
+
+  /**
+   * Collapsed by default only below `sm` (UI audit finding, follow-up): on a phone this
+   * card sat between the filters and the actual ranked list, adding real scroll distance
+   * before the content people came for. It can't simply move below the list — its own
+   * copy says "shown below" and a fixed position above it is a deliberate ordering choice
+   * from the visual-composition pass — so instead it collapses behind a native
+   * `<details>` on narrow viewports, where the click/tap to open it costs less than the
+   * scroll distance it otherwise adds. One check at mount, not a live resize listener:
+   * rotating a phone mid-read is a vanishingly rare case to build for, and every other
+   * breakpoint decision in this app is already a CSS media query, not JS state. Desktop
+   * and tablet keep the card open exactly as before — nothing changes there.
+   */
+  // The width below mirrors Tailwind's own built-in `sm` breakpoint, not a value invented
+  // here — there is no JS-side breakpoint token, only the `sm:` class prefix used
+  // everywhere else, which a `matchMedia` string can't express. lint-tokens-ignore
+  const [open, setOpen] = React.useState(
+    () => typeof window === "undefined" || window.matchMedia("(min-width: 640px)").matches, // lint-tokens-ignore
+  );
+
+  return (
+    <details
+      className="group mb-3 rounded-2xl bg-card p-4 shadow-e2 ring-1 ring-inset ring-border sm:mb-4 sm:p-5"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      {/*
+        `<summary>`, not a heading — same reason `DashboardHero`'s "Pipeline flow" label
+        isn't one either: this panel's title is a label for content the page's own `<h1>`
+        ("Rankings") already scopes, not a new structural section on the level of an
+        idea's own title. Concretely: J-5's e2e spec clicks
+        `getByRole("heading", { level: 2 }).first()` expecting the first RANKED IDEA's
+        title — a real `<h2>` here would come first in the DOM and break that assumption
+        for every idea title on the page, not just this one. `<summary>` carries its own
+        native `button` role and disclosure state instead, so no heading is introduced and
+        no extra ARIA is needed for the expand/collapse behavior.
+      */}
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <span>
+          <span className="block font-serif text-300 font-semibold">Assessment overview</span>
+          <span className="mt-1 block text-100 text-muted-foreground">
+            What most often lifts or holds back the {items.length} ideas shown below.
+          </span>
+        </span>
+        <ChevronDown
+          aria-hidden
+          className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform duration-[var(--dur-base)] group-open:rotate-180"
+        />
+      </summary>
+      <div className="mt-3.5 grid gap-4 sm:grid-cols-2">
+        <FactorList title="Most often the strongest factor" rows={strengths} total={items.length} tone="up" />
+        <FactorList title="Most often the limiting factor" rows={constraints} total={items.length} tone="down" />
+      </div>
+    </details>
+  );
+}
+
 function Board({
   data, mode, profiles, activeProfile, rankBand, selected,
   onProfile, onRankBand, onToggleCompare, onPage,
@@ -455,7 +579,7 @@ function Board({
         index.css: white on --accent-700 fails AA once the tokens flip to dark, and these
         are the most-clicked controls on the page.
       */}
-      <div className="mb-4 space-y-3">
+      <div className="mb-3 space-y-2 sm:mb-4 sm:space-y-3">
         {mode === "current" && profiles.length > 1 ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-200 text-muted-foreground">Weighted for</span>
@@ -530,6 +654,17 @@ function Board({
         contains no rank 1, so it correctly gets no podium rather than crowning whatever
         happens to be first on screen — which is the bug this shape invites.
       */}
+      {/*
+        "Assessment overview" (visual-composition pass §11 — "opportunity assessment
+        landscape," not a leaderboard): what is actually driving the CURRENT board, as a
+        pattern across every row shown, not just the featured one. Every count here is
+        real — each row's own `topStrength`/`topConstraint.criterionLabel`, grouped —
+        the same two figures `FactorPair` already prints per row, aggregated rather than
+        invented. Hidden once there is nothing to aggregate (a one-page board of one or
+        two ideas has no real "pattern" to report).
+      */}
+      {!empty && data.items.length >= 4 ? <AssessmentOverview items={data.items} /> : null}
+
       {podium.length > 0 ? (
         <ol className="grid list-none grid-cols-1 items-end gap-3.5 p-0 md:grid-cols-3">
           {podium.map((row) => (

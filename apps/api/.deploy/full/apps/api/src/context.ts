@@ -42,7 +42,15 @@ export interface DiscoveryEnqueuer {
  * process it right away.
  */
 export interface IdeaCreationEnqueuer {
-  enqueue(job: { conversationId: string }): Promise<boolean>;
+  /**
+   * `messageId` — the user message this turn is answering — backs the queue's `jobId`
+   * (idea-creation-queue.ts), the same dedup discipline `AnalysisEnqueuer`/
+   * `DiscoveryEnqueuer` already use. Without it, a `queue.add()` that times out
+   * client-side (redis-connection.ts's `withEnqueueTimeout`) but still lands later —
+   * ioredis keeps retrying quietly even after the app gives up waiting — and a
+   * subsequent retry of the SAME message could each be accepted as their own job.
+   */
+  enqueue(job: { conversationId: string; messageId: string }): Promise<boolean>;
 }
 
 export interface AppContext {

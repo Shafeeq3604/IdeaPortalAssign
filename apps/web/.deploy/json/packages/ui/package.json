@@ -17,6 +17,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@fontsource/manrope": "^5.2.6",
     "@hookform/resolvers": "^5.9.1",
     "@iep/contracts": "workspace:*",
     "class-variance-authority": "^0.7.1",

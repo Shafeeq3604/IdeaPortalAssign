@@ -1,13 +1,49 @@
+import * as React from "react";
 import { Link, useParams } from "react-router-dom";
 import { CircleAlert, Gavel, Lightbulb, ListChecks, TrendingUp, Users } from "lucide-react";
 import {
-  Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Card, CardContent,
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Button, Card, CardContent,
   CardHeader, CardTitle,
 } from "@iep/ui";
+import type { SimilarIdeaRef } from "@iep/contracts";
 import { IdeaShell } from "./IdeaShell";
 import { AnalysisProgress } from "../analysis/AnalysisProgress";
 import { AttachmentsPanel } from "./Attachments";
+import { SignalsPanel } from "../feedback/SignalsPanel";
 import { DECISION_HELP, DECISION_LABEL, useReviews } from "../review/api";
+
+/**
+ * FR-20 (P12, AI-10) — REQUIREMENTS §15's exact banner copy. Deliberately no similarity
+ * score or AI wording ("Do not expose similarity/AI technical details") — that detail is
+ * the Evaluation tab's reviewer-facing existing-solution card's business, not this one's.
+ *
+ * "Link your idea" and "Combine ideas" (the other two options REQUIREMENTS §15 lists)
+ * are not built here — no idea-relationship data model is reserved anywhere in the
+ * schema for either, unlike `SimilarIdea` itself (ADR-012). Shipping "View" + "Continue"
+ * is the real FR-20 requirement (detection and surfacing); the other two are a distinct,
+ * larger feature (idea linking/merging) called out as follow-up, not silently dropped.
+ */
+function SimilarIdeaBanner({ similarIdeas }: { similarIdeas: readonly SimilarIdeaRef[] }) {
+  const [dismissed, setDismissed] = React.useState(false);
+  const top = similarIdeas[0];
+  if (!top || dismissed) return null;
+
+  return (
+    <Card className="border-l-4 border-l-state-info bg-state-info-bg/40">
+      <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+        <p className="text-200 font-medium">We found a similar idea.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link to={`/ideas/${top.ideaId}/overview`}>View similar idea</Link>
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setDismissed(true)}>
+            Continue with your idea
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 /** Overview: the submitted content as written, before any AI touches it. */
 export function OverviewTab() {
@@ -46,6 +82,10 @@ export function OverviewTab() {
             {idea.status === "DRAFT" ? null : (
               <AnalysisProgress ideaId={ideaId} linkToAnalysis />
             )}
+
+            {idea.similarIdeas.length > 0 ? (
+              <SimilarIdeaBanner similarIdeas={idea.similarIdeas} />
+            ) : null}
 
             {/*
               The core of the submission, not two identical stacked cards (visual-
@@ -208,6 +248,13 @@ export function OverviewTab() {
               submitted version is part of what was analysed (SPEC §4.3).
             */}
             <AttachmentsPanel ideaId={ideaId} canEdit={idea.permissions.canEdit} />
+
+            {/*
+              Structured feedback (FR-18, P11) — same gate as the "Team feedback" vote bar
+              in IdeaShell.tsx above: there is nothing yet to react to on an unsubmitted
+              draft.
+            */}
+            {idea.status === "DRAFT" ? null : <SignalsPanel ideaId={ideaId} />}
           </div>
         );
       }}

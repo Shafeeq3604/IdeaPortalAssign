@@ -9,6 +9,20 @@
  * Feature code may not use a raw hex or px value. `pnpm lint:tokens` enforces it.
  */
 
+/*
+ * Aurora pass (CONTRACT-LOG.md, corrective): the actual type file behind
+ * --font-display/--font-sans below. Self-hosted, exact weights only (not the "index"
+ * import, which pulls every cut). Supersedes the prior visual-identity pass's IBM Plex
+ * Serif/Sans pairing — Aurora is a single-family system (one typeface, weight carries the
+ * hierarchy that used to come from a serif/sans pairing), matching every reviewed Aurora
+ * mockup, none of which use a serif face at all.
+ */
+@import "@fontsource/manrope/400.css";
+@import "@fontsource/manrope/500.css";
+@import "@fontsource/manrope/600.css";
+@import "@fontsource/manrope/700.css";
+@import "@fontsource/manrope/800.css";
+
 :root {
   /* ── Ink ramp ── */
   /*
@@ -48,7 +62,16 @@
    * secondary and card still read as three real steps of luminance, just cooler ones.
    */
   --ink-100: #f8fafc;   /* secondary surfaces — filter rows, input groups, sidebar */
-  --ink-050: #eef2f7;   /* the page canvas */
+  /*
+   * Aurora Light (CONTRACT-LOG.md — corrective): a hair cooler/bluer than the prior
+   * #eef2f7, matching the canvas value in the reviewed Aurora Light mockup exactly.
+   * Deliberately a nudge, not a repaint — light mode's own architecture (the dashboard
+   * hero and header bar already render the SAME dark charcoal/cyan gradient panel in both
+   * themes; see `.dash-hero`/`.brand-bar` in index.css) already carries Aurora's signature
+   * hero identity into light mode. What light was missing was the accent family below
+   * reading as part of the same cyan/blue system rather than plain blue alone.
+   */
+  --ink-050: #eef2fb;   /* the page canvas */
   --ink-000: #ffffff;
 
   /* ── Semantic surfaces ── */
@@ -83,11 +106,27 @@
    * that a Carbon- or Primer-literate eye reads as deliberate, not templated. Same role
    * in every component that reads this token — nothing downstream changes, only the hue.
    */
-  --accent-700: #1d4ed8;
-  --accent-600: #2563eb;
+  /*
+   * Aurora Light (CONTRACT-LOG.md — corrective): the same cyan/blue two-hue system
+   * approved for dark, adapted for a light ground. accent-600/700 (buttons, links, the
+   * focus ring, badge ink) stay a true, saturated blue — the reviewed mockup's own cyan
+   * is too pale to hold text/fill contrast on white, exactly the reason dark mode's
+   * on-accent ink stays solid rather than glass — but accent-100/050 (tint backgrounds:
+   * badges, hover fills, the shadcn `--accent` surface) shift from a plain blue tint
+   * toward the cooler cyan-blue the mockup's badges use, so the tint family reads as part
+   * of the same identity as the (already cyan) `--grad-highlight` the dashboard hero and
+   * header bar already carry into light mode unchanged. Every value re-verified live in
+   * the browser (computed luminance/contrast, not eyeballed), same discipline as the dark
+   * pass and for the same reason: accent-600 (Aurora blue) first landed at #2f6fed, which
+   * measured 4.55:1 white-on-fill — technically AA, but the same "shipped right at the
+   * floor" mistake the dark pass made twice already. Darkened to #245fd6, now 5.70:1.
+   * accent-700 on accent-100: 5.93:1.
+   */
+  --accent-700: #164fc4;
+  --accent-600: #245fd6;
   --accent-500: #3b82f6;
-  --accent-100: #dbeafe;
-  --accent-050: #eff6ff;
+  --accent-100: #d8eef7;
+  --accent-050: #eef9fc;
   --focus-ring: var(--accent-500);
 
   /* ── Evidence: DIRECTION, not verdict. Deliberately not green/red. ── */
@@ -179,16 +218,27 @@
   --grad-rule: #ffffff26;
 
   /*
-   * A real serif, from the system.
+   * Manrope, self-hosted (Aurora pass, CONTRACT-LOG.md — corrective; supersedes the prior
+   * IBM Plex Serif/Sans entry). Aurora's reviewed mockups run one typeface everywhere —
+   * headings and body both — so --font-display and --font-sans now resolve to the SAME
+   * family; weight (500/600/700/800) is what carries the hierarchy a serif/sans pairing
+   * used to. `font-serif` stays a valid utility (nothing downstream changes), it just
+   * resolves to Manrope like everything else now. The rest of each stack after the leading
+   * name is the old system fallback, unchanged, for the one case that still matters: a
+   * request for the self-hosted file itself fails (blocked asset, corrupted cache) — that
+   * reads as "system sans/serif," never as invisible text.
    *
-   * No webfont on purpose: the sign-in page is the one screen that must render correctly
-   * on a cold cache over a bad connection, and a display face that arrives late is worse
-   * than one that was never asked for.
+   * Self-hosted rather than a third-party font CDN is what keeps the ORIGINAL concern
+   * (the sign-in page must render correctly on a cold cache over a bad connection) true:
+   * these files ship in the app's own bundle, same origin, no external round trip, and
+   * `@fontsource`'s own CSS sets `font-display: swap` — the fallback paints first paint
+   * immediately either way, this only changes what it swaps to once the local file
+   * (cached like any other asset) is available.
    */
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
-    Georgia, "Times New Roman", serif;
+  --font-display: "Manrope", "Iowan Old Style", "Palatino Linotype", Palatino,
+    "Book Antiqua", Georgia, "Times New Roman", serif;
 
-  --font-sans: "Inter var", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Manrope", -apple-system, "Segoe UI", Roboto, sans-serif;
   --fs-100: 0.694rem;
   --fs-200: 0.833rem;
   --fs-300: 1rem;
@@ -236,6 +286,46 @@
   --e-2: 0 2px 6px -1px rgb(15 23 42 / 10%), 0 1px 2px rgb(15 23 42 / 6%);
   --e-3: 0 10px 20px -5px rgb(15 23 42 / 13%), 0 3px 6px rgb(15 23 42 / 7%);
   --e-4: 0 20px 38px -10px rgb(15 23 42 / 18%), 0 6px 12px rgb(15 23 42 / 8%);
+  /*
+   * "-lit" (visual-identity pass, CONTRACT-LOG.md — additive): the SAME e-4 shadow, plus a
+   * soft inset highlight along the top edge. Not a replacement for e-4 — a second, opt-in
+   * token, reserved for the handful of cards the design already raises to e-4 BECAUSE
+   * they're a page's one focal surface (the hero, a spotlight/podium/featured card), never
+   * applied to an ordinary card (those stop at e-1/e-2/e-3, untouched). That highlight is
+   * the detail that reads as "a produced object," not "a div with a shadow" — the same
+   * thing a raised physical card does under an overhead light. Kept restrained (60% white
+   * in light mode) rather than glossy.
+   */
+  --e-4-lit: var(--e-4), inset 0 1px 0 0 rgb(255 255 255 / 60%);
+
+  /*
+   * Aurora glass (CONTRACT-LOG.md — additive): only meaningful in dark mode, where a
+   * handful of focal surfaces (the hero, one featured card per page, the header/sidebar
+   * rail) get a real backdrop blur. Neutral, no-op defaults here so the tokens always
+   * resolve — light mode gets zero blur and reuses the ordinary border colour, never a
+   * genuinely new value. See the dark blocks below for the real Aurora values, and
+   * apps/web/src/index.css for the small, explicitly-scoped set of selectors that
+   * actually apply `backdrop-filter`.
+   */
+  --glass-blur: 0px;
+  --glass-line: var(--border);
+
+  /* Page-wide dot-grid texture (design-review request — "the whole app should look like
+   * this reference", not only the dashboard hero). `none` here, a real dotted radial-
+   * gradient in the two dark blocks below — the same neutral-default-in-light,
+   * real-value-in-dark shape `--glass-blur` already uses one property up, for the same
+   * reason: this is part of the dark Aurora identity, not a light-mode change. */
+  --body-texture: none;
+
+  /* ── Atmospheric lighting (enterprise-audit pass, corrective — see the dark blocks
+   * below): three soft radial washes behind the page content — top-left, hero-centre,
+   * bottom-right. Light mode keeps the two faint accent/gradient washes it already had
+   * (unchanged values, just renamed into this three-slot system so `body{}` has one
+   * shape for both themes); it has no top-left wash of its own, which is why --atmo-tl
+   * is transparent here. */
+  --atmo-tl: transparent;
+  --atmo-center: color-mix(in oklab, var(--accent-600) 6%, transparent);
+  --atmo-br: color-mix(in oklab, var(--grad-to) 5%, transparent);
 
   /* ── Layout ── */
   --container: 1280px;
@@ -273,84 +363,57 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ink-900: #f1f5f9;
+    /*
+     * Enterprise-audit pass (CONTRACT-LOG.md — corrective): replaces Aurora's glass-depth,
+     * translucent cyan identity with a flat, opaque, blue-forward system modelled on
+     * Azure Portal / Linear / Datadog / Stripe / GitHub Enterprise rather than a glass
+     * panel — direct user direction, brutally explicit about what to avoid (glassmorphism,
+     * heavy transparency, glow, purple). Light mode is untouched — see the `:root` block
+     * above; only these two dark-mode blocks change. Values below are the exact ones
+     * given: canvas #020817, sidebar #07111E, card #0C1627, pipeline surface #0F172A,
+     * primary blue #2563EB, secondary blue #3B82F6, cyan #38BDF8.
+     */
+    --ink-900: #f8fafc;   /* text primary */
     --ink-700: #cbd5e1;
-    --ink-500: #94a3b8;
-    /*
-     * Dark-mode refinement pass (2026-09-18): this used to equal --ink-500 exactly, so
-     * "secondary" and "muted" text were the identical colour — every caption, timestamp
-     * and label read at the same weight as real secondary copy, which is part of why the
-     * whole interface felt flat. Muted is now a visibly darker, cooler step of its own
-     * (~5.4:1 on the canvas — still comfortably AA, just recessive rather than equal).
-     */
-    --ink-400: #7e90a9;
-    /*
-     * Same pass: border and border-strong bumped a shade lighter than before, because the
-     * card surface below (--ink-000) also moved lighter — a border that used to separate
-     * a darker card from its background needs to work against a noticeably lighter one now,
-     * or the "hairline" disappears entirely.
-     */
-    --ink-300: #55698a;
-    --ink-200: #3d5372;
-    --ink-100: #1e293b;
-    --ink-050: #0f172a;   /* slate-900 canvas */
-    /*
-     * Surface hierarchy pass (2026-09-18), round two: the previous fix (#26344a → #2f3f59)
-     * solved "card and sidebar are too close in luminance" but did it with a colour that
-     * was still a genuinely saturated mid-blue (~31% HSL saturation) — reported back
-     * directly as "too many blue layers" once page canvas, card, input and the electric-
-     * blue accent were all visible on the same screen. The LIGHTNESS step this card needs
-     * over the sidebar/canvas is unchanged; only the saturation moves, roughly halved
-     * (~18%), so the surface reads as a neutral charcoal-slate with a cool identity rather
-     * than a blue panel competing with the accent for attention. Same hue family as the
-     * rest of the ink ramp on purpose — a fully neutral grey here would read as a
-     * different, ungrounded material next to a still-blue canvas and sidebar.
-     */
-    --ink-000: #343d4b;
+    --ink-500: #94a3b8;   /* text secondary, per spec */
+    --ink-400: #7a8598;   /* a step dimmer, for tertiary/muted text */
+    --ink-300: rgba(128, 164, 255, 0.22);  /* border-strong */
+    --ink-200: rgba(128, 164, 255, 0.12);  /* border, per spec */
+    --ink-100: #0c1627;   /* card surface, per spec */
+    --ink-050: #020817;   /* canvas, per spec */
+    /* ink-000 keeps its dual role (the ramp's extreme step, and --primary-foreground: the
+       ink drawn ON a solid accent-600 button) but can no longer also BE --surface — see
+       --surface below, same technique already used for --sidebar/--surface-input. */
+    --ink-000: #020817;
 
     /*
-     * New this pass: the sidebar/header rail is a DISTINCT surface from a primary card,
-     * not the same --surface token wearing two hats. Light mode gets no new colour —
-     * --sidebar equals --surface there, so the light theme is untouched — but dark mode
-     * points it at --ink-100, the step between canvas and card that the light-mode comment
-     * on --ink-100 always described ("secondary surfaces — filter rows, input groups,
-     * sidebar") without the sidebar ever actually reading it.
+     * Opaque surfaces, not glass: a solid, near-black navy ladder (canvas → sidebar →
+     * card → pipeline), exactly the "substantial and stable" cards the audit calls for.
+     * No transparency, no backdrop blur (--glass-blur is 0 below) — a card sits ABOVE the
+     * canvas because it is a distinct, opaque colour, not because it is see-through.
      */
-    --sidebar: var(--ink-100);
-    /* The sidebar's own hover state needs to read AGAINST --sidebar, not reuse --muted —
-       --muted now equals --sidebar's own background, which would make a hovered nav row
-       invisible. Point hover at the lighter card tone instead, so hovering a row visibly
-       lifts it off the rail. */
-    --sidebar-hover: var(--ink-000);
-    /*
-     * Inputs get their own recessed surface instead of the transparent fill shadcn ships
-     * by default (which only ever picked up a background under an EXPLICIT dark toggle,
-     * never under the OS "system dark" preference — see the plain rule near the bottom of
-     * this file). Lighter than canvas but darker than the card: an input should read as a
-     * well cut into the card, not another card floating on top of it. Desaturated the same
-     * way and for the same reason as --ink-000 above — this was the fourth blue layer in
-     * the "too much blue" report (canvas, card, input, accent), and unlike the accent it is
-     * never the thing anyone is meant to be looking at.
-     */
-    --surface-input: #212730;
+    --surface: #0c1627;         /* card surface */
+    --surface-sunken: #0f172a;  /* pipeline / recessed surface */
+    --border: var(--ink-200);
+    --border-strong: var(--ink-300);
+
+    /* Sidebar: its own, darker step than the card surface — "background ≈ sidebar ≈
+       cards" was the audit's own named problem, so this must read as visibly distinct
+       from both --canvas (a hair lighter) and --surface (visibly darker). */
+    --sidebar: #07111e;
+    --sidebar-hover: #0b1526;
+    --surface-input: #0a0f1e;
 
     /*
-     * accent-700 used to be #93c5fd — a fully-saturated pastel sky blue, and it is the
-     * ONE token nearly every "readable accent text" spot in the product shares: badge
-     * ink, category icons, CTA links, every score numeral's gradient start. That is
-     * exactly the "too much cyan" the dark-mode refinement pass was asked to fix, and it
-     * is one token, not forty call sites — softened here to a desaturated slate-blue that
-     * keeps essentially the same contrast (still 7:1+ on the accent tints below) without
-     * reading as neon. --accent-600/--accent-500, the buttons/links/focus-ring shades,
-     * are deliberately UNCHANGED — those are the ones actually reserved for emphasis.
+     * Accent: primary blue leads (buttons, links, the focus ring, badge fills); the
+     * secondary blue and cyan are reserved for the badge-ink/emphasis role accent-700
+     * already plays. No purple anywhere in this ramp.
      */
-    --accent-700: #a3b8d1;
-    --accent-600: #60a5fa;
-    --accent-500: #3b82f6;
-    /* Tint backgrounds pulled a little more neutral alongside accent-700, so a badge reads
-       as "a calm chip with a cool tint" rather than "a blue chip" at a glance. */
-    --accent-100: #22334a;
-    --accent-050: #1a2333;
+    --accent-700: #3b82f6;   /* secondary blue — badge ink / stronger emphasis */
+    --accent-600: #2563eb;   /* primary blue */
+    --accent-500: #38bdf8;   /* cyan — focus ring */
+    --accent-100: rgba(37, 99, 235, 0.16);
+    --accent-050: rgba(37, 99, 235, 0.08);
 
     --factor-up: #5fc9b4;
     --factor-up-bg: #12312c;
@@ -363,24 +426,28 @@
     --ramp-4: #4f7fc2;
     --ramp-5: #60a5fa;
 
-    /* ── Welcome surfaces (see the light block for why these exist) ── */
-    --welcome-canvas: #0f0f1a;
-    --welcome-surface: #1a1a2e;
-    --welcome-ink: #e9e9f5;
-    --welcome-ink-soft: #a1a1c0;   /* 7.1:1 on surface */
-    --welcome-rule: #2e2e4a;
-    --welcome-accent: #60a5fa;     /* = --accent-600 (dark) */
-    --welcome-accent-soft: #16283f; /* = --accent-050 (dark) */
-    --welcome-on-accent: #14142b;  /* the accent lightens in dark, so the label darkens */
+    /* ── Welcome surfaces (see the light block for why these exist) — brought in line
+       with the enterprise palette so the front door and the app read as one identity. ── */
+    --welcome-canvas: #020817;
+    --welcome-surface: #0c1627;
+    --welcome-ink: #f8fafc;
+    --welcome-ink-soft: #94a3b8;
+    --welcome-rule: rgba(128, 164, 255, 0.12);
+    --welcome-accent: #2563eb;     /* = --accent-600 (dark) */
+    --welcome-accent-soft: rgba(37, 99, 235, 0.08); /* = --accent-050 (dark) */
+    --welcome-on-accent: #f8fafc;
 
-
-    /* The panel is already dark in both themes; it only deepens. */
-    --grad-from: #0b0f14;
-    --grad-via: #10151d;
-    --grad-to: #171f2b;
-    --grad-ink: #ffffff;
-    --grad-ink-soft: #b9c6d9;
-    --grad-highlight: #7dd3fc;
+    /*
+     * The gradient panel (dashboard hero, welcome panel): a navy base with one bright
+     * cyan highlight — same role `--grad-highlight` already played, now the spec's own
+     * cyan rather than Aurora's near-identical one.
+     */
+    --grad-from: #10183a;
+    --grad-via: #0b1226;
+    --grad-to: #020817;
+    --grad-ink: #f8fafc;
+    --grad-ink-soft: #94a3b8;
+    --grad-highlight: #38bdf8;
     --grad-rule: #ffffff1f;
 
     --ai-surface: #221e33;
@@ -399,41 +466,66 @@
     --state-neutral-bg: var(--surface-sunken);
 
     /*
-     * Dark-mode refinement pass: e-1/e-2 were `none` on the theory that shadows do not
-     * read on a dark ground — true for a heavy light-mode shadow, but the result was that
-     * most cards (which use e-1/e-2, not e-3) got NO depth cue at all beyond a border, one
-     * layer short of the "restrained shadows" the surface hierarchy calls for. Both are
-     * now a plain, low-opacity black shadow — restrained on purpose, nowhere near the
-     * light-mode e-3/e-4 treatment — so an ordinary card reads as sitting slightly above
-     * the canvas instead of relying on its border alone.
+     * Elevation: unchanged. Depth now comes from the opaque surface ladder and hairline
+     * borders, not translucency or blur — these low-opacity black shadows still carry
+     * ordinary card elevation on top of that.
      */
     --e-1: 0 1px 2px rgb(0 0 0 / 30%);
     --e-2: 0 2px 6px -1px rgb(0 0 0 / 35%), 0 1px 2px rgb(0 0 0 / 20%);
     --e-3: 0 8px 16px -4px rgb(0 0 0 / 45%);
     --e-4: 0 16px 32px -8px rgb(0 0 0 / 55%);
+    --e-4-lit: var(--e-4), inset 0 1px 0 0 rgb(255 255 255 / 6%);
+
+    /* Glassmorphism removed (enterprise-audit finding: "heavy transparency, strong glow
+       effects" are explicitly what a Fortune-500-worthy dark theme must NOT do) — blur
+       drops to 0 and the glass line reuses the plain border colour. Kept as tokens rather
+       than deleted so the reduced-transparency fallback below stays a harmless no-op. */
+    --glass-blur: 0px;
+    --glass-line: var(--ink-200);
+
+    /* The page-wide dot-grid: the spec's own colour and spacing (blue-tinted dots, 24px
+       tile), at roughly a quarter of the strength first shipped (design-review finding:
+       at .22 the grid competed with every surface sitting on a translucent tint — the KPI
+       tiles and the hero glow both let it read straight through, so the eye saw "grid,
+       grid, grid, dashboard" instead of "dashboard, then texture." Spacing (24px)
+       unchanged — only the alpha dropped. */
+    --body-texture: radial-gradient(rgba(80, 140, 255, 0.05) 1.8px, transparent 1.8px);
+
+    /* Atmospheric lighting (see the light block above for the shared shape): the spec's
+       three-corner scheme — a faint green top-left, blue centre, cyan bottom-right. */
+    --atmo-tl: rgba(16, 185, 129, 0.12);
+    --atmo-center: rgba(37, 99, 235, 0.18);
+    --atmo-br: rgba(56, 189, 248, 0.08);
   }
 }
 
 :root[data-theme="dark"] {
-  --ink-900: #f1f5f9;
+  /* Kept byte-identical to the system-dark block above, per existing convention — see
+     that block's comments for the reasoning behind every value here. */
+  --ink-900: #f8fafc;
   --ink-700: #cbd5e1;
   --ink-500: #94a3b8;
-  --ink-400: #7e90a9;   /* muted/tertiary — a distinct, darker step from --ink-500 (see the system-dark block above) */
-  --ink-300: #55698a;
-  --ink-200: #3d5372;
-  --ink-100: #1e293b;
-  --ink-050: #0f172a;   /* slate-900 canvas */
-  --ink-000: #343d4b;   /* same surface-hierarchy pass as the system-dark block above — same lightness step, roughly half the saturation */
+  --ink-400: #7a8598;
+  --ink-300: rgba(128, 164, 255, 0.22);
+  --ink-200: rgba(128, 164, 255, 0.12);
+  --ink-100: #0c1627;
+  --ink-050: #020817;
+  --ink-000: #020817;
 
-  --sidebar: var(--ink-100);
-  --sidebar-hover: var(--ink-000);
-  --surface-input: #212730;
+  --surface: #0c1627;
+  --surface-sunken: #0f172a;
+  --border: var(--ink-200);
+  --border-strong: var(--ink-300);
 
-  --accent-700: #a3b8d1;
-  --accent-600: #60a5fa;
-  --accent-500: #3b82f6;
-  --accent-100: #22334a;
-  --accent-050: #1a2333;
+  --sidebar: #07111e;
+  --sidebar-hover: #0b1526;
+  --surface-input: #0a0f1e;
+
+  --accent-700: #3b82f6;
+  --accent-600: #2563eb;
+  --accent-500: #38bdf8;
+  --accent-100: rgba(37, 99, 235, 0.16);
+  --accent-050: rgba(37, 99, 235, 0.08);
 
   --factor-up: #5fc9b4;
   --factor-up-bg: #12312c;
@@ -447,28 +539,22 @@
   --ramp-5: #60a5fa;
 
   /* ── Welcome surfaces (see the light block for why these exist) ── */
-  --welcome-canvas: #0f0f1a;
-  --welcome-surface: #1a1a2e;
-  --welcome-ink: #e9e9f5;
-  --welcome-ink-soft: #a1a1c0;   /* 7.1:1 on surface */
-  --welcome-rule: #2e2e4a;
-  --welcome-accent: #60a5fa;     /* = --accent-600 (dark) */
-  --welcome-accent-soft: #16283f; /* = --accent-050 (dark) */
-  /*
-   * Was missing from this block entirely (bug found alongside the design-audit fix
-   * above) — the system-dark media block set it, this explicit toggle didn't, so
-   * following the OS preference and pressing the in-app dark toggle rendered different
-   * button-label colors for the exact same theme.
-   */
-  --welcome-on-accent: #14142b;  /* the accent lightens in dark, so the label darkens */
+  --welcome-canvas: #020817;
+  --welcome-surface: #0c1627;
+  --welcome-ink: #f8fafc;
+  --welcome-ink-soft: #94a3b8;
+  --welcome-rule: rgba(128, 164, 255, 0.12);
+  --welcome-accent: #2563eb;     /* = --accent-600 (dark) */
+  --welcome-accent-soft: rgba(37, 99, 235, 0.08); /* = --accent-050 (dark) */
+  --welcome-on-accent: #f8fafc;
 
   /* The panel is already dark in both themes; it only deepens. */
-  --grad-from: #0b0f14;
-  --grad-via: #10151d;
-  --grad-to: #171f2b;
-  --grad-ink: #ffffff;
-  --grad-ink-soft: #b9c6d9;
-  --grad-highlight: #7dd3fc;
+  --grad-from: #10183a;
+  --grad-via: #0b1226;
+  --grad-to: #020817;
+  --grad-ink: #f8fafc;
+  --grad-ink-soft: #94a3b8;
+  --grad-highlight: #38bdf8;
   --grad-rule: #ffffff1f;
 
   --ai-surface: #221e33;
@@ -486,12 +572,29 @@
   --state-neutral: var(--text-secondary);
   --state-neutral-bg: var(--surface-sunken);
 
-  /* Same fix as the system-dark block above — restrained shadows instead of none. */
   --e-1: 0 1px 2px rgb(0 0 0 / 30%);
   --e-2: 0 2px 6px -1px rgb(0 0 0 / 35%), 0 1px 2px rgb(0 0 0 / 20%);
   --e-3: 0 8px 16px -4px rgb(0 0 0 / 45%);
   --e-4: 0 16px 32px -8px rgb(0 0 0 / 55%);
+  --e-4-lit: var(--e-4), inset 0 1px 0 0 rgb(255 255 255 / 6%);
+
+  --glass-blur: 0px;
+  --glass-line: var(--ink-200);
+
+  --body-texture: radial-gradient(rgba(80, 140, 255, 0.05) 1.8px, transparent 1.8px);
+
+  --atmo-tl: rgba(16, 185, 129, 0.12);
+  --atmo-center: rgba(37, 99, 235, 0.18);
+  --atmo-br: rgba(56, 189, 248, 0.08);
 }
+
+/*
+ * The reduced-transparency fallback that used to exist here (dropping Aurora's glass
+ * surfaces to a solid navy) is no longer needed: this theme has no translucent surfaces
+ * or backdrop blur left to fall back FROM (--glass-blur is 0 above, --surface is already
+ * opaque) — the enterprise-audit pass removed glassmorphism at the source rather than
+ * only under this media feature.
+ */
 
 /* ── shadcn/ui theme bridge (ADR-019): shadcn reads these names. ── */
 :root,
@@ -594,12 +697,23 @@
  * defined above (the accent and gradient scales), so this stays correct in dark mode
  * without a second set of values, and at 5-6% it reads as atmosphere, not a visible
  * gradient — it should not be nameable as "a gradient" at a glance.
+ *
+ * `--body-texture` (design-review request — the whole app, not only the dashboard hero,
+ * should carry the dot-grid) is a THIRD, separate layer: `none` in light mode, a real
+ * dotted radial-gradient in dark (see the token's own definition above). It sits behind
+ * the two washes and in front of `--canvas`, same stacking every other themed background
+ * in this file uses. `background-size` pairs 1:1 with the three `background-image`
+ * layers — `auto` for the two washes (they already size themselves via the `ellipse …`
+ * syntax), the real tile size only for the dot layer.
  */
 body {
-  background:
-    radial-gradient(ellipse 80% 50% at 15% -10%, color-mix(in oklab, var(--accent-600) 6%, transparent), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 0%, color-mix(in oklab, var(--grad-to) 5%, transparent), transparent),
-    var(--canvas);
+  background-image:
+    var(--body-texture),
+    radial-gradient(circle at 10% 6%, var(--atmo-tl), transparent 70%),
+    radial-gradient(circle at 50% 18%, var(--atmo-center), transparent 70%),
+    radial-gradient(circle at 92% 92%, var(--atmo-br), transparent 70%);
+  background-size: 24px 24px, auto, auto, auto;
+  background-color: var(--canvas);
   background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-sans);

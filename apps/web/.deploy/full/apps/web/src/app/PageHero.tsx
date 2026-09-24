@@ -124,13 +124,50 @@ export function PageHeading({
         {heading}
       </h1>
 
-      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-2">
+      {/*
+        `items-start`, not `items-end` (design-review finding): a description is a real
+        sentence and routinely wraps to two lines at ordinary desktop width (this one
+        does, "Explore ideas" and "Rankings" both do), while `stats` is one line tall.
+        Bottom-aligning the two put the stat at the SECOND line's baseline — nowhere
+        near the heading it belongs to, reading as text stray in the corner rather than
+        a figure attached to the header. Top-aligning puts it level with the
+        description's first line, right under the heading, every time — regardless of
+        how many lines the sentence next to it wraps to.
+      */}
+      <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-3">
         {description ? <p className="muted mb-0 max-w-[60ch]">{description}</p> : <span />}
-        {stats ? <div className="mb-8 flex shrink-0 gap-6">{stats}</div> : null}
+        {stats ? <div className="flex shrink-0 flex-wrap gap-3">{stats}</div> : null}
       </div>
 
-      {actions ? <div className="-mt-4 mb-8 flex flex-wrap gap-2.5">{actions}</div> : null}
+      {actions ? <div className="mt-4 mb-8 flex flex-wrap gap-2.5">{actions}</div> : null}
     </>
+  );
+}
+
+/**
+ * A `PageHeading` stat as a self-contained tile, not bare "N / label" text (design-
+ * review finding: naked numerals next to a paragraph read as a stray leftover — see the
+ * comment on the row above). Same visual language as `PersonActivity.tsx`'s Activity
+ * tiles and `DashboardPage.tsx`'s pipeline tiles: a coloured top rule and a tinted
+ * surface, so a page-level "at a glance" figure looks like it belongs to this product
+ * rather than a generic dashboard template, wherever it appears.
+ */
+export function HeadingStat({
+  icon: Icon, value, label,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  value: string;
+  label: string;
+}) {
+  return (
+    <div className="relative shrink-0 overflow-hidden rounded-xl bg-accent-050 px-4 py-3 shadow-e1 ring-1 ring-inset ring-ramp-2">
+      <span aria-hidden className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-ramp-3 to-ramp-5" />
+      <Icon aria-hidden className="size-3.5 text-accent-700" />
+      <span className="mt-1 block font-serif text-500 font-bold leading-none tabular-nums text-accent-700">
+        {value}
+      </span>
+      <span className="mt-1 block text-100 text-muted-foreground">{label}</span>
+    </div>
   );
 }
 
@@ -161,8 +198,8 @@ export function HeroStat({ value, label }: { value: string; label: string }) {
 }
 
 /** A hero action styled as the primary amber pill (matches DashboardHero's "Review N
- * ideas" / the header bar's "New idea" — the one call to action a hero makes, always
- * amber, always this shape). Renders as a plain <span>'s child via `asChild`-less usage:
+ * ideas" / the header bar's "Submit an idea" — the one call to action a hero makes,
+ * always amber, always this shape). Renders as a plain <span>'s child via `asChild`-less usage:
  * wrap a <Link> or <button> in this for the visual treatment. */
 export const HERO_PRIMARY_ACTION =
   "inline-flex h-9 items-center gap-2 rounded-full bg-grad-highlight px-4 text-100 font-bold text-grad-from no-underline shadow-e2 transition-transform duration-[var(--dur-fast)] hover:-translate-y-px";

@@ -1,12 +1,13 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import {
-  CheckCircle2, Flag, FlaskConical, Hourglass, Layers, ParkingSquare, Rocket, Sparkles, Trophy,
+  ArrowRight, BarChart3, CheckCircle2, Flag, FlaskConical, Hourglass, Layers, ParkingSquare, Rocket, Sparkles,
+  Trophy,
 } from "lucide-react";
 import { ErrorState, Skeleton, StatusPill } from "@iep/ui";
 import type { DashboardResponse, ListRankingsResponse } from "@iep/contracts";
 import { useDashboard, useRankings } from "./api";
-import { DashboardHero, Spotlight } from "./DashboardHero";
+import { BoardComposition, DashboardHero, Spotlight } from "./DashboardHero";
 import { useCountUp } from "../../app/use-count-up";
 import { ago } from "../../app/relative-time";
 import { STATUS_LABEL, useIdeaList } from "../ideas/api";
@@ -36,7 +37,16 @@ export function DashboardPage() {
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/">Home</Link>  ›  Dashboard
       </nav>
-      <h1>Dashboard</h1>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h1>Dashboard</h1>
+        {/* P14: analytics is reached from here, not the main nav — REQUIREMENTS §20 keeps
+            the main navigation small. */}
+        <Link to="/analytics" className="inline-flex items-center gap-1.5 text-200 font-semibold text-accent-700 hover:underline">
+          <BarChart3 aria-hidden className="size-4" />
+          Analytics
+          <ArrowRight aria-hidden className="size-3.5" />
+        </Link>
+      </div>
       <Tiles />
     </main>
   );
@@ -85,7 +95,18 @@ function Tiles() {
 
       <PipelineTiles tiles={query.data.tiles} board={board.data} />
 
-      <Spotlight board={board.data} />
+      {/*
+        Featured opportunity | Opportunity overview (visual-composition pass §8): the
+        board's one most-important fact, paired with real context about it, instead of
+        sitting alone above a full-width row. Stacks to one column below `lg` — the
+        Spotlight (the more important of the two) comes first either way.
+      */}
+      {board.data?.items.some((e) => e.rank === 1) ? (
+        <section className="mt-8 grid items-stretch gap-4 lg:grid-cols-[2fr_1fr]">
+          <Spotlight board={board.data} />
+          <BoardComposition board={board.data} />
+        </section>
+      ) : null}
 
       <RecentActivity />
 
@@ -142,11 +163,21 @@ const PIPELINE: readonly {
   surface: string;
   ink: string;
   rule: string;
+  /**
+   * The icon's own small square badge (design-review request, against a reference
+   * screenshot whose tiles lead with a coloured icon chip) — the same
+   * chip-behind-an-icon shape `NavLink`'s sidebar tones already use, not a new pattern.
+   * Deliberately derived from each stage's own existing `ink`/`surface` family rather
+   * than a fresh hue per tile: `under_evaluation` and `top_ranked` stay in the accent
+   * blue family on purpose (see that comment below) rather than the reference's
+   * purple/teal, for the same reasons those two fields already state.
+   */
+  badge: string;
 }[] = [
   { key: "total", eyebrow: "Total", icon: Layers, surface: "bg-accent-050 ring-1 ring-inset ring-ramp-2",
-    ink: "text-accent-foreground", rule: "bg-gradient-to-r from-ramp-3 to-ramp-5" },
+    ink: "text-accent-foreground", rule: "bg-[color:var(--grad-highlight)]", badge: "bg-accent text-accent-foreground" },
   { key: "new", eyebrow: "New", icon: Sparkles, surface: "bg-state-info-bg ring-1 ring-inset ring-state-info/25",
-    ink: "text-state-info", rule: "bg-state-info" },
+    ink: "text-state-info", rule: "bg-state-info", badge: "bg-state-info-bg text-state-info" },
   /*
    * NOT the `ai-*` palette, though the canvas paints this tile violet.
    *
@@ -158,21 +189,44 @@ const PIPELINE: readonly {
    * spinner glyph for the same reason a static shape does not.
    */
   { key: "under_evaluation", eyebrow: "Evaluating", icon: Hourglass, surface: "bg-accent-100 ring-1 ring-inset ring-ramp-3",
-    ink: "text-accent-700", rule: "bg-ramp-4" },
-  { key: "requiring_review", eyebrow: "Needs you", icon: Flag, surface: "bg-state-warn-bg ring-1 ring-inset ring-state-warn/25",
-    ink: "text-state-warn", rule: "bg-state-warn" },
+    ink: "text-accent-700", rule: "bg-ramp-4", badge: "bg-ramp-2 text-accent-700" },
+  { key: "requiring_review", eyebrow: "Needs you", icon: Flag, surface: "tile-warn-tint ring-1 ring-inset ring-state-warn/25",
+    ink: "text-state-warn", rule: "bg-state-warn", badge: "bg-state-warn-bg text-state-warn" },
   /*
-   * NOT `.board-crown` (the full brand-gradient block RankingsPage's own podium uses for
-   * rank 1) — this is one of five equal-sized KPI tiles, not a hero. A second full-gradient
-   * surface on the same screen as `DashboardHero` competes with it rather than supporting
-   * it, and turns "the board has a leader" into "purple is the whole dashboard" (enterprise
-   * polish pass, §3/§19: brand colour is an accent, not a surface). A light accent tint,
-   * same family as `total`, keeps the tile calm while the trophy icon and label still say
-   * what it is.
+   * NOT a full brand-gradient surface — this is one of five equal-sized KPI tiles, not a
+   * hero. A second full-gradient surface on the same screen as `DashboardHero` competes
+   * with it rather than supporting it, and turns "the board has a leader" into "purple is
+   * the whole dashboard" (enterprise polish pass, §3/§19: brand colour is an accent, not a
+   * surface). A light accent tint, same family as `total`, keeps the tile calm while the
+   * trophy icon and label still say what it is.
    */
   { key: "top_ranked", eyebrow: "Top ranked", icon: Trophy, surface: "bg-accent-050 ring-1 ring-inset ring-ramp-3",
-    ink: "text-accent-700", rule: "bg-gradient-to-r from-ramp-4 to-ramp-5" },
+    ink: "text-accent-700", rule: "bg-[color:var(--grad-highlight)]", badge: "bg-ramp-2 text-accent-700" },
 ];
+
+/** What actually moves each of the two "is this stalled?" tiles — see the comment at
+ * their empty-state line below. Keyed by `PIPELINE`'s own `key`, not a fallback: a stage
+ * added later without an entry here is a compile error, not a silently generic message. */
+const EMPTY_HINT: Record<"new" | "under_evaluation", string> = {
+  new: "New ideas appear here the moment someone submits one.",
+  under_evaluation: "Fills in while AI analysis runs on a submitted idea.",
+};
+
+/**
+ * An explicit "View X →" under each tile (design-review finding, against a reference
+ * screenshot): the whole tile has always been the link (SPEC §6.3 — "a count you cannot
+ * click is a dead end wearing a number"), but nothing on it SAID so. Text per stage,
+ * not a reused "View" + `tile.label` — the API's `label` is a longer descriptive phrase
+ * ("ideas on the board"), and "View ideas on the board" reads worse than a short,
+ * specific link phrase written for this spot.
+ */
+const VIEW_LABEL: Record<(typeof PIPELINE)[number]["key"], string> = {
+  total: "View all ideas",
+  new: "View new",
+  under_evaluation: "View evaluating",
+  requiring_review: "View needs you",
+  top_ranked: "View top ranked",
+};
 
 function PipelineTiles({
   tiles,
@@ -211,7 +265,15 @@ function PipelineTiles({
         newly inserted into the DOM, not on a prop-only update), so filtering, a recompute,
         or any other state change here stays instant, not re-choreographed.
       */}
-      <div className="motion-reveal mt-3.5 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {/*
+        Mobile-recomposition finding: below `sm` this was a single column, so five tiles
+        that read as one compact strip on desktop became five full-width cards stacked a
+        phone-screen apart — a KPI row someone had to scroll through one number at a
+        time. Two columns even at the narrowest width keeps the "row of stats you can
+        scan together" reading intact; it only opens out to three, then five, once there
+        is room for a real row.
+      */}
+      <div className="motion-reveal mt-4 grid grid-cols-2 gap-4 sm:gap-4.5 lg:grid-cols-3 xl:grid-cols-5">
         {PIPELINE.map((stage) => {
           const tile = byKey.get(stage.key);
           if (!tile) return null;
@@ -223,7 +285,7 @@ function PipelineTiles({
               to={tile.href}
               /* The whole tile is the link — a count you cannot click is a dead end
                  wearing a number (SPEC §6.3). */
-              className={`motion-reveal relative block overflow-hidden rounded-2xl p-4 no-underline transition-all duration-[var(--dur-base)] hover:-translate-y-0.5 hover:shadow-e3 ${
+              className={`motion-reveal relative block overflow-hidden rounded-2xl p-5 no-underline transition-all duration-[var(--dur-base)] hover:-translate-y-0.5 hover:shadow-e3 sm:p-6 ${
                 live ? `${stage.surface} shadow-e2` : "bg-card ring-1 ring-inset ring-border"
               }`}
             >
@@ -231,11 +293,19 @@ function PipelineTiles({
 
               <span
                 aria-hidden
-                className={`mt-1.5 flex items-center gap-1.5 text-100 font-bold uppercase tracking-[0.1em] ${
+                className={`mt-2 grid size-9 shrink-0 place-items-center rounded-md sm:size-10 ${
+                  live ? stage.badge : "bg-muted text-muted-foreground"
+                }`}
+              >
+                <stage.icon aria-hidden className="size-4.5" />
+              </span>
+
+              <span
+                aria-hidden
+                className={`mt-2.5 flex items-center gap-1.5 text-100 font-bold uppercase tracking-[0.1em] ${
                   live ? stage.ink : "text-muted-foreground"
                 }`}
               >
-                <stage.icon aria-hidden className="size-3.5 shrink-0" />
                 {stage.eyebrow}
               </span>
 
@@ -244,15 +314,19 @@ function PipelineTiles({
                   // A zero should not shout as loudly as a real number. Nine tiles at
                   // equal weight, six of them zero, is a wall of noughts with the three
                   // counts that matter hidden inside it.
+                  //
+                  // `text-600` at phone width, stepping up to the full `text-800`/`text-700`
+                  // once two tiles share a row instead of five — the same digits, sized for
+                  // the two-column layout they actually sit in on a phone.
                   live
-                    ? `mt-1.5 block font-serif text-800 font-bold leading-none tabular-nums ${stage.ink}`
-                    : "mt-1.5 block font-serif text-700 font-semibold leading-none tabular-nums text-muted-foreground"
+                    ? `mt-2 block font-serif text-600 font-bold leading-none tabular-nums sm:text-800 ${stage.ink}`
+                    : "mt-2 block font-serif text-600 font-semibold leading-none tabular-nums text-muted-foreground sm:text-700"
                 }
               >
                 <TileCount value={tile.count} />
               </span>
 
-              <span className="mt-1.5 block text-200 text-muted-foreground">
+              <span className="mt-2 block text-200 text-muted-foreground">
                 {tile.label}
               </span>
 
@@ -277,10 +351,17 @@ function PipelineTiles({
                 two stages someone would actually worry about (Total/Needs you/Top ranked
                 reading zero isn't a "stall" question the same way), removes the ambiguity
                 without inventing a number this product does not have.
+
+                UI audit finding (follow-up): "Nothing at this stage right now" said the
+                tile was empty but not what would fill it — every other genuinely empty
+                surface in the product (`EmptyState`) pairs the fact with a next step, and
+                this tile read as the one place that didn't. `EMPTY_HINT` below is the same
+                idea sized for a KPI tile's one line: what actually moves this specific
+                count, not a generic "check back later."
               */}
               {!live && (stage.key === "new" || stage.key === "under_evaluation") ? (
                 <span className="mt-0.5 block text-100 text-muted-foreground">
-                  Nothing at this stage right now
+                  {EMPTY_HINT[stage.key]}
                 </span>
               ) : null}
 
@@ -295,6 +376,15 @@ function PipelineTiles({
                   className={`block h-full rounded-full ${live ? stage.rule : "bg-transparent"}`}
                   style={{ width: `${Math.max(live ? 6 : 0, (tile.count / maxCount) * 100)}%` }}
                 />
+              </span>
+
+              <span
+                className={`mt-2.5 flex items-center gap-1 text-100 font-semibold ${
+                  live ? stage.ink : "text-muted-foreground"
+                }`}
+              >
+                {VIEW_LABEL[stage.key]}
+                <ArrowRight aria-hidden className="size-3" />
               </span>
 
               {live ? <Flourish stageKey={stage.key} board={board} /> : null}
@@ -333,17 +423,31 @@ function Flourish({
        per-idea progress on the idea's own Analysis tab, which is where a real figure
        lives; a bar here would be a percentage of nothing. */
     return (
-      <span aria-hidden className="mt-3 block h-1.5 overflow-hidden rounded-full bg-card">
+      // `bg-muted`, not `bg-card` — every other progress track in the product
+      // (RankingsPage's criterion bars, AnalysisTab's step dots, ContributionBar) uses the
+      // solid `--surface-sunken` groove; this one used the translucent glass surface
+      // instead, which Aurora's dark theme now visibly renders as a glassy, half-see-
+      // through pill next to every plain track around it.
+      <span aria-hidden className="mt-3 block h-1.5 overflow-hidden rounded-full bg-muted">
         <span className="dash-pulse block size-full rounded-full bg-ramp-5" />
       </span>
     );
   }
 
   if (stageKey === "requiring_review") {
+    /*
+     * Aurora pass, found live by the dark-theme axe sweep: this used `text-card`, which
+     * happened to read fine only because `--surface` used to BE a solid dark colour — once
+     * Aurora made `--surface` translucent glass, the label rendered at ~4% opacity, nearly
+     * invisible on the amber fill. `text-primary-foreground` (`--ink-000`) is the token
+     * actually meant for "the ink that contrasts with a solid, saturated fill" in both
+     * themes — white on light mode's dark-brown state-warn fill, near-black on dark mode's
+     * bright amber one — which is exactly what a label sitting on `bg-state-warn` needs.
+     */
     return (
       <span
         aria-hidden
-        className="mt-3 inline-flex h-7 items-center rounded-full bg-state-warn px-3 text-100 font-bold text-card"
+        className="mt-3 inline-flex h-7 items-center rounded-full bg-state-warn px-3 text-100 font-bold text-primary-foreground"
       >
         Open queue
       </span>

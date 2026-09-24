@@ -1,9 +1,9 @@
 import { Link, useParams } from "react-router-dom";
 import {
-  Card, CardContent, CardHeader, CardTitle, ContributionBar, EmptyState, ErrorState,
+  Badge, Card, CardContent, CardHeader, CardTitle, ContributionBar, EmptyState, ErrorState,
   ExplanationPanel, RankBadge, ScoreDisplay, Skeleton,
 } from "@iep/ui";
-import type { CriterionGroup, CriterionScore, MaturityLevel } from "@iep/contracts";
+import type { CriterionGroup, CriterionScore, ExistingSolutionAssessmentRef, MaturityLevel } from "@iep/contracts";
 import { ApiError } from "../../app/api-client";
 import { IdeaShell } from "../ideas/IdeaShell";
 import { GROUP_LABEL, MATURITY_HELP, MATURITY_LABEL, useEvaluation } from "./api";
@@ -24,6 +24,15 @@ const link = ({ to, children, className }: { to: string; children: React.ReactNo
 const GROUP_ORDER: readonly CriterionGroup[] = [
   "VALUE", "FEASIBILITY", "EFFORT", "STRATEGIC", "RISK", "DEMAND",
 ];
+
+const RECOMMENDATION_LABEL: Record<
+  NonNullable<ExistingSolutionAssessmentRef["recommendation"]>, string
+> = {
+  BUILD: "Build — nothing in the catalogue meaningfully overlaps.",
+  BUY: "Buy — an approved vendor already solves this.",
+  EXTEND: "Extend — an internal system already does most of this.",
+  INTEGRATE: "Integrate — reuse an existing platform capability instead of duplicating it.",
+};
 
 export function EvaluationTab() {
   const { ideaId = "" } = useParams();
@@ -152,6 +161,51 @@ export function EvaluationTab() {
             </Card>
 
             {/*
+              FR-21 (P12, AI-11) — internal build/buy/extend/integrate decision support,
+              never employee-facing (REQUIREMENTS §15 draws the same line for FR-20's raw
+              score) — gated on `canSeeMatchDetail`, same flag the Overview tab's plain
+              similar-idea banner checks the inverse of.
+            */}
+            {idea.permissions.canSeeMatchDetail && idea.existingSolutionAssessment ? (
+              <Card>
+                <CardHeader><CardTitle className="font-serif">Existing-solution check</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  {idea.existingSolutionAssessment.recommendation ? (
+                    <p className="text-200">
+                      <span className="font-semibold">
+                        {RECOMMENDATION_LABEL[idea.existingSolutionAssessment.recommendation]}
+                      </span>
+                      {idea.existingSolutionAssessment.rationale
+                        ? ` — ${idea.existingSolutionAssessment.rationale}`
+                        : null}
+                    </p>
+                  ) : (
+                    <p className="text-200 text-muted-foreground">
+                      No model-reasoned recommendation yet — the catalogue matches below are
+                      surfaced for manual review.
+                    </p>
+                  )}
+                  {idea.existingSolutionAssessment.matches.length > 0 ? (
+                    <ul className="space-y-1 text-100 text-muted-foreground">
+                      {idea.existingSolutionAssessment.matches.map((m) => (
+                        <li key={m.name}>
+                          {m.name} <Badge variant="outline">{m.kind}</Badge>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-100 text-muted-foreground">
+                      No catalogue entry matched above the configured threshold.
+                    </p>
+                  )}
+                  <p className="text-100">
+                    <Link to="/config/existing-solutions">See the full catalogue</Link>
+                  </p>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {/*
               ── the explanation, inline (P-2) ──
 
               Not another `<Card>`. Score and Every-criterion either side of this ARE
@@ -190,6 +244,27 @@ export function EvaluationTab() {
                 </p>
               </section>
             )}
+
+            {/*
+              ── Evaluation profile (visual-composition pass) ──
+
+              The "shape" of the assessment at a glance, before the itemised list below.
+              Each bar is a real, already-known quantity — that group's criteria summed to
+              their own `contribution` figures, the same numbers "Every criterion" shows
+              per row — not a second computation and not a fabricated percentage. Sized
+              against the loudest group on THIS idea, same magnitude-bar convention the
+              Dashboard's pipeline tiles and board-composition panel already use, so the
+              same visual language means "relative size" everywhere it appears.
+            */}
+            <Card>
+              <CardHeader><CardTitle className="font-serif">Evaluation profile</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-100 text-muted-foreground">
+                  How much each group of criteria contributed to the composite score.
+                </p>
+                <EvaluationProfile byGroup={byGroup} />
+              </CardContent>
+            </Card>
 
             {/* ── every criterion, grouped, each with its evidence ── */}
             <Card>
@@ -243,5 +318,38 @@ export function EvaluationTab() {
         );
       }}
     </IdeaShell>
+  );
+}
+
+/**
+ * The evaluation-profile bars. `byGroup` is the exact map `EvaluationTab` already built
+ * for "Every criterion" — one pass over already-fetched data, not a second fetch.
+ */
+function EvaluationProfile({ byGroup }: { byGroup: Map<CriterionGroup, CriterionScore[]> }) {
+  const rows = GROUP_ORDER.filter((g) => byGroup.has(g)).map((group) => ({
+    group,
+    total: (byGroup.get(group) ?? []).reduce((sum, s) => sum + s.contribution, 0),
+  }));
+  const max = Math.max(1, ...rows.map((r) => r.total));
+
+  return (
+    <div className="mt-3.5 grid gap-3.5 sm:grid-cols-2">
+      {rows.map(({ group, total }) => (
+        <div key={group}>
+          <div className="flex items-baseline justify-between gap-2 text-100">
+            <span className="font-semibold text-foreground">{GROUP_LABEL[group]}</span>
+            <span className="font-bold tabular-nums text-muted-foreground">
+              {total.toFixed(1)} pts
+            </span>
+          </div>
+          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ramp-1">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-accent-600 to-grad-to"
+              style={{ width: `${Math.max(4, (total / max) * 100)}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

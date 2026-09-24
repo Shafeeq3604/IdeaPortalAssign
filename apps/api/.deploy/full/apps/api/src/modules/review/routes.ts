@@ -4,6 +4,16 @@ import type { Handler } from "../../server.js";
 import { requireActor, sendError } from "../../server.js";
 import { writeAudit } from "../../lib/audit.js";
 
+/** Thrown when a second concurrent override won the race on the same criterion score
+    between this handler's own read of `previous` and its guarded `updateMany` committing
+    — see the comment at that call. Caught in the same handler and mapped to
+    CONCURRENT_MODIFICATION (409), same shape as idea/repo.ts's TransitionConflict. */
+class ScoreOverrideConflict extends Error {
+  constructor(public readonly criterionScoreId: string) {
+    super(`Criterion score ${criterionScoreId} changed before this override committed`);
+  }
+}
+
 /**
  * Human review, overrides and their audit trail (P6 — FR-22, FR-23, FR-29, SPEC §9.8).
  *
@@ -326,55 +336,76 @@ export function registerReviewRoutes(handlers: Map<string, Handler>): void {
 
     const previous = Number(score.normalized);
 
-    await ctx.db.$transaction(async (tx) => {
-      await tx.scoreOverride.create({
-        data: {
-          criterionScoreId: score.id,
-          reviewerId: actor.userId,
-          previousNormalized: previous,
-          newNormalized: parsed.data.newNormalized,
+    try {
+      await ctx.db.$transaction(async (tx) => {
+        /**
+         * `updateMany` with `normalized: previous` in the `where`, not `update` with just
+         * `{ id }` — `previous` was read outside this transaction, so two reviewers
+         * overriding the same criterion concurrently can both read the same stale value
+         * and both reach here. An unconditional update would let the second one silently
+         * overwrite the first's result AND commit a `ScoreOverride` audit row whose
+         * `previousNormalized` claims a "before" value that was never actually the value
+         * immediately before that write — a governance/audit-integrity bug, not just a
+         * lost update. Guarding the WHERE clause the same way `idea/repo.ts`'s
+         * `transition()` does makes Postgres the referee: only the request that still
+         * matches the row's current value can win it, and the loser's `count` comes back 0.
+         */
+        const updateResult = await tx.criterionScore.updateMany({
+          where: { id: score.id, normalized: previous },
+          data: {
+            normalized: parsed.data.newNormalized,
+            contribution: Number((parsed.data.newNormalized * Number(score.weight)).toFixed(3)),
+            // The provenance shifts with the value. A number a human set must never keep
+            // reading as AI-derived (SPEC §7.4).
+            source: "HUMAN",
+            confidence: "HIGH",
+            rationale: parsed.data.reason,
+          },
+        });
+        if (updateResult.count === 0) throw new ScoreOverrideConflict(score.id);
+
+        await tx.scoreOverride.create({
+          data: {
+            criterionScoreId: score.id,
+            reviewerId: actor.userId,
+            previousNormalized: previous,
+            newNormalized: parsed.data.newNormalized,
+            reason: parsed.data.reason,
+          },
+        });
+
+        // Recomputed from what is stored, so the composite and its parts cannot disagree.
+        const stored = await tx.criterionScore.findMany({
+          where: { evaluationId: score.evaluationId },
+          select: { contribution: true },
+        });
+        const composite = Math.min(
+          100,
+          Math.max(0, Number(stored.reduce((acc, s) => acc + Number(s.contribution), 0).toFixed(3))),
+        );
+        await tx.evaluation.update({
+          where: { id: score.evaluationId },
+          data: { compositeScore: composite },
+        });
+
+        await writeAudit(tx, {
+          actorId: actor.userId,
+          action: "score.override",
+          entityType: "evaluation",
+          entityId: idea.id,
+          before: { criterionKey: score.criterion.key, normalized: previous },
+          after: { criterionKey: score.criterion.key, normalized: parsed.data.newNormalized, composite },
           reason: parsed.data.reason,
-        },
+          requestId: request.id,
+        });
       });
-
-      await tx.criterionScore.update({
-        where: { id: score.id },
-        data: {
-          normalized: parsed.data.newNormalized,
-          contribution: Number((parsed.data.newNormalized * Number(score.weight)).toFixed(3)),
-          // The provenance shifts with the value. A number a human set must never keep
-          // reading as AI-derived (SPEC §7.4).
-          source: "HUMAN",
-          confidence: "HIGH",
-          rationale: parsed.data.reason,
-        },
-      });
-
-      // Recomputed from what is stored, so the composite and its parts cannot disagree.
-      const stored = await tx.criterionScore.findMany({
-        where: { evaluationId: score.evaluationId },
-        select: { contribution: true },
-      });
-      const composite = Math.min(
-        100,
-        Math.max(0, Number(stored.reduce((acc, s) => acc + Number(s.contribution), 0).toFixed(3))),
-      );
-      await tx.evaluation.update({
-        where: { id: score.evaluationId },
-        data: { compositeScore: composite },
-      });
-
-      await writeAudit(tx, {
-        actorId: actor.userId,
-        action: "score.override",
-        entityType: "evaluation",
-        entityId: idea.id,
-        before: { criterionKey: score.criterion.key, normalized: previous },
-        after: { criterionKey: score.criterion.key, normalized: parsed.data.newNormalized, composite },
-        reason: parsed.data.reason,
-        requestId: request.id,
-      });
-    });
+    } catch (error) {
+      if (error instanceof ScoreOverrideConflict) {
+        return sendError(reply, "CONCURRENT_MODIFICATION",
+          "This score was changed by another review while your request was in flight. Reload and try again.");
+      }
+      throw error;
+    }
 
     /**
      * The RANK is now stale, and recomputing it is cohort-wide work that belongs on the
