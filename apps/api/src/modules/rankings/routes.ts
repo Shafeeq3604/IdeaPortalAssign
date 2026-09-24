@@ -340,10 +340,24 @@ export function registerRankingRoutes(handlers: Map<string, Handler>): void {
         triggerReason: reason,
       });
     } catch (error) {
-      return sendError(
-        reply, "VALIDATION_FAILED",
-        error instanceof Error ? error.message : "Could not recompute",
-      );
+      /*
+       * `loadEngineConfig` (packages/evaluation) throws a plain `Error` for exactly two
+       * known, client-caused conditions — a `profileKey` that doesn't exist, or an
+       * unseeded environment with no criteria at all — and this used to forward ANY
+       * caught error's `.message` straight to the client, contradicting this codebase's
+       * own rule (SPEC §4.4, also enforced in server.ts's generic handler) never to leak
+       * provider or stack detail. Only these two known-safe, no-internal-detail messages
+       * get surfaced as a 400; anything else (a Prisma error, an unexpected null-deref)
+       * re-throws into the generic handler, which redacts it to "Something went wrong".
+       */
+      const message = error instanceof Error ? error.message : "";
+      const isKnownValidationError =
+        /^no evaluation profile with key /.test(message) ||
+        message === "no evaluation criteria — run `pnpm db:seed`";
+      if (isKnownValidationError) {
+        return sendError(reply, "VALIDATION_FAILED", message);
+      }
+      throw error;
     }
 
     if (!result) {
@@ -384,7 +398,7 @@ export function registerRankingRoutes(handlers: Map<string, Handler>): void {
   handlers.set("getDashboard", async (request, _reply, ctx) => {
     const q = request.query as { departmentId?: string };
     const scope = q.departmentId ? { departmentId: q.departmentId } : {};
-    const dept = q.departmentId ? `&departmentId=${q.departmentId}` : "";
+    const dept = q.departmentId ? `&department=${q.departmentId}` : "";
 
     // Read from the nav map rather than a second hardcoded role list, so this cannot
     // drift from the review queue route's own declared access.

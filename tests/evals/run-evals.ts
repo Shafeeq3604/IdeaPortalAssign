@@ -1,9 +1,10 @@
 import { AnthropicProvider, analyseStep, stepInputText } from "@iep/ai";
-import { PIPELINE_STEPS, type AnalysisStep } from "@iep/contracts";
-import { GOLDEN_CASES, type StepExpectation } from "./cases.js";
+import type { FeasibilityOutput, RiskOutput, UseCaseOutput, ValueOutput } from "@iep/ai";
+import { Band, PIPELINE_STEPS, type AnalysisStep } from "@iep/contracts";
+import { GOLDEN_CASES, type GroundTruth, type StepExpectation } from "./cases.js";
 
 /**
- * `pnpm eval` (SPEC §12) — nightly/manual, same reason the k6 load test is (SPEC §11.6):
+ * `pnpm eval` (SPEC §12.4) — nightly/manual, same reason the k6 load test is (SPEC §11.6):
  * this spends real money against the real provider, so it is not something every PR
  * should pay for, and its signal does not change from commit to commit the way a unit
  * test's does.
@@ -18,6 +19,14 @@ import { GOLDEN_CASES, type StepExpectation } from "./cases.js";
  * actually talks to the provider, so this calls it directly with the same inputs
  * `apps/worker/src/pipeline.ts` builds, and checks its own output. Nothing here is
  * persisted; a golden case is not a real submission.
+ *
+ * Two layers of checking, on purpose:
+ *  1. Per-case keyword/structural checks (`GoldenCase.expect`, unchanged from the original
+ *     starter harness) — pass/fail, gates the exit code, same as before.
+ *  2. Aggregate model-dependent metrics against SPEC §12.4's own targets (use-case F1,
+ *     value-band match, feasibility exact match, risk recall), computed across whatever
+ *     cases in cases.ts carry a `groundTruth` block. These are REPORTED, not gating —
+ *     see "why these don't fail the build yet" below.
  */
 
 const BUDGET_PER_STEP_USD = 5; // comfortably above any single real step's cost
@@ -41,6 +50,7 @@ interface StepResult {
   readonly ok: boolean;
   readonly detail: string;
   readonly costUsd: number;
+  readonly data: unknown;
 }
 
 function checkExpectation(data: unknown, expectation: StepExpectation): string | null {
@@ -86,6 +96,7 @@ async function runCase(
         ok: false,
         detail: `fell back instead of calling the real model: ${outcome.failureReason ?? "unknown reason"}`,
         costUsd,
+        data: undefined,
       });
       continue;
     }
@@ -97,10 +108,209 @@ async function runCase(
       ok: !failure,
       detail: failure ?? `ok (${outcome.model ?? "unknown model"})`,
       costUsd,
+      data: outcome.data,
     });
   }
 
   return results;
+}
+
+/* ─────────────────────────── §12.4 aggregate metric scoring ─────────────────────────── */
+
+/** Lowercased, punctuation-stripped, stopword-agnostic word set — the same crude, cheap
+ *  keyword-overlap technique `mustMention` already uses, just bidirectional and scored
+ *  instead of pass/fail. No embeddings, no judge model (see file header). */
+function words(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2),
+  );
+}
+
+function overlapRatio(needle: Set<string>, haystack: Set<string>): number {
+  if (needle.size === 0) return 0;
+  let hits = 0;
+  for (const w of needle) if (haystack.has(w)) hits += 1;
+  return hits / needle.size;
+}
+
+const MATCH_THRESHOLD = 0.5;
+
+interface UseCaseScore {
+  readonly matchedExpected: number;
+  readonly totalExpected: number;
+  readonly matchedPredicted: number;
+  readonly totalPredicted: number;
+}
+
+/** Crude many-to-many keyword matching, not the Hungarian-algorithm optimal assignment a
+ *  real F1 harness would use — proportionate to a "minimal starter framework" (see header),
+ *  same spirit as the rest of this file's checks. */
+function scoreUseCases(expected: readonly string[], predicted: UseCaseOutput["useCases"]): UseCaseScore {
+  const predictedWords = predicted.map((u) => words(`${u.title} ${u.description}`));
+
+  let matchedExpected = 0;
+  for (const phrase of expected) {
+    const phraseWords = words(phrase);
+    if (predictedWords.some((pw) => overlapRatio(phraseWords, pw) >= MATCH_THRESHOLD)) {
+      matchedExpected += 1;
+    }
+  }
+
+  const expectedWordSets = expected.map((phrase) => words(phrase));
+  let matchedPredicted = 0;
+  for (const pw of predictedWords) {
+    if (expectedWordSets.some((phraseWords) => overlapRatio(phraseWords, pw) >= MATCH_THRESHOLD)) {
+      matchedPredicted += 1;
+    }
+  }
+
+  return {
+    matchedExpected,
+    totalExpected: expected.length,
+    matchedPredicted,
+    totalPredicted: predicted.length,
+  };
+}
+
+const BAND_ORDER = Band.options; // NEGLIGIBLE..VERY_HIGH, ordinal index = distance unit
+
+interface AggregateMetrics {
+  useCaseTruePositivesForRecall: number;
+  useCaseTotalExpected: number;
+  useCaseTruePositivesForPrecision: number;
+  useCaseTotalPredicted: number;
+  valueBandExactMatches: number;
+  valueBandWithinOne: number;
+  valueBandTotalJudged: number;
+  feasibilityExactMatches: number;
+  feasibilityTotalJudged: number;
+  riskRecallHits: number;
+  riskRecallTotalExpected: number;
+}
+
+function emptyMetrics(): AggregateMetrics {
+  return {
+    useCaseTruePositivesForRecall: 0,
+    useCaseTotalExpected: 0,
+    useCaseTruePositivesForPrecision: 0,
+    useCaseTotalPredicted: 0,
+    valueBandExactMatches: 0,
+    valueBandWithinOne: 0,
+    valueBandTotalJudged: 0,
+    feasibilityExactMatches: 0,
+    feasibilityTotalJudged: 0,
+    riskRecallHits: 0,
+    riskRecallTotalExpected: 0,
+  };
+}
+
+function accumulate(
+  metrics: AggregateMetrics,
+  groundTruth: GroundTruth,
+  resultsByStep: ReadonlyMap<AnalysisStep, StepResult>,
+): void {
+  if (groundTruth.useCases) {
+    const useCaseResult = resultsByStep.get("USE_CASES");
+    if (useCaseResult?.ok && useCaseResult.data) {
+      const { matchedExpected, totalExpected, matchedPredicted, totalPredicted } = scoreUseCases(
+        groundTruth.useCases,
+        (useCaseResult.data as UseCaseOutput).useCases,
+      );
+      metrics.useCaseTruePositivesForRecall += matchedExpected;
+      metrics.useCaseTotalExpected += totalExpected;
+      metrics.useCaseTruePositivesForPrecision += matchedPredicted;
+      metrics.useCaseTotalPredicted += totalPredicted;
+    }
+  }
+
+  if (groundTruth.valueBands) {
+    const valueResult = resultsByStep.get("VALUE");
+    if (valueResult?.ok && valueResult.data) {
+      const findings = (valueResult.data as ValueOutput).findings;
+      for (const [dimension, expectedBand] of Object.entries(groundTruth.valueBands)) {
+        const finding = findings.find((f) => f.dimension === dimension);
+        if (!finding || !expectedBand) continue;
+        metrics.valueBandTotalJudged += 1;
+        const distance = Math.abs(
+          BAND_ORDER.indexOf(finding.band) - BAND_ORDER.indexOf(expectedBand),
+        );
+        if (distance === 0) metrics.valueBandExactMatches += 1;
+        if (distance <= 1) metrics.valueBandWithinOne += 1;
+      }
+    }
+  }
+
+  if (groundTruth.feasibilityStatus) {
+    const feasibilityResult = resultsByStep.get("FEASIBILITY");
+    if (feasibilityResult?.ok && feasibilityResult.data) {
+      metrics.feasibilityTotalJudged += 1;
+      const actual = (feasibilityResult.data as FeasibilityOutput).status;
+      if (actual === groundTruth.feasibilityStatus) metrics.feasibilityExactMatches += 1;
+    }
+  }
+
+  if (groundTruth.riskCategories) {
+    const riskResult = resultsByStep.get("RISK");
+    if (riskResult?.ok && riskResult.data) {
+      const actualCategories = new Set((riskResult.data as RiskOutput).risks.map((r) => r.category));
+      metrics.riskRecallTotalExpected += groundTruth.riskCategories.length;
+      for (const category of groundTruth.riskCategories) {
+        if (actualCategories.has(category)) metrics.riskRecallHits += 1;
+      }
+    }
+  }
+}
+
+function ratio(hits: number, total: number): string {
+  return total === 0 ? "n/a (no judged cases)" : `${(hits / total).toFixed(2)} (${hits}/${total})`;
+}
+
+function printAggregateReport(metrics: AggregateMetrics, caseCountWithGroundTruth: number): void {
+  const precision =
+    metrics.useCaseTotalPredicted === 0
+      ? 0
+      : metrics.useCaseTruePositivesForPrecision / metrics.useCaseTotalPredicted;
+  const recall =
+    metrics.useCaseTotalExpected === 0
+      ? 0
+      : metrics.useCaseTruePositivesForRecall / metrics.useCaseTotalExpected;
+  const f1 = precision + recall === 0 ? 0 : (2 * precision * recall) / (precision + recall);
+
+  console.log("\n─── SPEC §12.4 model-dependent metrics (informational — see note below) ───\n");
+  console.log(`Cases with any ground truth: ${caseCountWithGroundTruth} of ${GOLDEN_CASES.length}`);
+  console.log(
+    `Use-case extraction F1: ${metrics.useCaseTotalExpected === 0 ? "n/a" : f1.toFixed(2)} ` +
+      `(target ≥0.80; precision ${(precision * 100).toFixed(0)}%, recall ${(recall * 100).toFixed(0)}%)`,
+  );
+  console.log(
+    `Value-dimension band exact match: ${ratio(metrics.valueBandExactMatches, metrics.valueBandTotalJudged)} ` +
+      `(target ≥0.70)`,
+  );
+  console.log(
+    `Value-dimension band within-one:  ${ratio(metrics.valueBandWithinOne, metrics.valueBandTotalJudged)} ` +
+      `(target ≥0.95)`,
+  );
+  console.log(
+    `Feasibility status exact match:   ${ratio(metrics.feasibilityExactMatches, metrics.feasibilityTotalJudged)} ` +
+      `(target ≥0.75)`,
+  );
+  console.log(
+    `Risk recall:                      ${ratio(metrics.riskRecallHits, metrics.riskRecallTotalExpected)} ` +
+      `(target ≥0.80)`,
+  );
+  console.log(
+    "\nNOT gating the exit code. SPEC §12.4 calls for a 40-case + 25-adversarial golden set,\n" +
+      "human-labelled by two annotators with disagreements resolved. cases.ts currently has\n" +
+      `${GOLDEN_CASES.length} cases with first-pass DRAFT labels (see cases.ts's own header) — too few,\n` +
+      "and not annotator-verified, to responsibly fail a release on. These numbers are printed\n" +
+      "so the harness's own mechanics are visible and reviewable now; once the golden set is\n" +
+      "the real size and the labels have had a second, independent pass, wire this report's\n" +
+      "thresholds into the exit code the same way the per-case checks already are.",
+  );
 }
 
 async function main(): Promise<void> {
@@ -109,24 +319,34 @@ async function main(): Promise<void> {
 
   let totalCostUsd = 0;
   let failed = 0;
+  const metrics = emptyMetrics();
+  let caseCountWithGroundTruth = 0;
 
   for (const goldenCase of GOLDEN_CASES) {
-    console.log(`\n${goldenCase.name}`);
+    console.log(`\n[${goldenCase.category}] ${goldenCase.name}`);
     const results = await runCase(provider, goldenCase);
+    const resultsByStep = new Map(results.map((r) => [r.step, r] as const));
+
     for (const result of results) {
       totalCostUsd += result.costUsd;
       if (!result.ok) failed += 1;
-      console.log(`  ${result.ok ? "✓" : "✗"} ${result.step.padEnd(15)} ${result.detail}`);
+      console.log(`  ${result.ok ? "✓" : "✗"} ${result.step.padEnd(24)} ${result.detail}`);
+    }
+
+    if (goldenCase.groundTruth) {
+      caseCountWithGroundTruth += 1;
+      accumulate(metrics, goldenCase.groundTruth, resultsByStep);
     }
   }
 
   console.log(`\n$${totalCostUsd.toFixed(4)} spent across ${GOLDEN_CASES.length} case(s).`);
+  printAggregateReport(metrics, caseCountWithGroundTruth);
 
   if (failed > 0) {
-    console.error(`\n${failed} check(s) failed.`);
+    console.error(`\n${failed} per-case check(s) failed.`);
     process.exit(1);
   }
-  console.log("\nAll checks passed.");
+  console.log("\nAll per-case checks passed.");
 }
 
 await main();

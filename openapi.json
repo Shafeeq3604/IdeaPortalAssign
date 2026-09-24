@@ -325,6 +325,57 @@
         ],
         "additionalProperties": false
       },
+      "CreateCategoryRequest": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "additionalProperties": false
+      },
+      "CreateCategoryResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "ideaCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "label",
+          "isActive",
+          "ideaCount"
+        ],
+        "additionalProperties": false
+      },
       "CreateDiscoveryQueryRequest": {
         "type": "object",
         "properties": {
@@ -427,6 +478,113 @@
           "errorCode",
           "createdAt",
           "finishedAt"
+        ],
+        "additionalProperties": false
+      },
+      "CreateExistingSolutionRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INTERNAL_SYSTEM",
+              "APPROVED_VENDOR",
+              "PLATFORM_CAPABILITY"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "ownerDepartmentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            },
+            "maxItems": 20,
+            "default": []
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "description"
+        ],
+        "additionalProperties": false
+      },
+      "CreateExistingSolutionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INTERNAL_SYSTEM",
+              "APPROVED_VENDOR",
+              "PLATFORM_CAPABILITY"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "ownerDepartment": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/definitions/CreateExistingSolutionResponse/properties/id"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "hasEmbedding": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "description",
+          "ownerDepartment",
+          "categories",
+          "isActive",
+          "hasEmbedding"
         ],
         "additionalProperties": false
       },
@@ -709,6 +867,93 @@
           "ideaId",
           "statusUrl",
           "streamUrl"
+        ],
+        "additionalProperties": false
+      },
+      "CreateLeadershipDecisionRequest": {
+        "type": "object",
+        "properties": {
+          "recommendationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "APPROVED",
+              "REJECTED",
+              "NEEDS_VALIDATION",
+              "OVERRIDE_RECOMMENDATION"
+            ]
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "recommendationId",
+          "status",
+          "rationale"
+        ],
+        "additionalProperties": false
+      },
+      "CreateLeadershipDecisionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "decidedBy": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/definitions/CreateLeadershipDecisionResponse/properties/id"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "departmentName": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "displayName",
+              "departmentName"
+            ],
+            "additionalProperties": false
+          },
+          "recommendationId": {
+            "$ref": "#/components/schemas/definitions/CreateLeadershipDecisionResponse/properties/id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "APPROVED",
+              "REJECTED",
+              "NEEDS_VALIDATION",
+              "OVERRIDE_RECOMMENDATION"
+            ]
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "decidedBy",
+          "recommendationId",
+          "status",
+          "rationale",
+          "createdAt"
         ],
         "additionalProperties": false
       },
@@ -1141,6 +1386,7 @@
                     "FEASIBILITY",
                     "RISK",
                     "EFFORT_TIMELINE",
+                    "IMPLEMENTATION_RECOMMENDATION",
                     "EXPLANATION"
                   ]
                 },
@@ -1210,6 +1456,374 @@
           "steps",
           "startedAt",
           "finishedAt"
+        ],
+        "additionalProperties": false
+      },
+      "GetAnalyticsResponse": {
+        "type": "object",
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalIdeas": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "statusBreakdown": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "DRAFT",
+                    "SUBMITTED",
+                    "AI_ANALYSIS",
+                    "NEEDS_CLARIFICATION",
+                    "EVALUATED",
+                    "RANKED",
+                    "UNDER_REVIEW",
+                    "PROTOTYPE_CANDIDATE",
+                    "PILOT",
+                    "PRODUCTION_CANDIDATE",
+                    "IMPLEMENTED",
+                    "PARKED",
+                    "BLOCKED",
+                    "REJECTED",
+                    "ARCHIVED"
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "href": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status",
+                "count",
+                "href"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "submissionsByMonth": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "month": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}$"
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "month",
+                "count"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 12,
+            "maxItems": 12
+          },
+          "byDepartment": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "departmentId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "nullable": true
+                },
+                "name": {
+                  "type": "string"
+                },
+                "ideas": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "contributors": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "reviewed": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "advanced": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "href": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "departmentId",
+                "name",
+                "ideas",
+                "contributors",
+                "reviewed",
+                "advanced",
+                "href"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "byCategory": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "categoryId": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/definitions/GetAnalyticsResponse/properties/byDepartment/items/properties/departmentId"
+                    }
+                  ],
+                  "nullable": true
+                },
+                "label": {
+                  "type": "string"
+                },
+                "ideas": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "href": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "categoryId",
+                "label",
+                "ideas",
+                "href"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "cycleTimes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "enum": [
+                    "SUBMITTED_TO_FIRST_SCORE",
+                    "FIRST_SCORE_TO_FIRST_REVIEW",
+                    "SUBMITTED_TO_DELIVERY_STAGE"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "medianDays": {
+                  "type": "number",
+                  "minimum": 0,
+                  "nullable": true
+                },
+                "sampleSize": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "medianDays",
+                "sampleSize"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "reviewActivity": {
+            "type": "object",
+            "properties": {
+              "reviews": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "byDecision": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "decision": {
+                      "type": "string",
+                      "enum": [
+                        "VALIDATED",
+                        "NEEDS_CLARIFICATION",
+                        "OVERRIDDEN",
+                        "APPROVED_FOR_PROTOTYPE",
+                        "REJECTED",
+                        "PARKED"
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "decision",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "scoreOverrides": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "leadershipDecisions": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "reviews",
+              "byDecision",
+              "scoreOverrides",
+              "leadershipDecisions"
+            ],
+            "additionalProperties": false
+          },
+          "revisions": {
+            "type": "object",
+            "properties": {
+              "profileName": {
+                "type": "string",
+                "nullable": true
+              },
+              "revisedIdeas": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "improved": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "declined": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "unchanged": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "medianCompositeDelta": {
+                "type": "number",
+                "nullable": true
+              }
+            },
+            "required": [
+              "profileName",
+              "revisedIdeas",
+              "improved",
+              "declined",
+              "unchanged",
+              "medianCompositeDelta"
+            ],
+            "additionalProperties": false
+          },
+          "impactVsEffort": {
+            "type": "object",
+            "properties": {
+              "runId": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/GetAnalyticsResponse/properties/byDepartment/items/properties/departmentId"
+                  }
+                ],
+                "nullable": true
+              },
+              "profileName": {
+                "type": "string",
+                "nullable": true
+              },
+              "computedAt": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/GetAnalyticsResponse/properties/generatedAt"
+                  }
+                ],
+                "nullable": true
+              },
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "ideaId": {
+                      "$ref": "#/components/schemas/definitions/GetAnalyticsResponse/properties/byDepartment/items/properties/departmentId"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "rank": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "impact": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "ease": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "href": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ideaId",
+                    "title",
+                    "rank",
+                    "impact",
+                    "ease",
+                    "href"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 200
+              }
+            },
+            "required": [
+              "runId",
+              "profileName",
+              "computedAt",
+              "points"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "generatedAt",
+          "totalIdeas",
+          "statusBreakdown",
+          "submissionsByMonth",
+          "byDepartment",
+          "byCategory",
+          "cycleTimes",
+          "reviewActivity",
+          "revisions",
+          "impactVsEffort"
         ],
         "additionalProperties": false
       },
@@ -1287,6 +1901,36 @@
           "tiles",
           "generatedAt",
           "history"
+        ],
+        "additionalProperties": false
+      },
+      "GetDetectionConfigResponse": {
+        "type": "object",
+        "properties": {
+          "similarIdeaThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "existingSolutionThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "existingSolutionTopN": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "canWrite": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "similarIdeaThreshold",
+          "existingSolutionThreshold",
+          "existingSolutionTopN",
+          "canWrite"
         ],
         "additionalProperties": false
       },
@@ -1452,6 +2096,7 @@
                         "FEASIBILITY",
                         "RISK",
                         "EFFORT_TIMELINE",
+                        "IMPLEMENTATION_RECOMMENDATION",
                         "EXPLANATION"
                       ]
                     },
@@ -2037,6 +2682,69 @@
             ],
             "additionalProperties": false,
             "nullable": true
+          },
+          "recommendation": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/definitions/GetIdeaAnalysisResponse/properties/ideaId"
+              },
+              "recommendation": {
+                "type": "string",
+                "enum": [
+                  "RECOMMEND",
+                  "RECOMMEND_WITH_CONDITIONS",
+                  "DO_NOT_RECOMMEND",
+                  "INSUFFICIENT_DATA"
+                ]
+              },
+              "rationale": {
+                "type": "string"
+              },
+              "supportingEvidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "risks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "assumptions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "validationNeeds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "generatedAt": {
+                "$ref": "#/components/schemas/definitions/GetIdeaAnalysisResponse/properties/run/properties/steps/items/properties/startedAt"
+              },
+              "provenance": {
+                "$ref": "#/components/schemas/definitions/GetIdeaAnalysisResponse/properties/proposal/properties/provenance"
+              }
+            },
+            "required": [
+              "id",
+              "recommendation",
+              "rationale",
+              "supportingEvidence",
+              "risks",
+              "assumptions",
+              "validationNeeds",
+              "generatedAt",
+              "provenance"
+            ],
+            "additionalProperties": false,
+            "nullable": true
           }
         },
         "required": [
@@ -2051,7 +2759,8 @@
           "feasibility",
           "risks",
           "dependencies",
-          "plan"
+          "plan",
+          "recommendation"
         ],
         "additionalProperties": false
       },
@@ -3128,6 +3837,97 @@
             "type": "integer",
             "minimum": 0
           },
+          "similarIdeas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ideaId": {
+                  "$ref": "#/components/schemas/definitions/GetIdeaResponse/properties/id"
+                },
+                "title": {
+                  "$ref": "#/components/schemas/definitions/GetIdeaResponse/properties/title"
+                },
+                "similarity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "differenceSummary": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "ideaId",
+                "title",
+                "similarity",
+                "differenceSummary"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "existingSolutionAssessment": {
+            "type": "object",
+            "properties": {
+              "recommendation": {
+                "type": "string",
+                "enum": [
+                  "BUILD",
+                  "BUY",
+                  "EXTEND",
+                  "INTEGRATE"
+                ],
+                "nullable": true
+              },
+              "rationale": {
+                "type": "string",
+                "nullable": true
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH"
+                ],
+                "nullable": true
+              },
+              "matches": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "similarity": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "kind",
+                    "similarity"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "recommendation",
+              "rationale",
+              "confidence",
+              "matches"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
           "permissions": {
             "type": "object",
             "properties": {
@@ -3146,11 +3946,17 @@
               "canOverrideScores": {
                 "type": "boolean"
               },
+              "canDecideLeadership": {
+                "type": "boolean"
+              },
               "allowedTransitions": {
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/definitions/GetIdeaResponse/properties/status"
                 }
+              },
+              "canSeeMatchDetail": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -3159,7 +3965,9 @@
               "canRevise",
               "canReview",
               "canOverrideScores",
-              "allowedTransitions"
+              "canDecideLeadership",
+              "allowedTransitions",
+              "canSeeMatchDetail"
             ],
             "additionalProperties": false
           }
@@ -3181,7 +3989,178 @@
           "currentVersion",
           "versionCount",
           "openRecommendationCount",
+          "similarIdeas",
+          "existingSolutionAssessment",
           "permissions"
+        ],
+        "additionalProperties": false
+      },
+      "GetIdeaSignalsResponse": {
+        "type": "object",
+        "properties": {
+          "ideaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/GetIdeaSignalsResponse/properties/ideaId"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "HAVE_PROBLEM",
+                    "SIMILAR_USE_CASE",
+                    "CAN_PROVIDE_DATA",
+                    "CAN_HELP_IMPLEMENT",
+                    "HAVE_IMPROVEMENT"
+                  ]
+                },
+                "comment": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "submitter": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/components/schemas/definitions/GetIdeaSignalsResponse/properties/ideaId"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "displayName"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "comment",
+                "createdAt",
+                "submitter"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "mine": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/definitions/GetIdeaSignalsResponse/properties/entries/items/properties/type"
+            }
+          }
+        },
+        "required": [
+          "ideaId",
+          "entries",
+          "mine"
+        ],
+        "additionalProperties": false
+      },
+      "GetPersonActivityResponse": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "ideasSubmitted": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "feedbackGiven": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "reviewsGiven": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "decisionsRecorded": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "ideasSubmitted",
+              "feedbackGiven",
+              "reviewsGiven",
+              "decisionsRecorded"
+            ],
+            "additionalProperties": false
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/GetPersonActivityResponse/properties/userId"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "IDEA_SUBMITTED",
+                    "FEEDBACK_GIVEN",
+                    "REVIEW_GIVEN",
+                    "DECISION_RECORDED"
+                  ]
+                },
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "idea": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/components/schemas/definitions/GetPersonActivityResponse/properties/userId"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "additionalProperties": false
+                },
+                "detail": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "at",
+                "idea",
+                "detail"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "userId",
+          "counts",
+          "entries"
         ],
         "additionalProperties": false
       },
@@ -3963,6 +4942,52 @@
         ],
         "additionalProperties": false
       },
+      "ListCategoriesResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "isActive": {
+                  "type": "boolean"
+                },
+                "ideaCount": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "id",
+                "key",
+                "label",
+                "isActive",
+                "ideaCount"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "canWrite": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "canWrite"
+        ],
+        "additionalProperties": false
+      },
       "ListCriteriaResponse": {
         "type": "object",
         "properties": {
@@ -4111,6 +5136,85 @@
         },
         "required": [
           "items"
+        ],
+        "additionalProperties": false
+      },
+      "ListExistingSolutionsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "INTERNAL_SYSTEM",
+                    "APPROVED_VENDOR",
+                    "PLATFORM_CAPABILITY"
+                  ]
+                },
+                "description": {
+                  "type": "string"
+                },
+                "ownerDepartment": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/components/schemas/definitions/ListExistingSolutionsResponse/properties/items/items/properties/id"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                },
+                "categories": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "isActive": {
+                  "type": "boolean"
+                },
+                "hasEmbedding": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "kind",
+                "description",
+                "ownerDepartment",
+                "categories",
+                "isActive",
+                "hasEmbedding"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "canWrite": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "canWrite"
         ],
         "additionalProperties": false
       },
@@ -4397,6 +5501,76 @@
         ],
         "additionalProperties": false
       },
+      "ListLeadershipDecisionsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "decidedBy": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/components/schemas/definitions/ListLeadershipDecisionsResponse/properties/items/items/properties/id"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "departmentName": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "displayName",
+                    "departmentName"
+                  ],
+                  "additionalProperties": false
+                },
+                "recommendationId": {
+                  "$ref": "#/components/schemas/definitions/ListLeadershipDecisionsResponse/properties/items/items/properties/id"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "APPROVED",
+                    "REJECTED",
+                    "NEEDS_VALIDATION",
+                    "OVERRIDE_RECOMMENDATION"
+                  ]
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "id",
+                "decidedBy",
+                "recommendationId",
+                "status",
+                "rationale",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
       "ListProfilesResponse": {
         "type": "object",
         "properties": {
@@ -4456,10 +5630,14 @@
               ],
               "additionalProperties": false
             }
+          },
+          "canEditWeights": {
+            "type": "boolean"
           }
         },
         "required": [
-          "items"
+          "items",
+          "canEditWeights"
         ],
         "additionalProperties": false
       },
@@ -5760,6 +6938,107 @@
         ],
         "additionalProperties": false
       },
+      "SetIdeaSignalRequest": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "HAVE_PROBLEM",
+              "SIMILAR_USE_CASE",
+              "CAN_PROVIDE_DATA",
+              "CAN_HELP_IMPLEMENT",
+              "HAVE_IMPROVEMENT"
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 500,
+            "nullable": true
+          }
+        },
+        "required": [
+          "type",
+          "active"
+        ],
+        "additionalProperties": false
+      },
+      "SetIdeaSignalResponse": {
+        "type": "object",
+        "properties": {
+          "ideaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/SetIdeaSignalResponse/properties/ideaId"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "HAVE_PROBLEM",
+                    "SIMILAR_USE_CASE",
+                    "CAN_PROVIDE_DATA",
+                    "CAN_HELP_IMPLEMENT",
+                    "HAVE_IMPROVEMENT"
+                  ]
+                },
+                "comment": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "submitter": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/components/schemas/definitions/SetIdeaSignalResponse/properties/ideaId"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "displayName"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "comment",
+                "createdAt",
+                "submitter"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "mine": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/definitions/SetIdeaSignalResponse/properties/entries/items/properties/type"
+            }
+          }
+        },
+        "required": [
+          "ideaId",
+          "entries",
+          "mine"
+        ],
+        "additionalProperties": false
+      },
       "SignupOptionsResponse": {
         "type": "object",
         "properties": {
@@ -6207,6 +7486,97 @@
             "type": "integer",
             "minimum": 0
           },
+          "similarIdeas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ideaId": {
+                  "$ref": "#/components/schemas/definitions/TransitionIdeaResponse/properties/id"
+                },
+                "title": {
+                  "$ref": "#/components/schemas/definitions/TransitionIdeaResponse/properties/title"
+                },
+                "similarity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "differenceSummary": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "ideaId",
+                "title",
+                "similarity",
+                "differenceSummary"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "existingSolutionAssessment": {
+            "type": "object",
+            "properties": {
+              "recommendation": {
+                "type": "string",
+                "enum": [
+                  "BUILD",
+                  "BUY",
+                  "EXTEND",
+                  "INTEGRATE"
+                ],
+                "nullable": true
+              },
+              "rationale": {
+                "type": "string",
+                "nullable": true
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH"
+                ],
+                "nullable": true
+              },
+              "matches": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "similarity": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "kind",
+                    "similarity"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "recommendation",
+              "rationale",
+              "confidence",
+              "matches"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
           "permissions": {
             "type": "object",
             "properties": {
@@ -6225,11 +7595,17 @@
               "canOverrideScores": {
                 "type": "boolean"
               },
+              "canDecideLeadership": {
+                "type": "boolean"
+              },
               "allowedTransitions": {
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/definitions/TransitionIdeaResponse/properties/status"
                 }
+              },
+              "canSeeMatchDetail": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -6238,7 +7614,9 @@
               "canRevise",
               "canReview",
               "canOverrideScores",
-              "allowedTransitions"
+              "canDecideLeadership",
+              "allowedTransitions",
+              "canSeeMatchDetail"
             ],
             "additionalProperties": false
           }
@@ -6260,7 +7638,109 @@
           "currentVersion",
           "versionCount",
           "openRecommendationCount",
+          "similarIdeas",
+          "existingSolutionAssessment",
           "permissions"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateCategoryRequest": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateCategoryResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "ideaCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "label",
+          "isActive",
+          "ideaCount"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateDetectionConfigRequest": {
+        "type": "object",
+        "properties": {
+          "similarIdeaThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "existingSolutionThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "existingSolutionTopN": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "similarIdeaThreshold",
+          "existingSolutionThreshold",
+          "existingSolutionTopN"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateDetectionConfigResponse": {
+        "type": "object",
+        "properties": {
+          "similarIdeaThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "existingSolutionThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "existingSolutionTopN": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "canWrite": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "similarIdeaThreshold",
+          "existingSolutionThreshold",
+          "existingSolutionTopN",
+          "canWrite"
         ],
         "additionalProperties": false
       },
@@ -6633,6 +8113,97 @@
             "type": "integer",
             "minimum": 0
           },
+          "similarIdeas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ideaId": {
+                  "$ref": "#/components/schemas/definitions/UpdateDraftResponse/properties/id"
+                },
+                "title": {
+                  "$ref": "#/components/schemas/definitions/UpdateDraftResponse/properties/title"
+                },
+                "similarity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "differenceSummary": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "ideaId",
+                "title",
+                "similarity",
+                "differenceSummary"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "existingSolutionAssessment": {
+            "type": "object",
+            "properties": {
+              "recommendation": {
+                "type": "string",
+                "enum": [
+                  "BUILD",
+                  "BUY",
+                  "EXTEND",
+                  "INTEGRATE"
+                ],
+                "nullable": true
+              },
+              "rationale": {
+                "type": "string",
+                "nullable": true
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH"
+                ],
+                "nullable": true
+              },
+              "matches": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "similarity": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "kind",
+                    "similarity"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "recommendation",
+              "rationale",
+              "confidence",
+              "matches"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
           "permissions": {
             "type": "object",
             "properties": {
@@ -6651,11 +8222,17 @@
               "canOverrideScores": {
                 "type": "boolean"
               },
+              "canDecideLeadership": {
+                "type": "boolean"
+              },
               "allowedTransitions": {
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/definitions/UpdateDraftResponse/properties/status"
                 }
+              },
+              "canSeeMatchDetail": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -6664,7 +8241,9 @@
               "canRevise",
               "canReview",
               "canOverrideScores",
-              "allowedTransitions"
+              "canDecideLeadership",
+              "allowedTransitions",
+              "canSeeMatchDetail"
             ],
             "additionalProperties": false
           }
@@ -6686,7 +8265,114 @@
           "currentVersion",
           "versionCount",
           "openRecommendationCount",
+          "similarIdeas",
+          "existingSolutionAssessment",
           "permissions"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateExistingSolutionRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INTERNAL_SYSTEM",
+              "APPROVED_VENDOR",
+              "PLATFORM_CAPABILITY"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "ownerDepartmentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            },
+            "maxItems": 20,
+            "default": []
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateExistingSolutionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "INTERNAL_SYSTEM",
+              "APPROVED_VENDOR",
+              "PLATFORM_CAPABILITY"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "ownerDepartment": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/definitions/UpdateExistingSolutionResponse/properties/id"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "hasEmbedding": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "description",
+          "ownerDepartment",
+          "categories",
+          "isActive",
+          "hasEmbedding"
         ],
         "additionalProperties": false
       },
@@ -6695,28 +8381,36 @@
         "properties": {
           "title": {
             "type": "string",
+            "maxLength": 200,
             "nullable": true
           },
           "problemStatement": {
             "type": "string",
+            "maxLength": 2000,
             "nullable": true
           },
           "proposedSolution": {
             "type": "string",
+            "maxLength": 20000,
             "nullable": true
           },
           "targetUsers": {
             "type": "string",
+            "maxLength": 2000,
             "nullable": true
           },
           "useCases": {
             "type": "array",
             "items": {
-              "type": "string"
-            }
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            },
+            "maxItems": 10
           },
           "expectedOutcome": {
             "type": "string",
+            "maxLength": 2000,
             "nullable": true
           }
         },
@@ -6896,10 +8590,13 @@
               "type": "object",
               "properties": {
                 "criterionKey": {
-                  "type": "string"
+                  "type": "string",
+                  "minLength": 1
                 },
                 "weight": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
                 }
               },
               "required": [
@@ -6907,11 +8604,18 @@
                 "weight"
               ],
               "additionalProperties": false
-            }
+            },
+            "minItems": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
           }
         },
         "required": [
-          "weights"
+          "weights",
+          "reason"
         ],
         "additionalProperties": false
       },
@@ -7610,6 +9314,96 @@
         }
       }
     },
+    "/analytics": {
+      "get": {
+        "operationId": "getAnalytics",
+        "summary": "P14 organisational analytics (FR-27). Read-only aggregates; every idea count carries its list href.",
+        "tags": [
+          "management"
+        ],
+        "x-access": {
+          "requires": [
+            "dashboard:read"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "departmentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/properties/departmentId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAnalyticsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ROLE_NOT_PERMITTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/attachments/{attachmentId}": {
       "get": {
         "operationId": "downloadAttachment",
@@ -8065,10 +9859,244 @@
         }
       }
     },
+    "/config/categories": {
+      "get": {
+        "operationId": "listCategories",
+        "summary": "Idea categories, including how many ideas currently use each.",
+        "tags": [
+          "config"
+        ],
+        "x-access": {
+          "requires": [
+            "config:read"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCategoriesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCategory",
+        "summary": "P10. Adds a new idea category.",
+        "tags": [
+          "config"
+        ],
+        "x-access": {
+          "requires": [
+            "config:write"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateCategoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ROLE_NOT_PERMITTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoryRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/categories/{categoryId}": {
+      "patch": {
+        "operationId": "updateCategory",
+        "summary": "P10. Renames or (de)activates a category — never deleted, only deactivated.",
+        "tags": [
+          "config"
+        ],
+        "x-access": {
+          "requires": [
+            "config:write"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateCategoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ROLE_NOT_PERMITTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/config/criteria": {
       "get": {
         "operationId": "listCriteria",
-        "summary": "Evaluation criteria. Read-only in M1 — underwrites explainability (NFR-03).",
+        "summary": "Evaluation criteria. Read-only — underwrites explainability (NFR-03).",
         "tags": [
           "config"
         ],
@@ -8111,6 +10139,372 @@
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/detection": {
+      "get": {
+        "operationId": "getDetectionConfig",
+        "summary": "P12 similarity/match-cutoff thresholds (AI-10/AI-11).",
+        "tags": [
+          "config"
+        ],
+        "x-access": {
+          "requires": [
+            "config:read"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDetectionConfigResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateDetectionConfig",
+        "summary": "P12. Retunes the similarity/match-cutoff thresholds.",
+        "tags": [
+          "config"
+        ],
+        "x-access": {
+          "requires": [
+            "config:write"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateDetectionConfigResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ROLE_NOT_PERMITTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDetectionConfigRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/existing-solutions": {
+      "get": {
+        "operationId": "listExistingSolutions",
+        "summary": "The curated capability catalogue FR-21's detection searches against.",
+        "tags": [
+          "config"
+        ],
+        "x-access": {
+          "requires": [
+            "config:read"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListExistingSolutionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createExistingSolution",
+        "summary": "P10. Adds a catalogue entry. Its embedding is computed server-side, worker-side (SPEC §4.4).",
+        "tags": [
+          "config"
+        ],
+        "x-access": {
+          "requires": [
+            "config:write"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateExistingSolutionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ROLE_NOT_PERMITTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExistingSolutionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/existing-solutions/{solutionId}": {
+      "patch": {
+        "operationId": "updateExistingSolution",
+        "summary": "P10. Edits or deactivates a catalogue entry; re-embeds when the description changes.",
+        "tags": [
+          "config"
+        ],
+        "x-access": {
+          "requires": [
+            "config:write"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "solutionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateExistingSolutionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ROLE_NOT_PERMITTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExistingSolutionRequest"
               }
             }
           }
@@ -8172,7 +10566,7 @@
     "/config/profiles/{profileKey}": {
       "patch": {
         "operationId": "updateProfileWeights",
-        "summary": "M2 (P10). Returns 501 in M1 — an explicit deferral, never a dead button.",
+        "summary": "P10 (FR-13). Replaces a profile's whole weight set — a rebalance, not a patch — and always records the reason (SPEC §9.8).",
         "tags": [
           "config"
         ],
@@ -8207,6 +10601,16 @@
               }
             }
           },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "401": {
             "description": "UNAUTHENTICATED",
             "content": {
@@ -8227,8 +10631,8 @@
               }
             }
           },
-          "500": {
-            "description": "INTERNAL_ERROR",
+          "404": {
+            "description": "NOT_FOUND",
             "content": {
               "application/json": {
                 "schema": {
@@ -8237,8 +10641,8 @@
               }
             }
           },
-          "501": {
-            "description": "NOT_IMPLEMENTED_UNTIL_M2",
+          "500": {
+            "description": "INTERNAL_ERROR",
             "content": {
               "application/json": {
                 "schema": {
@@ -9506,6 +11910,79 @@
         }
       }
     },
+    "/ideas/{ideaId}/analysis/stream": {
+      "get": {
+        "operationId": "getAnalysisStream",
+        "summary": "Live SSE progress for the determinate stepper — the same state getAnalysisStatus returns, pushed on change instead of polled (SPEC §3.3, NFR-06). Reserved at P0 (AcceptedResponse.streamUrl already points here); wired up §14.1.",
+        "tags": [
+          "analysis"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:read:own"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ideas/{ideaId}/attachments": {
       "get": {
         "operationId": "listAttachments",
@@ -10095,6 +12572,178 @@
         }
       }
     },
+    "/ideas/{ideaId}/leadership-decisions": {
+      "get": {
+        "operationId": "listLeadershipDecisions",
+        "summary": "Leadership decision history for an idea's AI recommendation(s).",
+        "tags": [
+          "leadership"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:read:own"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListLeadershipDecisionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createLeadershipDecision",
+        "summary": "Record the final organisational decision on an AI implementation recommendation. Never itself transitions idea status (P-3).",
+        "tags": [
+          "leadership"
+        ],
+        "x-access": {
+          "requires": [
+            "leadership:decide"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateLeadershipDecisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CANNOT_REVIEW_OWN_IDEA | ROLE_NOT_PERMITTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLeadershipDecisionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/ideas/{ideaId}/reviews": {
       "get": {
         "operationId": "listReviews",
@@ -10261,6 +12910,168 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateReviewRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ideas/{ideaId}/signals": {
+      "get": {
+        "operationId": "getIdeaSignals",
+        "summary": "Structured feedback (the five non-vote reasons) — what people said, and this person's own active types (FR-18).",
+        "tags": [
+          "feedback"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:read:own"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetIdeaSignalsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "setIdeaSignal",
+        "summary": "Add, update, or remove one structured-feedback entry. Never affects the ranking (FR-18, P-1).",
+        "tags": [
+          "feedback"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:read:own"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetIdeaSignalResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetIdeaSignalRequest"
               }
             }
           }
@@ -10595,6 +13406,76 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetVersionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/people/{userId}/activity": {
+      "get": {
+        "operationId": "getPersonActivity",
+        "summary": "A person's own activity: plain counts (ideas submitted, feedback/reviews/decisions given) and a recent, newest-first timeline of the same. Scoped to what the signed-in viewer may read — an idea they cannot see contributes to no count and appears in no entry (P-1, permission matrix).",
+        "tags": [
+          "people"
+        ],
+        "x-access": {
+          "requires": []
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPersonActivityResponse"
                 }
               }
             }

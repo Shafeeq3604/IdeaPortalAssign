@@ -25,14 +25,24 @@ function apply(theme: Theme): void {
   root.setAttribute("data-theme", theme);
 }
 
+/**
+ * Enterprise-audit pass: dark is now the product's own default, not "follow my system" —
+ * "that should be the first thing people see when they open the application" — so a
+ * first-time visitor with no stored preference gets the enterprise dark palette regardless
+ * of their OS setting. The three-state toggle (system/light/dark) is unchanged: anyone can
+ * still opt into light or explicit system-following, and that choice is still what's
+ * remembered on their next visit — only the FALLBACK, for someone who has never touched
+ * the toggle, changed from "system" to "dark".
+ */
 function read(): Theme {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === "light" || stored === "dark" ? stored : "system";
+    return stored === "light" || stored === "dark" || stored === "system" ? stored : "dark";
   } catch {
-    // Private windows and blocked site data both throw here. Falling back to system is
-    // correct and silent — a theme preference is not worth an error boundary.
-    return "system";
+    // Private windows and blocked site data both throw here. Falling back to the product's
+    // own default (dark) is correct and silent — a theme preference is not worth an error
+    // boundary.
+    return "dark";
   }
 }
 

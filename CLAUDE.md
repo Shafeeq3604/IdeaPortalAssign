@@ -119,9 +119,20 @@ MILESTONE M0 — Foundations
 MILESTONE M1 — MVP1 (must be a real, usable, navigable product on its own)
   [x] P1  Identity, Access & App Shell
   [x] P2  Idea Capture & Lifecycle
-  [~] P3  AI Analysis Pipeline   (UI + pipeline done; AI evals: starter golden-set
-                                  harness exists — tests/evals, `pnpm eval` — 3 cases,
-                                  not yet a full regression suite)
+  [~] P3  AI Analysis Pipeline   (UI + pipeline + SSE progress all done — getAnalysisStream
+                                  wires up the streamUrl P0 already reserved, and the web
+                                  client (useAnalysisStatus) now consumes it live, falling
+                                  back to the original poll when no stream proves itself
+                                  healthy (no EventSource support, a proxy that drops it).
+                                  AI evals: tests/evals, `pnpm eval` — now at SPEC §12.4's
+                                  full case count (65: 10 strong/10 vague/10 infeasible/10
+                                  near-duplicate + 25 adversarial), with the F1/band-match/
+                                  feasibility-match/risk-recall metrics computed and
+                                  reported. The one real gap left is annotation quality, not
+                                  case count: ground truth is still a first-pass single-
+                                  author draft, not the two-annotator, disagreement-resolved
+                                  labelling §12.4 requires — needs a real second reviewer
+                                  before these metrics can gate a release. See cases.ts's header)
   [x] P4  Evaluation & Ranking Engine        (parallel-safe with P2/P3)
   [x] P5  Explanation & Improvement   (AI-09 narrative deferred — optional in SPEC)
   [x] P6  Human Review, Overrides & Audit
@@ -132,11 +143,56 @@ MILESTONE M1 — MVP1 (must be a real, usable, navigable product on its own)
                                   validation with an actual person has happened yet)
 
 MILESTONE M2 — Signals, Duplication & Config
-  [ ] P10 Admin Configuration (write)
-  [ ] P11 Feedback & Demand Signals
-  [ ] P12 Duplicate & Existing-Solution Detection
+  [x] P10 Admin Configuration (write)   (evaluation-profile weight editing; categories
+                                  write UI — rename/activate/deactivate, never delete;
+                                  the ExistingSolution capability catalogue (P12's
+                                  prerequisite), embeddings computed worker-side,
+                                  opportunistically, since P10's write lives in the API
+                                  process which must never hold a provider key; user
+                                  management via existing role admin. "Statuses" from the
+                                  SPEC §14 P10 line was never built as a separate write
+                                  surface — IdeaStatus is a fixed enum load-bearing to the
+                                  lifecycle state machine (ADR-locked), not admin-editable
+                                  data; no §9 acceptance criteria or reserved contract ever
+                                  named a shape for it. Criteria themselves stay read-only,
+                                  same as every other engine-defined dimension)
+  [x] P11 Feedback & Demand Signals   (structured feedback — the five FeedbackType reasons
+                                  beyond the thumb vote — done; demand signals now wired
+                                  as a real ranking input — demonstrated_demand scores
+                                  from distinct-person structured-feedback counts,
+                                  deliberately excluding the thumb vote per REQUIREMENTS
+                                  §14's "popularity must not directly determine the
+                                  ranking" — seeded at weight 0 everywhere, opt-in per
+                                  profile via P10's weight editor)
+  [x] P12 Duplicate & Existing-Solution Detection   (AI-10: pgvector cosine search over
+                                  every idea's current version, OpenAI text-embedding-3-
+                                  small (worker-only key, degrades to pg_trgm trigram
+                                  search with no model call when no key is set), one Tier-C
+                                  model call to summarise a match in plain language,
+                                  REQUIREMENTS §15's exact "We found a similar idea"
+                                  banner with View/Continue (Link/Combine explicitly not
+                                  built — no idea-relationship schema exists for either).
+                                  AI-11: same embedding against the P10-curated
+                                  ExistingSolution catalogue, one Tier-A build/buy/extend/
+                                  integrate call only when candidates clear the threshold,
+                                  reviewer/admin-only ("canSeeMatchDetail") existing-
+                                  solution card on the Evaluation tab. Both thresholds
+                                  admin-editable via /config/detection, not code literals.
+                                  No BDD spec yet — a real gap, covered so far by
+                                  packages/evaluation/src/detection.test.ts against a real
+                                  pgvector-backed Postgres plus a live end-to-end browser
+                                  verification)
   [ ] P13 Notifications
-  [ ] P14 Analytics & Reporting
+  [x] P14 Analytics & Reporting   (one read-only /analytics page off the dashboard — ideas
+                                  by status, submissions/month, participation by department
+                                  and category, median cycle times, review activity,
+                                  re-evaluation outcomes, impact vs effort from the latest
+                                  run — plus a CSV of exactly what is on screen. Scoped by
+                                  the same idea visibility as /ideas, and every count links
+                                  to a list that agrees with it (F-12 BDD flow proves both).
+                                  No date-range filter: /ideas has none to agree with. Also
+                                  fixed: /ideas ignored ?department=/?category=, so the
+                                  dashboard's department-scoped tiles opened unfiltered lists)
 
 MILESTONE M3 — Outcomes
   [ ] P15 Prototype & Pilot Tracking

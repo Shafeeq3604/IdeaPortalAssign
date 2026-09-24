@@ -7,6 +7,7 @@
     "seed": "tsx --env-file-if-exists=../../.env seed-bulk-ideas.mts",
     "load:recompute": "k6 run recompute.js",
     "load:concurrent-users": "k6 run concurrent-users.js",
+    "load:vote-race": "k6 run vote-race.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint ."
   },

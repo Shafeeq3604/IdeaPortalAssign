@@ -244,6 +244,15 @@ export function IdeaForm({
   const renderField = (f: Field) => {
     const error = form.formState.errors[f.name];
     const id = `field-${f.name}`;
+    /*
+     * UI audit finding: `aria-invalid` was set correctly, but the error text itself was
+     * never linked to the field via `aria-describedby` — `role="alert"` announces it the
+     * moment it appears, but a screen-reader user who tabs back to an already-invalid
+     * field afterward hears "invalid" with no reason why. Both together is the complete
+     * pattern: `role="alert"` for the immediate announcement, `aria-describedby` for the
+     * field's persistent accessible description.
+     */
+    const errorId = `${id}-error`;
     return (
       <div key={f.name} className="space-y-2">
         <Label htmlFor={id}>{f.label}</Label>
@@ -251,16 +260,18 @@ export function IdeaForm({
         {f.long ? (
           <Textarea
             id={id} rows={4} placeholder={f.example} aria-invalid={Boolean(error)}
+            aria-describedby={error ? errorId : undefined}
             className={CONTROL} {...form.register(f.name)}
           />
         ) : (
           <Input
             id={id} placeholder={f.example} aria-invalid={Boolean(error)}
+            aria-describedby={error ? errorId : undefined}
             className={CONTROL} {...form.register(f.name)}
           />
         )}
         {error ? (
-          <p role="alert" className="text-200 text-destructive">{error.message}</p>
+          <p id={errorId} role="alert" className="text-200 text-destructive">{error.message}</p>
         ) : null}
       </div>
     );
@@ -300,6 +311,7 @@ export function IdeaForm({
           "e.g. Flag a claim automatically when a receipt is missing"
         }
         aria-invalid={Boolean(useCasesErrorMessage)}
+        aria-describedby={useCasesErrorMessage ? "field-useCases-error" : undefined}
         className={CONTROL}
         value={useCasesText}
         onChange={(e) => {
@@ -312,7 +324,9 @@ export function IdeaForm({
         }}
       />
       {useCasesErrorMessage ? (
-        <p role="alert" className="text-200 text-destructive">{useCasesErrorMessage}</p>
+        <p id="field-useCases-error" role="alert" className="text-200 text-destructive">
+          {useCasesErrorMessage}
+        </p>
       ) : null}
     </div>
   );
@@ -338,9 +352,14 @@ export function IdeaForm({
           <p className="text-200 text-muted-foreground">
             This is shown on the history timeline so the change is traceable.
           </p>
-          <Textarea id="field-changeSummary" rows={3} {...form.register("changeSummary")} />
+          <Textarea
+            id="field-changeSummary" rows={3}
+            aria-invalid={Boolean(form.formState.errors.changeSummary)}
+            aria-describedby={form.formState.errors.changeSummary ? "field-changeSummary-error" : undefined}
+            {...form.register("changeSummary")}
+          />
           {form.formState.errors.changeSummary ? (
-            <p role="alert" className="text-200 text-destructive">
+            <p id="field-changeSummary-error" role="alert" className="text-200 text-destructive">
               {form.formState.errors.changeSummary.message}
             </p>
           ) : null}

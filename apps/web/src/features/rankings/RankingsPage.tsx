@@ -1,9 +1,9 @@
 import * as React from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { Target, Trophy } from "lucide-react";
+import { ChevronDown, Layers, Target, TrendingUp, Trophy } from "lucide-react";
 import { Button, Checkbox, EmptyState, ErrorState, Skeleton, StatusPill } from "@iep/ui";
 import type { ExplanationItem, ListRankingsResponse, RankingEntry } from "@iep/contracts";
-import { InlineStat, PageHeading } from "../../app/PageHero";
+import { HeadingStat, PageHeading } from "../../app/PageHero";
 import { FEASIBILITY_LABEL } from "../analysis/api";
 import { useProfiles, useRankingRun, useRankings } from "./api";
 import { RankDelta } from "./DashboardHero";
@@ -111,8 +111,12 @@ export function RankingsPage({ mode = "current" }: { mode?: "current" | "run" })
         stats={
           query.data ? (
             <>
-              <InlineStat value={String(query.data.run.cohortSize)} label="on the board" />
-              <InlineStat value={leader ? leader.compositeScore.toFixed(1) : "—"} label="top score" />
+              <HeadingStat icon={Layers} value={String(query.data.run.cohortSize)} label="on the board" />
+              <HeadingStat
+                icon={TrendingUp}
+                value={leader ? leader.compositeScore.toFixed(1) : "—"}
+                label="top score"
+              />
             </>
           ) : undefined
         }
@@ -483,26 +487,59 @@ function AssessmentOverview({ items }: { items: readonly RankingEntry[] }) {
   const strengths = topFactors(items, (r) => r.topStrength);
   const constraints = topFactors(items, (r) => r.topConstraint);
 
+  /**
+   * Collapsed by default only below `sm` (UI audit finding, follow-up): on a phone this
+   * card sat between the filters and the actual ranked list, adding real scroll distance
+   * before the content people came for. It can't simply move below the list — its own
+   * copy says "shown below" and a fixed position above it is a deliberate ordering choice
+   * from the visual-composition pass — so instead it collapses behind a native
+   * `<details>` on narrow viewports, where the click/tap to open it costs less than the
+   * scroll distance it otherwise adds. One check at mount, not a live resize listener:
+   * rotating a phone mid-read is a vanishingly rare case to build for, and every other
+   * breakpoint decision in this app is already a CSS media query, not JS state. Desktop
+   * and tablet keep the card open exactly as before — nothing changes there.
+   */
+  // The width below mirrors Tailwind's own built-in `sm` breakpoint, not a value invented
+  // here — there is no JS-side breakpoint token, only the `sm:` class prefix used
+  // everywhere else, which a `matchMedia` string can't express. lint-tokens-ignore
+  const [open, setOpen] = React.useState(
+    () => typeof window === "undefined" || window.matchMedia("(min-width: 640px)").matches, // lint-tokens-ignore
+  );
+
   return (
-    <div className="mb-4 rounded-2xl bg-card p-5 shadow-e2 ring-1 ring-inset ring-border">
+    <details
+      className="group mb-3 rounded-2xl bg-card p-4 shadow-e2 ring-1 ring-inset ring-border sm:mb-4 sm:p-5"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
       {/*
-        A styled `<p>`, not a real heading — same reason `DashboardHero`'s "Pipeline
-        flow" label isn't one either: this panel's title is a label for content the
-        page's own `<h1>` ("Rankings") already scopes, not a new structural section on
-        the level of an idea's own title. Concretely: J-5's e2e spec clicks
+        `<summary>`, not a heading — same reason `DashboardHero`'s "Pipeline flow" label
+        isn't one either: this panel's title is a label for content the page's own `<h1>`
+        ("Rankings") already scopes, not a new structural section on the level of an
+        idea's own title. Concretely: J-5's e2e spec clicks
         `getByRole("heading", { level: 2 }).first()` expecting the first RANKED IDEA's
         title — a real `<h2>` here would come first in the DOM and break that assumption
-        for every idea title on the page, not just this one.
+        for every idea title on the page, not just this one. `<summary>` carries its own
+        native `button` role and disclosure state instead, so no heading is introduced and
+        no extra ARIA is needed for the expand/collapse behavior.
       */}
-      <p className="font-serif text-300 font-semibold">Assessment overview</p>
-      <p className="mt-1 text-100 text-muted-foreground">
-        What most often lifts or holds back the {items.length} ideas shown below.
-      </p>
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <span>
+          <span className="block font-serif text-300 font-semibold">Assessment overview</span>
+          <span className="mt-1 block text-100 text-muted-foreground">
+            What most often lifts or holds back the {items.length} ideas shown below.
+          </span>
+        </span>
+        <ChevronDown
+          aria-hidden
+          className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform duration-[var(--dur-base)] group-open:rotate-180"
+        />
+      </summary>
       <div className="mt-3.5 grid gap-4 sm:grid-cols-2">
         <FactorList title="Most often the strongest factor" rows={strengths} total={items.length} tone="up" />
         <FactorList title="Most often the limiting factor" rows={constraints} total={items.length} tone="down" />
       </div>
-    </div>
+    </details>
   );
 }
 
@@ -542,7 +579,7 @@ function Board({
         index.css: white on --accent-700 fails AA once the tokens flip to dark, and these
         are the most-clicked controls on the page.
       */}
-      <div className="mb-4 space-y-3">
+      <div className="mb-3 space-y-2 sm:mb-4 sm:space-y-3">
         {mode === "current" && profiles.length > 1 ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-200 text-muted-foreground">Weighted for</span>

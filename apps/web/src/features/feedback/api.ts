@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { FeedbackVote, IdeaFeedbackSummary } from "@iep/contracts";
+import type {
+  FeedbackVote, IdeaFeedbackSummary, IdeaSignalsSummary, SetIdeaSignalRequest,
+  StructuredFeedbackType,
+} from "@iep/contracts";
 import { api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
 
@@ -56,3 +59,31 @@ export function useVote(ideaId: string) {
     onSettled: () => void qc.invalidateQueries({ queryKey: key }),
   });
 }
+
+/**
+ * Structured feedback — the five `FeedbackType` reasons beyond the thumb vote above
+ * (FR-18, P11). Deliberately NOT optimistic, unlike the vote: this carries a free-text
+ * note, and rolling an in-flight comment back on a failed write is real complexity for a
+ * form a person fills in deliberately, not a button they expect to feel instant.
+ */
+export function useSignals(ideaId: string) {
+  return useQuery({
+    queryKey: queryKeys.ideas.signals(ideaId),
+    queryFn: () => api<IdeaSignalsSummary>(`/ideas/${ideaId}/signals`),
+    enabled: Boolean(ideaId),
+  });
+}
+
+export function useSetSignal(ideaId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: SetIdeaSignalRequest) =>
+      api<IdeaSignalsSummary>(`/ideas/${ideaId}/signals`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: (data) => qc.setQueryData(queryKeys.ideas.signals(ideaId), data),
+  });
+}
+
+export type { StructuredFeedbackType };

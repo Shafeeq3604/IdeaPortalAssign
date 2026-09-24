@@ -79,7 +79,10 @@ export function registerIdeaCreationRoutes(handlers: Map<string, Handler>): void
 
     // Same degrade-never-throw contract as discovery/analysis: the conversation (and its
     // opening message, if any) is already saved either way.
-    const finalRow = openingMessage && !(await ctx.ideaCreation.enqueue({ conversationId: row.id }))
+    const openingMessageId = row.messages[0]?.id;
+    const finalRow =
+      openingMessage && openingMessageId &&
+      !(await ctx.ideaCreation.enqueue({ conversationId: row.id, messageId: openingMessageId }))
       ? await ctx.db.ideaCreationConversation.update({
           where: { id: row.id },
           data: { status: "ACTIVE", errorCode: "QUEUE_UNAVAILABLE" },
@@ -128,7 +131,7 @@ export function registerIdeaCreationRoutes(handlers: Map<string, Handler>): void
       return sendError(reply, "VALIDATION_FAILED", "Still waiting on a reply to the last message");
     }
 
-    await ctx.db.ideaCreationMessage.create({
+    const userMessage = await ctx.db.ideaCreationMessage.create({
       data: { conversationId, role: "USER", content: parsed.data.message },
     });
     const updated = await ctx.db.ideaCreationConversation.findUniqueOrThrow({
@@ -136,7 +139,7 @@ export function registerIdeaCreationRoutes(handlers: Map<string, Handler>): void
       include: CONVERSATION_INCLUDE,
     });
 
-    const enqueued = await ctx.ideaCreation.enqueue({ conversationId });
+    const enqueued = await ctx.ideaCreation.enqueue({ conversationId, messageId: userMessage.id });
     const finalRow = enqueued
       ? updated
       : await ctx.db.ideaCreationConversation.update({

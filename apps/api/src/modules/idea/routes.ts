@@ -7,7 +7,10 @@ import {
 import type { Handler } from "../../server.js";
 import type { AppContext } from "../../context.js";
 import { requireActor, sendError } from "../../server.js";
-import { makeIdeaRepo, IDEA_DETAIL_INCLUDE, type IdeaListFilterParams } from "./repo.js";
+import {
+  makeIdeaRepo, IDEA_DETAIL_INCLUDE, TransitionConflict, DraftEditConflict,
+  type IdeaListFilterParams,
+} from "./repo.js";
 import { toIdeaDetail, toIdeaSummary, toVersionDetail, toVersionSummary, toStatusEntry } from "./present.js";
 
 /**
@@ -155,6 +158,67 @@ async function feedbackForIdeas(
     });
   }
   return out;
+}
+
+/**
+ * P12 (FR-20/FR-21) — single-idea only (`getIdea`), not batched across a list: the
+ * similar-idea banner and existing-solution assessment are detail-page content, same
+ * scope as `getIdeaHistory`, not something a list row needs.
+ */
+async function detectionForIdea(
+  ctx: { db: PrismaClient },
+  idea: { id: string; currentVersionId?: string | null },
+): Promise<{
+  similarIdeas: readonly {
+    ideaId: string; title: string; similarity: number; differenceSummary: string | null;
+  }[];
+  existingSolutionAssessment: {
+    recommendation: "BUILD" | "BUY" | "EXTEND" | "INTEGRATE" | null;
+    rationale: string | null;
+    confidence: "LOW" | "MEDIUM" | "HIGH" | null;
+    matches: readonly { name: string; kind: string; similarity: number }[];
+  } | null;
+}> {
+  if (!idea.currentVersionId) return { similarIdeas: [], existingSolutionAssessment: null };
+
+  const [similar, assessment] = await Promise.all([
+    ctx.db.similarIdea.findMany({ where: { ideaId: idea.id }, orderBy: { similarity: "desc" } }),
+    ctx.db.existingSolutionAssessment.findUnique({
+      where: { ideaVersionId: idea.currentVersionId },
+      include: { matches: { include: { existingSolution: true } } },
+    }),
+  ]);
+
+  // No Prisma relation exists from `similar_to` to `ideas` (SimilarIdea is a bare
+  // reserved-at-P0 table, no FK) — a plain second lookup instead of an `include`.
+  const matchedIdeas = similar.length > 0
+    ? await ctx.db.idea.findMany({
+        where: { id: { in: similar.map((s) => s.similarTo) } },
+        select: { id: true, currentVersion: { select: { title: true } } },
+      })
+    : [];
+  const titleByIdeaId = new Map(matchedIdeas.map((i) => [i.id, i.currentVersion?.title ?? "(untitled)"]));
+
+  return {
+    similarIdeas: similar.map((s) => ({
+      ideaId: s.similarTo,
+      title: titleByIdeaId.get(s.similarTo) ?? "(untitled)",
+      similarity: Number(s.similarity),
+      differenceSummary: s.differenceSummary,
+    })),
+    existingSolutionAssessment: assessment
+      ? {
+          recommendation: assessment.recommendation,
+          rationale: assessment.rationale,
+          confidence: assessment.confidence,
+          matches: assessment.matches.map((m) => ({
+            name: m.existingSolution.name,
+            kind: m.existingSolution.kind,
+            similarity: Number(m.similarity),
+          })),
+        }
+      : null,
+  };
 }
 
 /**
@@ -315,11 +379,12 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     if (!can(actor, "idea:read", resource).allowed) {
       return sendError(reply, "NOT_FOUND", NOT_FOUND);
     }
-    const [feedback, scores] = await Promise.all([
+    const [feedback, scores, detection] = await Promise.all([
       feedbackForIdeas(ctx, [idea], actor.userId),
       scoresForCurrentVersions(ctx, [idea]),
+      detectionForIdea(ctx, idea),
     ]);
-    return toIdeaDetail(idea, actor, feedback.get(idea.id), scores.get(idea.id));
+    return toIdeaDetail(idea, actor, feedback.get(idea.id), detection, scores.get(idea.id));
   });
 
   handlers.set("updateDraft", async (request, reply, ctx) => {
@@ -361,19 +426,31 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     // through to `updateDraftVersion` they don't match any `IdeaVersion` column, and
     // Prisma throws — so split them off onto the row they actually belong to.
     const { departmentId, categoryId, ...versionFields } = parsed.data;
-    if (departmentId !== undefined || categoryId !== undefined) {
-      await ctx.db.idea.update({
-        where: { id: idea.id },
-        data: {
-          ...(departmentId !== undefined ? { departmentId } : {}),
-          ...(categoryId !== undefined ? { categoryId } : {}),
-        },
-      });
+    const ideaFields =
+      departmentId !== undefined || categoryId !== undefined
+        ? {
+            ...(departmentId !== undefined ? { departmentId } : {}),
+            ...(categoryId !== undefined ? { categoryId } : {}),
+          }
+        : undefined;
+    try {
+      await repo.updateDraftVersion(
+        idea.id,
+        idea.currentVersionId,
+        versionFields as Record<string, string | readonly string[] | null>,
+        ideaFields,
+      );
+    } catch (error) {
+      // The `idea:edit` check above already confirmed DRAFT — this is the same race
+      // `transitionIdea` guards against below: a concurrent submit/transition (another
+      // tab, a double-click) moved the idea out of DRAFT between that check and this
+      // write actually committing. See `updateDraftVersion`'s own comment.
+      if (error instanceof DraftEditConflict) {
+        return sendError(reply, "CONCURRENT_MODIFICATION",
+          "This idea's status changed while your request was in flight. Reload and try again.");
+      }
+      throw error;
     }
-    await repo.updateDraftVersion(
-      idea.currentVersionId,
-      versionFields as Record<string, string | readonly string[] | null>,
-    );
     const fresh = await repo.findById(ideaId);
     if (!fresh) throw new Error(`Idea ${ideaId} disappeared between its own update and re-fetch`);
     const feedback = await feedbackForIdeas(ctx, [fresh], actor.userId);
@@ -567,13 +644,25 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
       }
     }
 
-    await repo.transition({
-      ideaId, from, to: parsed.data.to, actorId: actor.userId,
-      reason: parsed.data.reason ?? null,
-      // Carried into the audit row so a support question about one request can be
-      // traced to the exact change it made.
-      requestId: request.id,
-    });
+    try {
+      await repo.transition({
+        ideaId, from, to: parsed.data.to, actorId: actor.userId,
+        reason: parsed.data.reason ?? null,
+        // Carried into the audit row so a support question about one request can be
+        // traced to the exact change it made.
+        requestId: request.id,
+      });
+    } catch (error) {
+      // Someone else's transition won the race between this handler's own read of `from`
+      // (above) and `repo.transition`'s guarded write — see the comment at its
+      // `updateMany` call. The idea did change status, just not to the one this request
+      // still thinks it's leaving.
+      if (error instanceof TransitionConflict) {
+        return sendError(reply, "CONCURRENT_MODIFICATION",
+          "This idea's status changed while your request was in flight. Reload and try again.");
+      }
+      throw error;
+    }
 
     /**
      * Submitting a DRAFT starts the analysis. This was missing entirely.
@@ -593,10 +682,11 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
 
     const transitioned = await repo.findById(ideaId);
     if (!transitioned) throw new Error(`Idea ${ideaId} disappeared between its own transition and re-fetch`);
-    const [feedback, scores] = await Promise.all([
+    const [feedback, scores, detection] = await Promise.all([
       feedbackForIdeas(ctx, [transitioned], actor.userId),
       scoresForCurrentVersions(ctx, [transitioned]),
+      detectionForIdea(ctx, transitioned),
     ]);
-    return toIdeaDetail(transitioned, actor, feedback.get(transitioned.id), scores.get(transitioned.id));
+    return toIdeaDetail(transitioned, actor, feedback.get(transitioned.id), detection, scores.get(transitioned.id));
   });
 }

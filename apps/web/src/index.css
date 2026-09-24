@@ -326,6 +326,29 @@
   );
 }
 
+/*
+ * Enterprise-audit pass: the header bar stays fully OPAQUE in both themes now — the
+ * translucent, blend-toward-transparent version above existed only to give the
+ * (now-removed) backdrop-filter blur something to act on. With glassmorphism dropped
+ * (--glass-blur: 0, tokens.css) an opaque bar reads as a solid, confident surface rather
+ * than a disconnected panel, which is exactly what the audit asked for.
+ */
+
+/*
+ * Sidebar separation (enterprise-audit finding: "background ≈ sidebar ≈ cards" made the
+ * interface read as flat) — a real shadow along the sidebar's own edge, on top of the
+ * token-level colour ladder (canvas/sidebar/card are now three distinct opaque values),
+ * so the rail reads as its own layer even before anyone notices the colour step.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brand-rail {
+    box-shadow: 12px 0 80px rgb(0 0 0 / 35%);
+  }
+}
+:root[data-theme="dark"] .brand-rail {
+  box-shadow: 12px 0 80px rgb(0 0 0 / 35%);
+}
+
 /* The rail beside the sidebar, so the colour does not stop dead under the header. */
 /* Two stops, not one: the violet hands off to the accent tint before it fades out, which
    is what stops the top of the sidebar reading as a bruise on a white column. */
@@ -366,17 +389,41 @@
  * stylesheet. Every colour is still a token.
  */
 .dash-hero {
+  /*
+   * Design-review finding (round 3): round 2's glow was a tight 230×230 CIRCLE sitting
+   * behind the pipeline panel — exactly the "bright orb floating behind a secondary
+   * panel" and "concept-render, not production software" look flagged next. Two fixes:
+   * the bloom moved to a wide ELLIPSE (900×320, width far exceeding height — an
+   * architectural wash, not a light source) positioned behind the headline/messaging
+   * column instead of the panel, and the circular bright core is gone entirely — one
+   * soft ellipse, no hard point.
+   *
+   * The base gradient's dark stop also no longer lands on `--grad-to` (`#020817` —
+   * identical to `--canvas`), which was the actual cause of "hero blends into the
+   * canvas" at that corner: it now bottoms out at `--surface` (`#0c1627`), a real step
+   * above canvas, so the hero is never the same colour as the page behind it.
+   */
   background-image:
-    radial-gradient(600px 300px at 88% 10%, color-mix(in oklab, var(--grad-highlight) 30%, transparent), transparent 58%),
-    radial-gradient(520px 380px at 6% 108%, color-mix(in oklab, var(--grad-to) 85%, transparent), transparent 60%),
-    linear-gradient(120deg, var(--grad-from) 0%, var(--grad-via) 52%, var(--grad-to) 100%);
-  /* "-lit" (visual-identity pass): the one card every page that has one leads with —
-     gets the top-edge highlight, same as the other focal-only surfaces below. */
-  box-shadow: var(--e-4-lit);
+    radial-gradient(900px 320px at 26% 62%, color-mix(in oklab, var(--accent-600) 38%, transparent), transparent 72%),
+    radial-gradient(700px 420px at 84% 12%, color-mix(in oklab, var(--accent-500) 14%, transparent), transparent 70%),
+    radial-gradient(520px 380px at 6% 108%, color-mix(in oklab, var(--surface) 85%, transparent), transparent 60%),
+    linear-gradient(120deg, var(--grad-from) 0%, var(--grad-via) 52%, var(--surface) 100%);
+  /* "-lit" (visual-identity pass) plus a soft outer bloom bleeding past the card's own
+     edge — the "gravity" a page's one hero surface needs to visibly outweigh the ordinary
+     cards around it, rather than reading as "box, box, box" in a flat wall of boxes. */
+  box-shadow: var(--e-4-lit), 0 0 90px -10px color-mix(in oklab, var(--accent-600) 30%, transparent);
 }
 
 /*
  * The dot grid the canvas lays over the gradient, faded out towards the corner.
+ *
+ * Design-review finding: at 1px dots on a 26px grid, `var(--grad-rule)`'s own ~12%
+ * alpha (tuned for the unrelated conic-ring rule it also draws, so not raised at the
+ * token) made this all but invisible — a texture nobody could actually see rather than
+ * a considered detail. Bigger, closer-spaced dots at a literal, higher alpha (this
+ * selector's own value, not a token bump that would also brighten that ring), and a
+ * mask that only fades in the card's last third instead of washing out most of it, so
+ * the grid reads as real texture across the surface instead of a rumour of one.
  *
  * `pointer-events: none` is load-bearing, not decoration-hygiene: an absolutely
  * positioned `::before` with `inset: 0` is a POSITIONED descendant (z-index: auto), which
@@ -392,9 +439,31 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(var(--grad-rule) 1px, transparent 1px);
-  background-size: 26px 26px;
-  mask-image: linear-gradient(200deg, #000, transparent 80%);
+  /*
+   * A literal colour, not `--grad-rule` (unlike the gradients above): `.dash-hero`
+   * itself is the one fixed dark panel that renders identically in both themes (same
+   * reasoning as its own background-image, which never reads a light-mode token
+   * either), so the dot colour that suits it does not need a per-theme variant.
+   */
+  background-image: radial-gradient(rgba(80, 140, 255, 0.035) 1.6px, transparent 1.6px);
+  background-size: 24px 24px;
+  mask-image: linear-gradient(205deg, #000 0%, #000 55%, transparent 92%);
+}
+
+/*
+ * The pipeline-overview panel's own surface (design-review finding: it used a 8%-white
+ * translucent fill, which read as "a glass panel floating over the hero" rather than a
+ * production dashboard component, and let the hero's own dot texture and glow bleed
+ * straight through it). A real, solid, dedicated colour — one step brighter than the
+ * hero's own `--surface` base, same "each layer is a genuinely different colour, not an
+ * alpha step" rule as the canvas/hero split above — with a real border instead of a
+ * glow-tinted ring. Literal, not a token: like `.dash-hero` itself, this panel only ever
+ * renders inside the hero, which is fixed-dark in both themes, so it needs no per-theme
+ * variant.
+ */
+.hero-panel {
+  background-color: #111c31;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /*
@@ -415,6 +484,56 @@
   background-size: 22px 22px;
   mask-image: linear-gradient(200deg, #000, transparent 65%);
   opacity: 0.5;
+}
+
+/*
+ * Enterprise-audit pass: glassmorphism/backdrop blur retired ("avoid glassmorphism, heavy
+ * transparency" was explicit). `--glass-blur` is 0px in dark mode now (tokens.css), so
+ * this rule is kept only as the harmless no-op it already collapses to — removing it
+ * outright would just delete a line that currently does nothing, at the cost of losing
+ * the one place a future theme could re-enable blur on a named surface without touching
+ * component code.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .dash-hero,
+  :root:not([data-theme="light"]) .card-texture,
+  :root:not([data-theme="light"]) .shadow-e4-lit,
+  :root:not([data-theme="light"]) .brand-bar,
+  :root:not([data-theme="light"]) .brand-rail {
+    backdrop-filter: blur(var(--glass-blur));
+  }
+}
+:root[data-theme="dark"] .dash-hero,
+:root[data-theme="dark"] .card-texture,
+:root[data-theme="dark"] .shadow-e4-lit,
+:root[data-theme="dark"] .brand-bar,
+:root[data-theme="dark"] .brand-rail {
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+/*
+ * Card substance (enterprise-audit pass): a subtle diagonal gradient on shadcn's own
+ * `Card` root, instead of the flat `--surface` colour every other `bg-card` consumer
+ * still uses — "cards must feel substantial and stable," per the audit's own CSS. Scoped
+ * to the component's `data-slot`, not `.bg-card` generally, so this stays a considered
+ * treatment on the one in-product Card component rather than a wash applied to every
+ * `bg-card` div (nav pills, tile fallbacks, list rows) that never asked for it.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-slot="card"] {
+    background-image: linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--surface) 96%, white),
+      color-mix(in oklab, var(--sidebar) 98%, black)
+    );
+  }
+}
+:root[data-theme="dark"] [data-slot="card"] {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--surface) 96%, white),
+    color-mix(in oklab, var(--sidebar) 98%, black)
+  );
 }
 
 .dash-pulse { animation: dash-pulse var(--dur-pulse) var(--ease-in-out) infinite; }
@@ -519,25 +638,16 @@
 }
 
 /*
- * The podium crown — rank 1 on the board.
- *
- * The same three stops as `.dash-hero` at a different angle, so the two most important
- * panels in the product read as the same object rather than two accidents.
+ * A quiet amber tint for the ONE pipeline tile that means "this needs a person" —
+ * design-review finding: the tile used `--state-warn-bg`, a solid opaque fill (right,
+ * for a badge or a banner that must shout) but far too loud sitting shoulder-to-shoulder
+ * with four sibling tiles whose tints sit at 6–16% alpha. At full strength the eye read
+ * "Needs You" before it read the hero — amber should mean "exception," not "loudest
+ * rectangle on the page." Same translucent-tint weight as `--accent-050`/`--accent-100`,
+ * just built from `--state-warn` instead so the colour itself is unchanged.
  */
-.board-crown {
-  background-image:
-    radial-gradient(300px 180px at 88% 0%, color-mix(in oklab, var(--grad-highlight) 40%, transparent), transparent 62%),
-    linear-gradient(150deg, var(--grad-from) 0%, var(--grad-via) 55%, var(--grad-to) 100%);
-}
-
-.board-crown::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  /* Same reason as `.dash-hero::before` above. */
-  pointer-events: none;
-  background-image: radial-gradient(var(--grad-rule) 1px, transparent 1px);
-  background-size: 20px 20px;
+.tile-warn-tint {
+  background-color: color-mix(in oklab, var(--state-warn) 12%, transparent);
 }
 
 /* The dotted track the outcome stages sit on. Drawn once, behind all four. */

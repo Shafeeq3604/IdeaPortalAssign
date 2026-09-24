@@ -20,3 +20,13 @@ export {
   type IdeaCreationProvider, type IdeaCreationTurnResult, type IdeaCreationTurnPatch,
   type IdeaCreationTurnInput, type IdeaCreationTurnUsage,
 } from "./idea-creation.js";
+export {
+  OpenAiEmbeddingProvider, StubEmbeddingProvider,
+  type EmbeddingProvider, type EmbeddingResult, type EmbeddingUsage,
+} from "./embeddings.js";
+export {
+  AnthropicDetectionProvider, StubDetectionProvider,
+  type DetectionProvider, type SimilarIdeaInput, type DifferenceSummaryResult,
+  type ExistingSolutionCandidate, type ExistingSolutionRecommendationResult,
+  type DetectionUsage,
+} from "./detection.js";

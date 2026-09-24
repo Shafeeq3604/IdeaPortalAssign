@@ -104,6 +104,13 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: pnpm --filter @iep/load load:concurrent-users
 
+      # Informational, same as the two steps above: reports the real cost of the
+      # SERIALIZABLE vote transaction (account/routes.ts, CONTRACT-LOG 2026-09-22) — the
+      # 409-under-contention rate is expected to be nonzero and is not gated on (see the
+      # script's own header comment). Only http_req_failed/http_req_duration can fail it.
+      - name: k6 — concurrent voting, SERIALIZABLE conflict cost (SPEC §11.6, FR-18)
+        run: pnpm --filter @iep/load load:vote-race
+
       - name: Server logs (only on failure)
         if: failure()
         run: |

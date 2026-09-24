@@ -2,6 +2,7 @@ import {
   MAX_ATTACHMENTS_PER_VERSION, MAX_ATTACHMENT_BYTES, EDITABLE, can,
 } from "@iep/contracts";
 import type { Attachment, IdeaStatus } from "@iep/contracts";
+import { Prisma } from "@iep/db";
 import type { Handler } from "../../server.js";
 import { requireActor, sendError } from "../../server.js";
 import { storeUpload } from "./attachments.js";
@@ -25,6 +26,11 @@ import { storeUpload } from "./attachments.js";
  * before anything new is sent to a provider. The files are stored, listed and downloadable
  * by people; the pipeline does not read them.
  */
+
+/** Thrown inside `uploadAttachment`'s transaction when the final, guarded count still
+    finds the version at its cap — see the comment at that transaction. Caught in the same
+    handler; never escapes it. */
+class AttachmentCapConflict extends Error {}
 
 export function registerAttachmentRoutes(handlers: Map<string, Handler>): void {
   handlers.set("listAttachments", async (request, reply, ctx) => {
@@ -116,21 +122,55 @@ export function registerAttachmentRoutes(handlers: Map<string, Handler>): void {
       return sendError(reply, stored.code, stored.reason);
     }
 
-    const row = await ctx.db.attachment.create({
-      data: {
-        ideaVersionId: versionId,
-        // Kept for display only. It is never used to build a path — see `storeUpload`.
-        filename: safeLabel(part.filename),
-        mime: stored.file.mime,
-        bytes: stored.file.bytes,
-        storageKey: stored.file.storageKey,
-        uploadedById: requireActor(request).userId,
-      },
-      select: {
-        id: true, filename: true, mime: true, bytes: true, createdAt: true,
-        uploadedBy: { select: { id: true, displayName: true, department: { select: { name: true } } } },
-      },
-    });
+    /**
+     * The count above is a fast, early rejection (comment there) — it is NOT what
+     * enforces the cap. Two concurrent uploads on the same version can both pass it and
+     * both reach here, since the bytes in between take real time to read and store. This
+     * second count, re-checked inside a SERIALIZABLE transaction with the insert, is what
+     * actually enforces the ≤10 limit: Postgres aborts whichever transaction's read this
+     * commit would invalidate, surfacing as P2034 below, the same pattern already used for
+     * the vote race (account/routes.ts) and the admin role-replacement race above it.
+     */
+    let row;
+    try {
+      row = await ctx.db.$transaction(
+        async (tx) => {
+          const count = await tx.attachment.count({ where: { ideaVersionId: versionId } });
+          if (count >= MAX_ATTACHMENTS_PER_VERSION) throw new AttachmentCapConflict();
+
+          return tx.attachment.create({
+            data: {
+              ideaVersionId: versionId,
+              // Kept for display only. It is never used to build a path — see `storeUpload`.
+              filename: safeLabel(part.filename),
+              mime: stored.file.mime,
+              bytes: stored.file.bytes,
+              storageKey: stored.file.storageKey,
+              uploadedById: requireActor(request).userId,
+            },
+            select: {
+              id: true, filename: true, mime: true, bytes: true, createdAt: true,
+              uploadedBy: { select: { id: true, displayName: true, department: { select: { name: true } } } },
+            },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (error instanceof AttachmentCapConflict) {
+        return sendError(
+          reply,
+          "VALIDATION_FAILED",
+          `An idea can carry ${MAX_ATTACHMENTS_PER_VERSION} files. Remove one first.`,
+        );
+      }
+      // P2034: see the identical comment on the vote transaction (account/routes.ts).
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+        return sendError(reply, "CONCURRENT_MODIFICATION",
+          "Another upload crossed with this one. Try again.");
+      }
+      throw error;
+    }
 
     return reply.status(201).send(present(row));
   });
@@ -225,7 +265,19 @@ export function registerAttachmentRoutes(handlers: Map<string, Handler>): void {
      * cleanable. The other order leaves a row pointing at nothing, which is a broken
      * download for a user.
      */
-    await ctx.db.attachment.delete({ where: { id: attachmentId } });
+    try {
+      await ctx.db.attachment.delete({ where: { id: attachmentId } });
+    } catch (error) {
+      // P2025: the row the `findUnique` above just saw is already gone — a second click or
+      // a second tab's delete won this race first. Deletion is idempotent in effect, so
+      // this is success, not a 500: the thing the caller wanted (no such attachment) is
+      // already true. Falling through to the un-caught default would leak this as a bare
+      // INTERNAL_ERROR for a completely harmless double-delete.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+        return { id: attachmentId };
+      }
+      throw error;
+    }
     await ctx.attachments.remove(row.storageKey);
 
     return { id: attachmentId };

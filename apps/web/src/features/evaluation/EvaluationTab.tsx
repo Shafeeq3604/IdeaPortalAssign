@@ -1,9 +1,9 @@
 import { Link, useParams } from "react-router-dom";
 import {
-  Card, CardContent, CardHeader, CardTitle, ContributionBar, EmptyState, ErrorState,
+  Badge, Card, CardContent, CardHeader, CardTitle, ContributionBar, EmptyState, ErrorState,
   ExplanationPanel, RankBadge, ScoreDisplay, Skeleton,
 } from "@iep/ui";
-import type { CriterionGroup, CriterionScore, MaturityLevel } from "@iep/contracts";
+import type { CriterionGroup, CriterionScore, ExistingSolutionAssessmentRef, MaturityLevel } from "@iep/contracts";
 import { ApiError } from "../../app/api-client";
 import { IdeaShell } from "../ideas/IdeaShell";
 import { GROUP_LABEL, MATURITY_HELP, MATURITY_LABEL, useEvaluation } from "./api";
@@ -24,6 +24,15 @@ const link = ({ to, children, className }: { to: string; children: React.ReactNo
 const GROUP_ORDER: readonly CriterionGroup[] = [
   "VALUE", "FEASIBILITY", "EFFORT", "STRATEGIC", "RISK", "DEMAND",
 ];
+
+const RECOMMENDATION_LABEL: Record<
+  NonNullable<ExistingSolutionAssessmentRef["recommendation"]>, string
+> = {
+  BUILD: "Build — nothing in the catalogue meaningfully overlaps.",
+  BUY: "Buy — an approved vendor already solves this.",
+  EXTEND: "Extend — an internal system already does most of this.",
+  INTEGRATE: "Integrate — reuse an existing platform capability instead of duplicating it.",
+};
 
 export function EvaluationTab() {
   const { ideaId = "" } = useParams();
@@ -150,6 +159,51 @@ export function EvaluationTab() {
                 </p>
               </CardContent>
             </Card>
+
+            {/*
+              FR-21 (P12, AI-11) — internal build/buy/extend/integrate decision support,
+              never employee-facing (REQUIREMENTS §15 draws the same line for FR-20's raw
+              score) — gated on `canSeeMatchDetail`, same flag the Overview tab's plain
+              similar-idea banner checks the inverse of.
+            */}
+            {idea.permissions.canSeeMatchDetail && idea.existingSolutionAssessment ? (
+              <Card>
+                <CardHeader><CardTitle className="font-serif">Existing-solution check</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  {idea.existingSolutionAssessment.recommendation ? (
+                    <p className="text-200">
+                      <span className="font-semibold">
+                        {RECOMMENDATION_LABEL[idea.existingSolutionAssessment.recommendation]}
+                      </span>
+                      {idea.existingSolutionAssessment.rationale
+                        ? ` — ${idea.existingSolutionAssessment.rationale}`
+                        : null}
+                    </p>
+                  ) : (
+                    <p className="text-200 text-muted-foreground">
+                      No model-reasoned recommendation yet — the catalogue matches below are
+                      surfaced for manual review.
+                    </p>
+                  )}
+                  {idea.existingSolutionAssessment.matches.length > 0 ? (
+                    <ul className="space-y-1 text-100 text-muted-foreground">
+                      {idea.existingSolutionAssessment.matches.map((m) => (
+                        <li key={m.name}>
+                          {m.name} <Badge variant="outline">{m.kind}</Badge>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-100 text-muted-foreground">
+                      No catalogue entry matched above the configured threshold.
+                    </p>
+                  )}
+                  <p className="text-100">
+                    <Link to="/config/existing-solutions">See the full catalogue</Link>
+                  </p>
+                </CardContent>
+              </Card>
+            ) : null}
 
             {/*
               ── the explanation, inline (P-2) ──

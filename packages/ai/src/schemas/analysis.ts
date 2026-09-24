@@ -1,8 +1,8 @@
 import { z } from "zod";
 import {
   Band, DependencyKind, EffortClass, FeasibilityDimension, FeasibilityStatus, Horizon,
-  MarketDimension, RiskCategory, RiskLevel, TimelinePhase, UseCaseKind, UserCountBand,
-  ValueDimension, RequirementKind,
+  ImplementationRecommendationAction, MarketDimension, RiskCategory, RiskLevel,
+  TimelinePhase, UseCaseKind, UserCountBand, ValueDimension, RequirementKind,
 } from "@iep/contracts";
 
 /**
@@ -216,6 +216,34 @@ export const EffortTimelineOutput = z
   });
 export type EffortTimelineOutput = z.infer<typeof EffortTimelineOutput>;
 
+// ──────────────────── IMPLEMENTATION_RECOMMENDATION (Tier A) — ADR-026 ────────────────────
+// Synthesizes VALUE/MARKET_CONTEXT/FEASIBILITY/RISK/EFFORT_TIMELINE (this run's own prior
+// findings) into a single, formal, advisory recommendation. `recommendation` names the
+// recommended ACTION for a human to weigh — never a verdict on the idea's worth (P-1),
+// never an authority to act on its own (P-3, ADR-026's own naming rationale). This is the
+// one step whose prompt must say so explicitly (see prompts.ts SHARED_RULES + its own
+// system prompt): it recommends, it does not decide, and the model must never claim or
+// imply that its own output changes anything.
+
+export const RecommendationOutput = z
+  .object({
+    recommendation: ImplementationRecommendationAction,
+    rationale: longText,
+    supportingEvidence: z.array(shortText).min(1).max(10),
+    risks: z.array(shortText).max(10),
+    assumptions: z.array(shortText).max(10),
+    validationNeeds: z.array(shortText).max(10),
+  })
+  .strict()
+  .refine(
+    (v) => v.recommendation !== "INSUFFICIENT_DATA" || v.validationNeeds.length > 0,
+    {
+      path: ["validationNeeds"],
+      message: "INSUFFICIENT_DATA requires at least one stated validation need",
+    },
+  );
+export type RecommendationOutput = z.infer<typeof RecommendationOutput>;
+
 // ───────────────────────────── AI-09 · NARRATIVE (Tier B, OPTIONAL) ─────────────────────────────
 // Rewrites the engine's explanation into fluent prose. It may not add claims; the
 // semantic validator rejects any criterion key the engine did not supply.
@@ -239,5 +267,6 @@ export const AI_OUTPUT_SCHEMAS = {
   FEASIBILITY: FeasibilityOutput,
   RISK: RiskOutput,
   EFFORT_TIMELINE: EffortTimelineOutput,
+  IMPLEMENTATION_RECOMMENDATION: RecommendationOutput,
   EXPLANATION: NarrativeOutput,
 } as const;

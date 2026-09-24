@@ -113,10 +113,46 @@ export const IdeaSummary = z.object({
 });
 export type IdeaSummary = z.infer<typeof IdeaSummary>;
 
+/**
+ * FR-20 (P12, AI-10). Deliberately no exposed technical detail (REQUIREMENTS §15: "Do not
+ * expose similarity/AI technical details") — `differenceSummary` is plain language, and
+ * `similarity` is carried for a reviewer/admin view, not the plain "We found a similar
+ * idea" employee-facing banner (the web client chooses what to render per role; see
+ * `IdeaDetail.permissions.canSeeMatchScores`).
+ */
+export const SimilarIdeaRef = z.object({
+  ideaId: Id,
+  title: Title,
+  similarity: z.number().min(0).max(1),
+  differenceSummary: z.string().nullable(),
+});
+export type SimilarIdeaRef = z.infer<typeof SimilarIdeaRef>;
+
+/**
+ * FR-21 (P12, AI-11). Advisory only — never gates a status transition (structural rule,
+ * §12.2). `recommendation`/`rationale`/`confidence` are null when the non-AI fallback ran
+ * (catalogue lookup by category, no model call) or when embeddings found no match at all.
+ */
+export const ExistingSolutionAssessmentRef = z.object({
+  recommendation: z.enum(["BUILD", "BUY", "EXTEND", "INTEGRATE"]).nullable(),
+  rationale: z.string().nullable(),
+  confidence: z.enum(["LOW", "MEDIUM", "HIGH"]).nullable(),
+  matches: z.array(
+    z.object({ name: z.string(), kind: z.string(), similarity: z.number().min(0).max(1) }),
+  ),
+});
+export type ExistingSolutionAssessmentRef = z.infer<typeof ExistingSolutionAssessmentRef>;
+
 export const IdeaDetail = IdeaSummary.extend({
   currentVersion: IdeaVersionDetail,
   versionCount: z.number().int().min(1),
   openRecommendationCount: z.number().int().min(0),
+  /** Empty until analysis has run once; empty is a valid, common outcome, not a loading
+   *  state (most ideas match nothing). */
+  similarIdeas: z.array(SimilarIdeaRef),
+  /** Null until analysis has run once. Present-but-empty `matches` is also valid — see
+   *  the field's own doc comment. */
+  existingSolutionAssessment: ExistingSolutionAssessmentRef.nullable(),
   /** What THIS actor may do — so the UI never renders a control the API will refuse. */
   permissions: z.object({
     canEdit: z.boolean(),
@@ -124,7 +160,17 @@ export const IdeaDetail = IdeaSummary.extend({
     canRevise: z.boolean(),
     canReview: z.boolean(),
     canOverrideScores: z.boolean(),
+    /** ADR-026 — may record the final organisational decision on an AI recommendation. */
+    canDecideLeadership: z.boolean(),
     allowedTransitions: z.array(IdeaStatus),
+    /**
+     * FR-21's build/buy/extend/integrate call is internal decision support, not
+     * employee-facing content (REQUIREMENTS §15 draws the same line for FR-20's raw
+     * score) — REVIEWER/ADMIN/MANAGEMENT see `existingSolutionAssessment` and
+     * `similarIdeas[].similarity`; a plain EMPLOYEE sees the similar-idea banner in prose
+     * only ("We found a similar idea"), never the number behind it.
+     */
+    canSeeMatchDetail: z.boolean(),
   }),
 });
 export type IdeaDetail = z.infer<typeof IdeaDetail>;

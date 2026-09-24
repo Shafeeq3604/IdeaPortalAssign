@@ -1,13 +1,14 @@
 import type * as React from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, User } from "lucide-react";
-import { Card, CardContent, EmptyState, ErrorState, Skeleton, StatusPill } from "@iep/ui";
+import { Building2, Lightbulb, User } from "lucide-react";
+import { EmptyState, ErrorState, Skeleton } from "@iep/ui";
 import type { AdminUsersResponse, ListIdeasResponse } from "@iep/contracts";
 import { api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
-import { InlineStat, PageHeading } from "../../app/PageHero";
-import { STATUS_LABEL } from "../ideas/api";
+import { HeadingStat, PageHeading } from "../../app/PageHero";
+import { IdeaCard } from "../ideas/IdeaCard";
+import { PersonActivity } from "./PersonActivity";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -26,11 +27,20 @@ const link = ({ to, children, className }: { to: string; children: React.ReactNo
  */
 
 function ScopedList({
-  title, crumb, icon, filterKey, filterValue, emptyDescription, resolveTitle,
+  title, crumb, icon, description, filterKey, filterValue, emptyDescription, resolveTitle,
+  belowHeading, showIdeaCount = true,
 }: {
   title: string;
   crumb: string;
   icon: React.ComponentType<{ className?: string }>;
+  /**
+   * A real sentence for `PageHeading`'s left column — every other page built on
+   * `PageHeading` passes one (Rankings, Explore Ideas, the review queue…), and without
+   * it the row's only content is `stats` pushed hard right by `justify-between` with
+   * nothing on the left to balance it, which is exactly what reads as "stray in the
+   * corner" rather than "a stat beside its heading" (design-review finding).
+   */
+  description: string;
   filterKey: "submitterId" | "departmentId";
   filterValue: string;
   emptyDescription: string;
@@ -42,6 +52,16 @@ function ScopedList({
    * from — never a blank heading.
    */
   resolveTitle?: (items: ListIdeasResponse["items"]) => string | undefined;
+  /** Content between the heading and the ideas list — `PersonPage`'s activity summary
+   *  and contribution timeline. `DepartmentPage` has none of this yet, hence optional. */
+  belowHeading?: React.ReactNode;
+  /**
+   * False on `PersonPage`: its own Activity card, right below, already has an "Ideas
+   * submitted" tile for this exact number — showing it twice in two different visual
+   * languages a few pixels apart reads as a mistake, not confirmation. `DepartmentPage`
+   * has no Activity card, so this is the only place its count appears.
+   */
+  showIdeaCount?: boolean;
 }) {
   const filters = { [filterKey]: filterValue, sort: "recent" as const };
   const query = useQuery({
@@ -61,8 +81,19 @@ function ScopedList({
       <PageHeading
         icon={icon}
         heading={heading}
-        stats={query.data ? <InlineStat value={String(query.data.meta.total)} label="ideas" /> : undefined}
+        description={description}
+        stats={
+          showIdeaCount && query.data ? (
+            <HeadingStat
+              icon={Lightbulb}
+              value={String(query.data.meta.total)}
+              label={query.data.meta.total === 1 ? "idea" : "ideas"}
+            />
+          ) : undefined
+        }
       />
+
+      {belowHeading}
 
       {query.isPending ? (
         <Skeleton className="mt-6 h-64 w-full" aria-busy="true" />
@@ -82,28 +113,16 @@ function ScopedList({
           renderLink={link}
         />
       ) : (
-        <ul className="space-y-3">
+        // The same card every other idea in the product is shown as (`IdeaCard`,
+        // `IdeaListPage.tsx`) — a hand-rolled plain-`Card` row here used to be the one
+        // place an idea looked like a different, plainer product (design-review
+        // finding: rich Activity tiles above, a flat list below, on the same page).
+        // `ListIdeasResponse.items` IS `IdeaSummary[]`, the exact type `IdeaCard` takes
+        // — no second request, no reshaping.
+        <ul className="grid list-none gap-4 p-0 lg:grid-cols-2 xl:grid-cols-3">
           {query.data.items.map((idea) => (
             <li key={idea.id}>
-              <Card>
-                <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
-                  <div className="min-w-0">
-                    <h2 className="text-300 font-medium">
-                      <Link to={`/ideas/${idea.id}/overview`}>{idea.title}</Link>
-                    </h2>
-                    <p className="mt-0.5 text-200 text-muted-foreground">
-                      <Link to={`/people/${idea.submitter.id}`}>{idea.submitter.displayName}</Link>
-                      {idea.department ? (
-                        <>
-                          {" · "}
-                          <Link to={`/departments/${idea.department.id}`}>{idea.department.name}</Link>
-                        </>
-                      ) : null}
-                    </p>
-                  </div>
-                  <StatusPill kind="LIFECYCLE" status={idea.status} label={STATUS_LABEL[idea.status]} />
-                </CardContent>
-              </Card>
+              <IdeaCard idea={idea} />
             </li>
           ))}
         </ul>
@@ -136,9 +155,16 @@ export function PersonPage() {
       title={person?.displayName ?? "This person"}
       crumb={person?.displayName ?? "Person"}
       icon={User}
+      description={
+        person?.department
+          ? `${person.department.name} — what they've submitted, and what they've contributed elsewhere on the platform.`
+          : "What they've submitted, and what they've contributed elsewhere on the platform."
+      }
       filterKey="submitterId"
       filterValue={userId}
       emptyDescription="This person has not submitted an idea yet."
+      belowHeading={<PersonActivity userId={userId} />}
+      showIdeaCount={false}
     />
   );
 }
@@ -151,6 +177,7 @@ export function DepartmentPage() {
       title="Department"
       crumb="Department"
       icon={Building2}
+      description="Every idea filed against this department, newest first."
       filterKey="departmentId"
       filterValue={departmentId}
       emptyDescription="No idea has been filed against this department yet."

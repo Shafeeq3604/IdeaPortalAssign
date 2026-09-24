@@ -166,6 +166,29 @@ export function fallbackEffortTimeline() {
 }
 
 /**
+ * IMPLEMENTATION_RECOMMENDATION (ADR-026) — never guesses a direction.
+ *
+ * Unlike every other fallback here, this one cannot produce a safe "neutral" answer:
+ * MODERATE bands are a defensible placeholder for a dimension, but there is no
+ * placeholder recommended ACTION that is honest when nothing has actually been
+ * synthesized. INSUFFICIENT_DATA is not a weak default — it is the correct answer when
+ * automated synthesis did not run, exactly like FEASIBILITY's fallback uses
+ * REQUIRES_INVESTIGATION rather than guessing a status.
+ */
+export function fallbackRecommendation() {
+  return {
+    recommendation: "INSUFFICIENT_DATA" as const,
+    rationale:
+      "The implementation recommendation was not generated automatically. A leader " +
+      "should not treat this as an assessment either way until it has run.",
+    supportingEvidence: [NOT_ANALYSED],
+    risks: [],
+    assumptions: [],
+    validationNeeds: ["Re-run the analysis, or have a reviewer assess this manually."],
+  };
+}
+
+/**
  * AI-08 — rule-based recommendations from what is missing.
  *
  * P-4 ("improvement over rejection") must survive an outage: an idea that could not be
@@ -179,4 +202,5 @@ export const FALLBACKS = {
   FEASIBILITY: fallbackFeasibility,
   RISK: fallbackRisk,
   EFFORT_TIMELINE: fallbackEffortTimeline,
+  IMPLEMENTATION_RECOMMENDATION: fallbackRecommendation,
 } as const;

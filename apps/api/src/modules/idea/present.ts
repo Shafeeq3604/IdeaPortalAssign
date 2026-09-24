@@ -136,6 +136,19 @@ export function toIdeaDetail(
   idea: Row,
   actor: { userId: string; roles: readonly Role[] },
   feedback: { up: number; down: number; myVote: "UP" | "DOWN" | null } = NO_FEEDBACK,
+  /** P12 — empty until analysis has run once. Batched in by the caller, same reasoning as
+   *  `scored`/`feedback` above: an N+1 per idea is exactly the mistake those already fixed. */
+  detection: {
+    similarIdeas: readonly {
+      ideaId: string; title: string; similarity: number; differenceSummary: string | null;
+    }[];
+    existingSolutionAssessment: {
+      recommendation: "BUILD" | "BUY" | "EXTEND" | "INTEGRATE" | null;
+      rationale: string | null;
+      confidence: "LOW" | "MEDIUM" | "HIGH" | null;
+      matches: readonly { name: string; kind: string; similarity: number }[];
+    } | null;
+  } = { similarIdeas: [], existingSolutionAssessment: null },
   /**
    * Found live while adding the idea-detail "strategic snapshot" strip (frontend): this
    * always defaulted to null/null via `toIdeaSummary(idea, undefined, ...)` below — the
@@ -167,18 +180,28 @@ export function toIdeaDetail(
     return roleAllowed || ownerAllowed;
   }).map((t) => t.to);
 
+  // FR-21's build/buy/extend/integrate call is internal decision support, not
+  // employee-facing content (REQUIREMENTS §15 draws the same line for FR-20's raw
+  // score) — a plain EMPLOYEE (no other role) never sees match detail, only the
+  // plain-language similar-idea banner the web client renders from `similarIdeas`.
+  const canSeeMatchDetail = actor.roles.some((r) => r !== "EMPLOYEE");
+
   return {
     ...toIdeaSummary(idea, scored, feedback),
     currentVersion: toVersionDetail(idea.currentVersion),
     versionCount: idea._count?.versions ?? 1,
     openRecommendationCount: 0, // P5 supplies this
+    similarIdeas: detection.similarIdeas,
+    existingSolutionAssessment: detection.existingSolutionAssessment,
     permissions: {
       canEdit: can(actor, "idea:edit", resource).allowed,
       canSubmit: can(actor, "idea:submit", resource).allowed,
       canRevise: can(actor, "idea:revise", resource).allowed,
       canReview: can(actor, "review:create", resource).allowed,
       canOverrideScores: can(actor, "score:override", resource).allowed,
+      canDecideLeadership: can(actor, "leadership:decide", resource).allowed,
       allowedTransitions: [...new Set(allowedTransitions)],
+      canSeeMatchDetail,
     },
   };
 }

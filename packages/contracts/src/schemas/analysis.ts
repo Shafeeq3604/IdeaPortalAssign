@@ -151,6 +151,37 @@ export const ImplementationPlan = z.object({
 });
 export type ImplementationPlan = z.infer<typeof ImplementationPlan>;
 
+/**
+ * ADR-026: a formal, advisory synthesis of the run's own prior findings — never a
+ * decision. `recommendation` names the recommended ACTION for a human to weigh, not a
+ * verdict on the idea's worth (P-1) and not an authority to act on its own (P-3). The
+ * actual go/no-go is `LeadershipDecision` (leadership.ts), a separate, human-authored record.
+ */
+export const ImplementationRecommendationAction = z.enum([
+  "RECOMMEND",
+  "RECOMMEND_WITH_CONDITIONS",
+  "DO_NOT_RECOMMEND",
+  "INSUFFICIENT_DATA",
+]);
+export type ImplementationRecommendationAction = z.infer<
+  typeof ImplementationRecommendationAction
+>;
+
+export const ImplementationRecommendation = z.object({
+  /** What a `LeadershipDecision` (review.ts) references via `recommendationId`. */
+  id: Id,
+  recommendation: ImplementationRecommendationAction,
+  rationale: z.string(),
+  supportingEvidence: z.array(z.string()),
+  risks: z.array(z.string()),
+  assumptions: z.array(z.string()),
+  validationNeeds: z.array(z.string()),
+  /** When this recommendation was produced — shown on the UI card (ADR-026). */
+  generatedAt: Timestamp,
+  provenance: Provenance,
+});
+export type ImplementationRecommendation = z.infer<typeof ImplementationRecommendation>;
+
 /** Everything the Analysis tab needs, in one request. */
 export const IdeaAnalysisResponse = z.object({
   ideaId: Id,
@@ -165,6 +196,7 @@ export const IdeaAnalysisResponse = z.object({
   risks: z.array(Risk),
   dependencies: z.array(Dependency),
   plan: ImplementationPlan.nullable(),
+  recommendation: ImplementationRecommendation.nullable(),
 });
 export type IdeaAnalysisResponse = z.infer<typeof IdeaAnalysisResponse>;
 

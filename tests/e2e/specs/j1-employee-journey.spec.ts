@@ -165,16 +165,18 @@ test.describe("J-1 employee journey", () => {
     await page.getByRole("button", { name: /Submit for analysis/i }).click();
     await expect(page).toHaveURL(new RegExp(String.raw`/ideas/[0-9a-f-]+/overview`));
 
-    /* ── all seven steps exist immediately, before any of them has run ──
+    /* ── all eight steps exist immediately, before any of them has run ──
        This is the assertion that separates a determinate stepper from a spinner with
-       ambitions: the total is known at time zero, so nothing about it can be synthetic. */
+       ambitions: the total is known at time zero, so nothing about it can be synthetic.
+       Eight, not seven, since ADR-026 added IMPLEMENTATION_RECOMMENDATION as the pipeline's
+       final step (same bump MARKET_CONTEXT made from six to seven). */
     const stepper = page.getByRole("group", { name: "Analysis progress" });
     await expect(stepper).toBeVisible();
-    await expect(stepper.getByRole("listitem")).toHaveCount(7);
+    await expect(stepper.getByRole("listitem")).toHaveCount(8);
 
     // A real count against a real total — never a percentage (SPEC §8.4).
     const bar = stepper.getByRole("progressbar");
-    await expect(bar).toHaveAttribute("aria-valuemax", "7");
+    await expect(bar).toHaveAttribute("aria-valuemax", "8");
     await expect(bar).not.toContainText("%");
 
     /* ── and the Analysis tab is reachable, not a placeholder ── */

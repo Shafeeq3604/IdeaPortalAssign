@@ -11,6 +11,15 @@ import { expect, test, type Page } from "@playwright/test";
  *
  * The product has already shipped one invisible control — indigo text on an indigo
  * button, which every click test passed. That is the failure mode this exists for.
+ *
+ * Runs every page in both Light and Dark (Aurora) — not just whichever Playwright's
+ * default `colorScheme` happens to be. The Aurora dark palette introduced translucent
+ * glass surfaces (ADR/CONTRACT-LOG 2026-09-22), which is exactly the kind of change a
+ * light-only sweep cannot see: a translucent card can pass here in light mode (where it
+ * doesn't exist) while failing contrast in dark. Forcing `iep-theme` in `localStorage`
+ * before each page loads (rather than relying on `prefers-color-scheme`) matches how the
+ * app's own theme toggle persists a choice, so this is the same dark mode a real user with
+ * the toggle set sees, not just the OS-preference fallback.
  */
 
 
@@ -30,6 +39,19 @@ const EMAIL_BY_NAME: Record<string, string> = {
   "Ash Admin": "admin@example.invalid",
   "Mo Manager": "manager@example.invalid",
 };
+
+const THEMES = ["light", "dark"] as const;
+type Theme = (typeof THEMES)[number];
+
+/**
+ * Forces the app's own theme mechanism (`localStorage["iep-theme"]`, read by
+ * `apps/web/src/app/theme.tsx`) rather than `page.emulateMedia`, so this exercises the
+ * same code path a user's explicit Light/Dark toggle choice does — not just the
+ * `prefers-color-scheme: dark` system-default fallback.
+ */
+async function forceTheme(page: Page, theme: Theme): Promise<void> {
+  await page.addInitScript((t) => window.localStorage.setItem("iep-theme", t), theme);
+}
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");
@@ -65,42 +87,49 @@ const PAGES: readonly { name: string; path: string; public?: boolean }[] = [
   { name: "data & AI notice", path: "/help/data-and-ai" },
 ];
 
-test.describe("accessibility", () => {
-  for (const target of PAGES) {
-    test(`${target.name} has no WCAG AA violations`, async ({ page }) => {
-      if (!target.public) await signIn(page);
-      await page.goto(target.path);
-      // Let the query settle: scanning a skeleton tests the skeleton.
-      await page.waitForTimeout(1200);
+for (const theme of THEMES) {
+  test.describe(`accessibility (${theme})`, () => {
+    for (const target of PAGES) {
+      test(`${target.name} has no WCAG AA violations`, async ({ page }) => {
+        await forceTheme(page, theme);
+        if (!target.public) await signIn(page);
+        await page.goto(target.path);
+        // Let the query settle: scanning a skeleton tests the skeleton.
+        await page.waitForTimeout(1200);
 
-      const results = await scan(page);
+        const results = await scan(page);
 
-      // Named in the failure so a regression says WHAT broke, not just that something did.
-      const summary = results.violations.map(
-        (v) => `${v.id} (${v.impact}) on ${v.nodes.length} node(s): ${v.help}`,
-      );
-      expect(summary, `${target.name} accessibility violations:\n${summary.join("\n")}`).toEqual([]);
-    });
-  }
-
-  test("an idea's own screens are clean", async ({ page }) => {
-    await signIn(page);
-    await page.goto("/ideas");
-
-    // By href, not "the first link in main" — that was the "Submit an idea" call to
-    // action, so the scan navigated to the empty form and checked nothing.
-    const firstIdea = page.locator('main a[href*="/ideas/"][href*="/overview"]').first();
-    await expect(firstIdea, "no ideas to scan — run `pnpm db:seed`").toBeVisible();
-    await firstIdea.click();
-    await expect(page).toHaveURL(new RegExp(String.raw`/ideas/[0-9a-f-]+/overview`));
-
-    const base = page.url().replace(/\/[a-z]+$/, "");
-    for (const tab of ["overview", "analysis", "evaluation", "improve", "history"]) {
-      await page.goto(`${base}/${tab}`);
-      await page.waitForTimeout(1000);
-      const results = await scan(page);
-      const summary = results.violations.map((v) => `${v.id} (${v.impact}): ${v.help}`);
-      expect(summary, `${tab} tab violations:\n${summary.join("\n")}`).toEqual([]);
+        // Named in the failure so a regression says WHAT broke, not just that something did.
+        const summary = results.violations.map(
+          (v) => `${v.id} (${v.impact}) on ${v.nodes.length} node(s): ${v.help}`,
+        );
+        expect(
+          summary,
+          `${target.name} [${theme}] accessibility violations:\n${summary.join("\n")}`,
+        ).toEqual([]);
+      });
     }
+
+    test("an idea's own screens are clean", async ({ page }) => {
+      await forceTheme(page, theme);
+      await signIn(page);
+      await page.goto("/ideas");
+
+      // By href, not "the first link in main" — that was the "Submit an idea" call to
+      // action, so the scan navigated to the empty form and checked nothing.
+      const firstIdea = page.locator('main a[href*="/ideas/"][href*="/overview"]').first();
+      await expect(firstIdea, "no ideas to scan — run `pnpm db:seed`").toBeVisible();
+      await firstIdea.click();
+      await expect(page).toHaveURL(new RegExp(String.raw`/ideas/[0-9a-f-]+/overview`));
+
+      const base = page.url().replace(/\/[a-z]+$/, "");
+      for (const tab of ["overview", "analysis", "evaluation", "improve", "history"]) {
+        await page.goto(`${base}/${tab}`);
+        await page.waitForTimeout(1000);
+        const results = await scan(page);
+        const summary = results.violations.map((v) => `${v.id} (${v.impact}): ${v.help}`);
+        expect(summary, `${tab} tab [${theme}] violations:\n${summary.join("\n")}`).toEqual([]);
+      }
+    });
   });
-});
+}

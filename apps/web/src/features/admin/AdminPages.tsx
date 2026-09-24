@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { MoreHorizontal, ScrollText, Search, Users, X } from "lucide-react";
+import { Layers, MoreHorizontal, Radar, ScrollText, Search, Tags, Users, X } from "lucide-react";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Button, Card, CardContent,
   EmptyState, ErrorState, Input, Label, Skeleton, Table, TableBody, TableCell, TableHead,
@@ -12,7 +12,7 @@ import type { AdminUser, AdminUsersResponse, AuditResponse } from "@iep/contract
 import { AddUserDialog, EditUserDialog, RoleBadges, RoleLegend } from "./UserForms";
 import { api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
-import { InlineStat, PageHeading } from "../../app/PageHero";
+import { HeadingStat, PageHeading } from "../../app/PageHero";
 import { useProfiles, useRecompute } from "../rankings/api";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
@@ -51,6 +51,9 @@ const initials = (name: string): string =>
 const ADMIN_PAGES = [
   { to: "/admin/users", label: "People & access", icon: Users },
   { to: "/admin/audit", label: "Audit log", icon: ScrollText },
+  { to: "/config/categories", label: "Categories", icon: Tags },
+  { to: "/config/existing-solutions", label: "Existing-solution catalogue", icon: Layers },
+  { to: "/config/detection", label: "Detection thresholds", icon: Radar },
 ] as const;
 
 /**
@@ -58,16 +61,27 @@ const ADMIN_PAGES = [
  * page (people counted / entries logged) — Administration was the one section of the
  * product with no summary layer at all, straight sub-nav into a raw table, while every
  * other major section now opens with some framing (visual-richness pass).
+ *
+ * `HeadingStat`, not bare `InlineStat` (design-review finding): the same "stray numeral
+ * floating in the corner" bug `PageHeading`'s own stats slot had — a tall two-line
+ * figure bottom-aligned (`items-end`) against a short one-line eyebrow orphans upward
+ * exactly the way a stat next to a wrapped paragraph did. `items-center` here instead,
+ * since a self-contained tile just needs to sit level with the eyebrow, not share its
+ * baseline.
  */
-function AdminSubNav({ stat }: { stat?: { value: string; label: string } }) {
+function AdminSubNav({
+  stat,
+}: {
+  stat?: { value: string; label: string; icon: React.ComponentType<{ className?: string }> };
+}) {
   const { pathname } = useLocation();
   return (
     <div className="mb-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <span className="text-100 font-semibold uppercase tracking-widest text-muted-foreground">
           Administration
         </span>
-        {stat ? <InlineStat value={stat.value} label={stat.label} /> : null}
+        {stat ? <HeadingStat icon={stat.icon} value={stat.value} label={stat.label} /> : null}
       </div>
       <nav aria-label="Administration" className="mt-2 flex flex-wrap gap-2">
         {ADMIN_PAGES.map((page) => {
@@ -98,6 +112,10 @@ const ACTION_LABEL: Record<string, string> = {
   "idea.review": "Review recorded",
   "score.override": "Score adjusted",
   "ranking.recompute": "Rankings recomputed",
+  "config.profileWeights": "Profile weights updated",
+  "config.category": "Category updated",
+  "config.existingSolution": "Catalogue entry updated",
+  "config.detectionThresholds": "Detection thresholds updated",
 };
 
 /** "Today" / "Yesterday" / a real date — the log's own timestamps stay exact in the row
@@ -282,7 +300,11 @@ export function AuditPage() {
         description="Append-only. Every decision a person made, in the same transaction as the change itself — the database refuses updates and deletes on this table."
       />
       <AdminSubNav
-        stat={query.data ? { value: String(query.data.meta.total), label: "entries logged" } : undefined}
+        stat={
+          query.data
+            ? { value: String(query.data.meta.total), label: "entries logged", icon: ScrollText }
+            : undefined
+        }
       />
 
       <RecomputePanel />
@@ -462,7 +484,9 @@ export function UsersPage() {
         description="Every person who can reach this platform, and exactly what you have trusted them to do inside it."
       />
       <AdminSubNav
-        stat={query.data ? { value: String(query.data.meta.total), label: "people" } : undefined}
+        stat={
+          query.data ? { value: String(query.data.meta.total), label: "people", icon: Users } : undefined
+        }
       />
 
       {/*

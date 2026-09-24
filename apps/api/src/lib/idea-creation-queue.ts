@@ -32,7 +32,12 @@ export function makeIdeaCreationEnqueuer(
   return {
     async enqueue(job) {
       try {
-        await withEnqueueTimeout(queue.add("turn", job));
+        // One job per user message, not per enqueue call — see the comment on
+        // `IdeaCreationEnqueuer` (context.ts). Mirrors `analysis-queue.ts`'s
+        // `versionId--contentHash` and `discovery-queue.ts`'s `discoveryQueryId`.
+        await withEnqueueTimeout(
+          queue.add("turn", job, { jobId: `${job.conversationId}--${job.messageId}` }),
+        );
         return true;
       } catch (error) {
         logger?.warn(

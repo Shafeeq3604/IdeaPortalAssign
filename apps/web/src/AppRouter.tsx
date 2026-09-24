@@ -47,11 +47,19 @@ const IdeaCreationPage = lazy(() => import("./features/idea-creation/IdeaCreatio
 const ReviseIdeaPage = lazy(() => import("./features/ideas/ReviseIdeaPage").then((m) => ({ default: m.ReviseIdeaPage })));
 const VersionPage = lazy(() => import("./features/ideas/VersionPage").then((m) => ({ default: m.VersionPage })));
 const ReviewTab = lazy(() => import("./features/review/ReviewTab").then((m) => ({ default: m.ReviewTab })));
+const LeadershipDecisionTab = lazy(() => import("./features/leadership/LeadershipDecisionTab").then((m) => ({ default: m.LeadershipDecisionTab })));
+const AnalyticsPage = lazy(() => import("./features/analytics/AnalyticsPage").then((m) => ({ default: m.AnalyticsPage })));
 const ReviewQueuePage = lazy(() => import("./features/review/ReviewQueuePage").then((m) => ({ default: m.ReviewQueuePage })));
 const ComparePage = lazy(() => import("./features/rankings/ComparePage").then((m) => ({ default: m.ComparePage })));
 const DashboardPage = lazy(() => import("./features/rankings/DashboardPage").then((m) => ({ default: m.DashboardPage })));
 const CriteriaPage = lazy(() => import("./features/config/ConfigPages").then((m) => ({ default: m.CriteriaPage })));
 const ProfilesPage = lazy(() => import("./features/config/ConfigPages").then((m) => ({ default: m.ProfilesPage })));
+const CategoriesPage = lazy(() =>
+  import("./features/config/CategoryAndCatalogPages").then((m) => ({ default: m.CategoriesPage })));
+const ExistingSolutionsPage = lazy(() =>
+  import("./features/config/CategoryAndCatalogPages").then((m) => ({ default: m.ExistingSolutionsPage })));
+const DetectionConfigPage = lazy(() =>
+  import("./features/config/CategoryAndCatalogPages").then((m) => ({ default: m.DetectionConfigPage })));
 const AuditPage = lazy(() => import("./features/admin/AdminPages").then((m) => ({ default: m.AuditPage })));
 const UsersPage = lazy(() => import("./features/admin/AdminPages").then((m) => ({ default: m.UsersPage })));
 const DepartmentPage = lazy(() => import("./features/people/ScopedIdeaPages").then((m) => ({ default: m.DepartmentPage })));
@@ -151,14 +159,19 @@ function Shell() {
             <Route path="/ideas/:ideaId/analysis" element={<AnalysisTab />} />
             <Route path="/ideas/:ideaId/evaluation" element={<EvaluationTab />} />
             <Route path="/ideas/:ideaId/review" element={<ReviewTab />} />
+            <Route path="/ideas/:ideaId/leadership-decision" element={<LeadershipDecisionTab />} />
             <Route path="/review" element={<ReviewQueuePage />} />
             {/* Static before dynamic: /rankings/compare must not be read as a run id. */}
             <Route path="/rankings/compare" element={<ComparePage />} />
             <Route path="/rankings/:runId" element={<RankingsPage mode="run" />} />
             <Route path="/rankings" element={<RankingsPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/config/criteria" element={<CriteriaPage />} />
             <Route path="/config/profiles" element={<ProfilesPage />} />
+            <Route path="/config/categories" element={<CategoriesPage />} />
+            <Route path="/config/existing-solutions" element={<ExistingSolutionsPage />} />
+            <Route path="/config/detection" element={<DetectionConfigPage />} />
             <Route path="/admin/audit" element={<AuditPage />} />
             <Route path="/admin/users" element={<UsersPage />} />
             <Route path="/people/:userId" element={<PersonPage />} />

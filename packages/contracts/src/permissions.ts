@@ -21,6 +21,8 @@ export const PERMISSIONS = [
   "idea:transition",
   "review:write",
   "score:override",
+  /** ADR-026 — recording a final organisational decision against an AI recommendation. */
+  "leadership:decide",
   "config:read",
   "config:write",
   "dashboard:read",
@@ -55,6 +57,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   ],
   MANAGEMENT: [
     "idea:create", "idea:read", "idea:read:own", "config:read", "dashboard:read", "discovery:use",
+    "leadership:decide",
   ],
   ADMIN: [
     "idea:create", "idea:read", "idea:read:own", "idea:transition",
@@ -64,7 +67,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     // matters is unaffected: `can()` still stops anyone reviewing their OWN idea.
     "review:write",
     "config:read", "config:write", "dashboard:read", "audit:read", "user:manage", "ranking:recompute",
-    "discovery:use",
+    "discovery:use", "leadership:decide",
   ],
 };
 
@@ -94,6 +97,7 @@ export type Action =
   | "idea:transition"
   | "review:create"
   | "score:override"
+  | "leadership:decide"
   | "audit:read";
 
 export interface Actor {
@@ -198,6 +202,16 @@ export function can(actor: Actor, action: Action, idea?: IdeaResource): Decision
         return has(actor, "REVIEWER") ? ALLOW : deny("ROLE_NOT_PERMITTED");
       }
       return has(actor, "REVIEWER") || has(actor, "ADMIN") ? ALLOW : deny("ROLE_NOT_PERMITTED");
+    }
+
+    case "leadership:decide": {
+      if (!idea) return deny("NOT_VISIBLE");
+      // Same conflict-of-interest rule as review:create/score:override — checked before
+      // role, so an ADMIN cannot record the final decision on their own idea either.
+      if (isOwner) return deny("CANNOT_REVIEW_OWN_IDEA");
+      return has(actor, "MANAGEMENT") || has(actor, "ADMIN")
+        ? ALLOW
+        : deny("ROLE_NOT_PERMITTED");
     }
 
     case "audit:read":

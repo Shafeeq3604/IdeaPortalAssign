@@ -104,6 +104,14 @@ export const ApiEnv = Base.extend({
       "ANTHROPIC_API_KEY must NOT be set on the API process — only the worker holds it (SPEC §4.4)",
     )
     .optional(),
+  /** Same guard as ANTHROPIC_API_KEY above, same reason — P12's embedding provider key. */
+  OPENAI_API_KEY: z
+    .string()
+    .max(
+      0,
+      "OPENAI_API_KEY must NOT be set on the API process — only the worker holds it (SPEC §4.4)",
+    )
+    .optional(),
 }).superRefine((env, ctx) => {
   // Each provider's own required fields, rather than making both sets of fields always
   // required: an azure-blob deployment should not have to invent a throwaway
@@ -171,6 +179,14 @@ export const WorkerEnv = Base.extend({
   // Requiring it here would defeat that fallback before it ever runs.
   ANTHROPIC_API_KEY: nonEmpty.optional(),
   AI_PROVIDER: z.enum(["anthropic", "stub"]).default("anthropic"),
+  /**
+   * P12 (AI-10/AI-11). Same "optional, degrade to stub rather than refuse to boot"
+   * reasoning as ANTHROPIC_API_KEY above — a missing key means detection runs on its
+   * non-AI fallback (trigram search / catalogue-only lookup, SPEC §12.3), never that the
+   * worker won't start.
+   */
+  OPENAI_API_KEY: nonEmpty.optional(),
+  EMBEDDING_PROVIDER: z.enum(["openai", "stub"]).default("openai"),
   /** Hard caps that fail CLOSED to the fallback, never silently degrade (SPEC §12.1). */
   AI_BUDGET_PER_VERSION_USD: z.coerce.number().positive().default(0.75),
   AI_BUDGET_ORG_DAILY_USD: z.coerce.number().positive().default(200),

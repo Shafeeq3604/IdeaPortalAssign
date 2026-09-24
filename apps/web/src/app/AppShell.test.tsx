@@ -118,10 +118,14 @@ describe("AppShell account menu", () => {
     const trigger = await screen.findByRole("button", { name: /Priya Patel/ });
     fireEvent.click(trigger);
 
+    // Scoped to the menu itself, not the whole document: the sidebar's own signed-in-user
+    // footer (`SidebarUserFooter`) now shows the same person's primary role too, so an
+    // unscoped `getByText("Reviewer")` would find two matches once both render.
+    const menu = within(screen.getByRole("menu"));
     expect(screen.getByRole("menu")).toBeInTheDocument();
-    expect(screen.getByText("priya@example.invalid")).toBeInTheDocument();
-    expect(screen.getByText("Reviewer")).toBeInTheDocument();
-    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(menu.getByText("priya@example.invalid")).toBeInTheDocument();
+    expect(menu.getByText("Reviewer")).toBeInTheDocument();
+    expect(menu.getByText("Admin")).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());

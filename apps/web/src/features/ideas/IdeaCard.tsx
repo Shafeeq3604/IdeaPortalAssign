@@ -138,7 +138,17 @@ export function IdeaCard({ idea }: { idea: IdeaSummary }) {
             running
           </span>
         ) : idea.compositeScore === null ? null : (
-          <ScoreRing value={idea.compositeScore} size="sm" />
+          <span className="shrink-0">
+            <ScoreRing value={idea.compositeScore} size="sm" />
+            {/* `ScoreRing` is entirely `aria-hidden` (it's a decorative dial, not text) —
+                without this, a screen-reader user hears the title, status and rank chip
+                but never the actual score, the one figure the dial exists to show
+                (same convention as RankingsPage.tsx's podium `sr-only` span). */}
+            <span className="sr-only">
+              Composite score {idea.compositeScore.toFixed(1)} out of 100
+              {idea.rank === null ? "" : `, ranked #${idea.rank}`}
+            </span>
+          </span>
         )}
       </div>
 
@@ -226,7 +236,17 @@ export function FeaturedIdeaCard({ idea }: { idea: IdeaSummary }) {
       </div>
 
       <div className="mt-3.5 flex flex-wrap items-start gap-5">
-        {idea.compositeScore === null ? null : <ScoreRing value={idea.compositeScore} />}
+        {idea.compositeScore === null ? null : (
+          <span className="shrink-0">
+            <ScoreRing value={idea.compositeScore} />
+            {/* Same `sr-only` fallback as the ordinary `IdeaCard` above — `ScoreRing` is
+                entirely `aria-hidden`. */}
+            <span className="sr-only">
+              Composite score {idea.compositeScore.toFixed(1)} out of 100
+              {idea.rank === null ? "" : `, ranked #${idea.rank}`}
+            </span>
+          </span>
+        )}
 
         <div className="min-w-[16rem] flex-1">
           <h3 className="text-400 font-semibold leading-snug">

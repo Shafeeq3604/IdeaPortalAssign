@@ -23,6 +23,7 @@ const TABS = [
   { id: "idea.evaluation", label: "Evaluation", seg: "evaluation" },
   { id: "idea.history", label: "History", seg: "history" },
   { id: "idea.review", label: "Review", seg: "review" },
+  { id: "idea.leadershipDecision", label: "Leadership decision", seg: "leadership-decision" },
 ] as const;
 
 /**

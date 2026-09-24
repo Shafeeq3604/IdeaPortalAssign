@@ -1,17 +1,21 @@
+import * as React from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Clock, Scale, ShieldAlert, SlidersHorizontal, Target, TrendingUp, Users, Wrench,
 } from "lucide-react";
 import {
-  Badge, Card, CardContent, CardHeader, CardTitle, ErrorState, Skeleton, Table, TableBody,
-  TableCell, TableHead, TableHeader, TableRow,
+  Badge, Button, Card, CardContent, CardHeader, CardTitle, ErrorState, Input, Label, Skeleton,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@iep/ui";
-import type { CriterionGroup, ListCriteriaResponse, ListProfilesResponse } from "@iep/contracts";
-import { api } from "../../app/api-client";
+import type {
+  CriterionGroup, ListCriteriaResponse, ListProfilesResponse, ProfileDefinition,
+} from "@iep/contracts";
+import { ApiError, api } from "../../app/api-client";
 import { queryKeys } from "../../app/query-keys";
 import { GROUP_LABEL } from "../evaluation/api";
 import { PageHeading } from "../../app/PageHero";
+import { useUpdateProfileWeights } from "../rankings/api";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -187,12 +191,136 @@ export function CriteriaPage() {
   );
 }
 
+/**
+ * Inline weight editor for one profile (P10, FR-13).
+ *
+ * Percentages in the UI, fractions on the wire — the same convention `ProfilesPage`'s
+ * read view already uses (`weight * 100`). Editing replaces the WHOLE set for this
+ * profile (a rebalance, not a per-row patch): the API and the DB's own deferred trigger
+ * both check the final total, so a half-saved partial edit is never a valid state to be
+ * in, and this form does not pretend one row can be saved alone.
+ */
+function ProfileWeightsEditor({
+  profile,
+  onDone,
+}: {
+  profile: ProfileDefinition;
+  onDone: () => void;
+}) {
+  const [percentages, setPercentages] = React.useState<Record<string, string>>(() =>
+    Object.fromEntries(profile.weights.map((w) => [w.criterionKey, (w.weight * 100).toFixed(1)])),
+  );
+  const [reason, setReason] = React.useState("");
+  const [touched, setTouched] = React.useState(false);
+  const mutation = useUpdateProfileWeights();
+
+  const total = Object.values(percentages).reduce((sum, v) => sum + (Number(v) || 0), 0);
+  const totalOk = Math.abs(total - 100) <= 0.05;
+  const reasonMissing = reason.trim().length === 0;
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setTouched(true);
+        if (!totalOk || reasonMissing) return;
+        mutation.mutate(
+          {
+            profileKey: profile.key,
+            reason: reason.trim(),
+            weights: profile.weights.map((w) => ({
+              criterionKey: w.criterionKey,
+              weight: (Number(percentages[w.criterionKey]) || 0) / 100,
+            })),
+          },
+          { onSuccess: onDone },
+        );
+      }}
+    >
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Criterion</TableHead>
+            <TableHead className="w-32">Weight (%)</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {profile.weights.map((w) => (
+            <TableRow key={w.criterionKey}>
+              <TableCell>{w.criterionLabel}</TableCell>
+              <TableCell>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  value={percentages[w.criterionKey] ?? "0"}
+                  onChange={(event) =>
+                    setPercentages((prev) => ({ ...prev, [w.criterionKey]: event.target.value }))
+                  }
+                  aria-label={`${w.criterionLabel} weight, percent`}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <p
+        className={
+          totalOk ? "text-100 text-muted-foreground" : "text-100 font-medium text-destructive"
+        }
+        role={totalOk ? undefined : "alert"}
+      >
+        Total {total.toFixed(1)}%{totalOk ? "" : " — weights must sum to 100% (FR-13)"}
+      </p>
+
+      <div>
+        <Label htmlFor="field-weightsReason">Why (required)</Label>
+        <Input
+          id="field-weightsReason"
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          placeholder="e.g. leadership asked to prioritise cost reduction this quarter"
+          aria-invalid={touched && reasonMissing}
+          aria-describedby={touched && reasonMissing ? "error-weightsReason" : undefined}
+        />
+        {touched && reasonMissing ? (
+          <p id="error-weightsReason" role="alert" className="mt-1 text-100 text-destructive">
+            The reason is stored on the audit trail. Say why.
+          </p>
+        ) : null}
+      </div>
+
+      {mutation.isError ? (
+        <p role="alert" className="text-100 text-destructive">
+          {mutation.error instanceof ApiError
+            ? mutation.error.body.message
+            : "Could not save these weights. Nothing changed."}
+        </p>
+      ) : null}
+
+      <div className="flex gap-2">
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? "Saving…" : "Save weights"}
+        </Button>
+        <Button type="button" variant="outline" onClick={onDone} disabled={mutation.isPending}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export function ProfilesPage() {
   const query = useQuery({
     queryKey: queryKeys.config.profiles(),
     queryFn: () => api<ListProfilesResponse>("/config/profiles"),
     staleTime: 5 * 60_000,
   });
+  const [editingKey, setEditingKey] = React.useState<string | null>(null);
 
   return (
     <main className="page">
@@ -219,18 +347,30 @@ export function ProfilesPage() {
         <div className="mt-6 space-y-6">
           {query.data.items.map((profile) => {
             const sum = profile.weights.reduce((acc, w) => acc + w.weight, 0);
+            const isEditing = editingKey === profile.key;
             return (
               <Card key={profile.key}>
                 <CardHeader>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <CardTitle className="font-serif">{profile.name}</CardTitle>
-                    {profile.isDefault ? <Badge>Default</Badge> : null}
-                    {!profile.isActive ? <Badge variant="outline">Not in use</Badge> : null}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <CardTitle className="font-serif">{profile.name}</CardTitle>
+                      {profile.isDefault ? <Badge>Default</Badge> : null}
+                      {!profile.isActive ? <Badge variant="outline">Not in use</Badge> : null}
+                    </div>
+                    {query.data.canEditWeights && !isEditing ? (
+                      <Button size="sm" variant="outline" onClick={() => setEditingKey(profile.key)}>
+                        Edit weights
+                      </Button>
+                    ) : null}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="text-200">{profile.description}</p>
 
+                  {isEditing ? (
+                    <ProfileWeightsEditor profile={profile} onDone={() => setEditingKey(null)} />
+                  ) : (
+                    <>
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
@@ -303,6 +443,8 @@ export function ProfilesPage() {
                       See the board weighted this way
                     </Link>
                   </p>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             );

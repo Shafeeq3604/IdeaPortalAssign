@@ -312,6 +312,50 @@ function AccountMenu() {
   );
 }
 
+/**
+ * The signed-in person, pinned to the foot of the sidebar (design-review request,
+ * against a reference screenshot whose sidebar closes on an avatar + name + role).
+ *
+ * Reuses `AccountMenu`'s own avatar-initials-and-role markup rather than inventing a
+ * second version of it — same `useSession()` hook AccountMenu already calls
+ * independently (React Query dedupes the request; this is not a second fetch), same
+ * initials computation. Deliberately plain text here, not a second interactive menu:
+ * the account menu in the header is already the one place sign-out and role details
+ * live, and a sidebar with two different "click me for your account" controls is a
+ * worse pattern than a single quiet identity strip.
+ */
+function SidebarUserFooter() {
+  const { data } = useSession();
+  if (!data) return null;
+
+  const initials = data.user.displayName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+  const primaryRole = data.user.roles[0];
+
+  return (
+    <div className="mt-auto flex items-center gap-2.5 border-t border-border p-3">
+      <span
+        aria-hidden
+        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-grad-highlight/20 text-100 font-bold text-grad-highlight ring-1 ring-grad-rule"
+      >
+        {initials}
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-200 font-semibold text-foreground">{data.user.displayName}</p>
+        {primaryRole ? (
+          <p className="truncate text-100 text-muted-foreground">
+            {primaryRole.charAt(0) + primaryRole.slice(1).toLowerCase()}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
   const { data } = useSession();
@@ -428,8 +472,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </span>
           {/*
             Full name where there is room, the short form once there isn't, and neither
-            below `sm` — a phone-width header has the hamburger, this link, "New idea",
-            Discover, the theme toggle and the account menu all in one 320-ish px row, and
+            below `sm` — a phone-width header has the hamburger, this link, "Submit an
+            idea", Discover, the theme toggle and the account menu all in one 320-ish px
+            row, and
             "Idea Platform" has no room left to sit in. Truncating it to "I…" was worse
             than showing nothing: the mark two characters to its left already carries the
             identity on its own at that width.
@@ -467,12 +512,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         */}
         <div className="ml-auto flex items-center gap-1">
           {/*
-            "New idea" in the bar, in amber (Idea Platform Redesign — header).
+            "Submit an idea" in the bar, in amber (Idea Platform Redesign — header).
 
             The one thing this product exists for was previously reachable only from the
             sidebar, which is hidden on a phone until you open the menu. Amber because it
             is the single warm accent the gradient tokens allow, and because the one CTA
             that should never be hunted for is the one that adds an idea.
+
+            Labeled to match every other entry point to this exact destination — the
+            sidebar link, the command palette entry, this page's own heading and the
+            escape hatch on an empty idea list (UI audit finding: this button used to say
+            "New idea" while all five of those said "Submit an idea" — same href, two
+            different names for a first-time user to reconcile). This was the one out of
+            step with the rest, not the other five.
 
             `text-grad-from`, not white: --grad-highlight is amber in both themes and
             white on it is about 2:1. The deep indigo is 6.6:1 on it, computed in
@@ -483,9 +535,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className="mr-1 inline-flex h-11 items-center gap-1.5 rounded-full bg-grad-highlight px-3 text-200 font-bold text-grad-from no-underline transition-transform duration-[var(--dur-fast)] hover:-translate-y-px sm:h-8"
           >
             <Plus aria-hidden className="size-4" />
-            <span className="hidden sm:inline">New idea</span>
-            <span aria-hidden className="sm:hidden">New</span>
-            <span className="sr-only sm:hidden">New idea</span>
+            <span className="hidden sm:inline">Submit an idea</span>
+            <span aria-hidden className="sm:hidden">Submit</span>
+            <span className="sr-only sm:hidden">Submit an idea</span>
           </Link>
           {/*
             SPC-001 — AI Discovery Agent. Deliberately a header icon, not a sidebar item:
@@ -515,7 +567,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           in dark mode, so the rail reads as related-to-but-different-from the cards
           sitting in the column beside it, instead of the exact same slate repeated.
         */}
-        <aside className="brand-rail hidden border-r border-border bg-sidebar md:block">{nav}</aside>
+        {/*
+          `sticky` + a height pinned to the viewport minus the header (design-review
+          request: the signed-in-user footer below should sit at the foot of the
+          sidebar, not right under however few nav links happen to fit) — without this,
+          `<aside>` is only ever as tall as `{nav}` itself (a two-column CSS grid does
+          not stretch a short column to match a much longer one the way a flex row
+          would), so `mt-auto` on the footer had nothing to push against and it sat
+          flush under the last link instead of at the bottom of the screen.
+        */}
+        <aside className="brand-rail hidden border-r border-border bg-sidebar md:sticky md:top-14 md:flex md:h-[calc(100dvh-3.5rem)] md:flex-col md:overflow-y-auto">
+          {nav}
+          <SidebarUserFooter />
+        </aside>
         {/*
           A real overlay drawer on a phone, not an inline panel that shoves the page's own
           content down the screen (design-audit finding: the old version left someone's
@@ -537,9 +601,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               role="dialog"
               aria-modal="true"
               aria-label="Main navigation"
-              className="absolute inset-y-0 left-0 w-72 max-w-[85vw] overflow-y-auto border-r border-border bg-sidebar shadow-e4"
+              className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto border-r border-border bg-sidebar shadow-e4"
             >
-              <div className="flex h-14 items-center justify-between border-b border-border px-4">
+              <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
                 <span className="flex items-center gap-2 text-200 font-semibold text-foreground">
                   <BrandMark className="size-4 text-accent-700" />
                   {PRODUCT_SHORT}
@@ -554,6 +618,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
               {nav}
+              <SidebarUserFooter />
             </div>
           </div>
         ) : null}
