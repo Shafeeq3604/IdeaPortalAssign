@@ -117,7 +117,7 @@ export function CriteriaPage() {
             const { icon: GroupIcon, tone } = GROUP_STYLE[group];
             return (
             <section key={group}>
-              <h2 className="flex items-center gap-2.5 text-400 font-semibold">
+              <h2 className="flex items-center gap-2.5 text-400 font-extrabold">
                 <span aria-hidden className={`grid size-7 shrink-0 place-items-center rounded-md ${tone}`}>
                   <GroupIcon className="size-4" />
                 </span>

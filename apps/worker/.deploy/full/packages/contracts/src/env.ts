@@ -187,8 +187,23 @@ export const WorkerEnv = Base.extend({
    */
   OPENAI_API_KEY: nonEmpty.optional(),
   EMBEDDING_PROVIDER: z.enum(["openai", "stub"]).default("openai"),
+  /**
+   * P13 email. `log` (the default) writes each email to the worker log and sends
+   * nothing — the same "safe unless deliberately configured" default as AI_PROVIDER=stub.
+   * `smtp` sends via SMTP_URL (smtp[s]://user:pass@host:port — Azure Communication
+   * Services, O365 and SendGrid all offer SMTP). Worker-only: the API never sends mail.
+   */
+  EMAIL_TRANSPORT: z.enum(["log", "smtp"]).default("log"),
+  SMTP_URL: z.string().regex(/^smtps?:\/\//, "SMTP_URL must start with smtp:// or smtps://").optional(),
+  EMAIL_FROM: nonEmpty.optional(),
+  /** Base for the links inside emails. Same value the API's PUBLIC_WEB_ORIGIN carries. */
+  PUBLIC_WEB_ORIGIN: z.string().url().default("http://localhost:5173"),
   /** Hard caps that fail CLOSED to the fallback, never silently degrade (SPEC §12.1). */
   AI_BUDGET_PER_VERSION_USD: z.coerce.number().positive().default(0.75),
+  /** P9 — independent analysis steps run at once per idea (see pipeline.ts). Operational:
+   *  raise it once the Anthropic account's real rate limit is known; a 429 becomes a
+   *  lower-quality fallback, so too high is worse than too low. */
+  AI_STEP_CONCURRENCY: z.coerce.number().int().min(1).max(7).default(4),
   AI_BUDGET_ORG_DAILY_USD: z.coerce.number().positive().default(200),
   AI_BUDGET_USER_DAILY_USD: z.coerce.number().positive().default(5),
   AI_RAW_PAYLOAD_RETENTION_DAYS: z.coerce.number().int().positive().default(90),

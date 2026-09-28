@@ -411,7 +411,7 @@ export function DiscoveryChatPage() {
               <Sparkles aria-hidden className="size-3" />
               AI Discovery Agent
             </span>
-            <h1 className="mt-3.5 font-serif text-600 font-semibold leading-tight tracking-tight text-grad-ink">
+            <h1 className="mt-3.5 font-serif text-600 font-extrabold leading-tight tracking-tight text-grad-ink">
               Discover
             </h1>
             <p className="mt-2 max-w-[52ch] text-200 leading-relaxed text-grad-ink-soft">
@@ -456,13 +456,13 @@ export function DiscoveryChatPage() {
               track. */}
           <div className="grid grid-cols-2 gap-2.5 self-start">
             <div className="rounded-xl bg-grad-ink/8 p-3 ring-1 ring-grad-rule">
-              <p className="font-serif text-500 font-semibold leading-none text-grad-ink">
+              <p className="font-serif text-500 font-extrabold leading-none text-grad-ink">
                 {history.data ? history.data.items.length : "—"}
               </p>
               <p className="mt-1 text-100 text-grad-ink-soft">Questions asked</p>
             </div>
             <div className="rounded-xl bg-grad-ink/8 p-3 ring-1 ring-grad-rule">
-              <p className="font-serif text-500 font-semibold leading-none text-grad-ink">
+              <p className="font-serif text-500 font-extrabold leading-none text-grad-ink">
                 {/*
                   Design-audit finding: a bare "0" here on every first visit, sitting next
                   to two tiles that usually show a real accumulated number, read as a
@@ -502,12 +502,14 @@ export function DiscoveryChatPage() {
             {examples.map((example) => {
               const Icon = MODE_ICON[example.mode] ?? Lightbulb;
               return (
-                <button
+                <Button
+                  variant="link"
+                  size="icon"
                   key={example.query}
                   type="button"
                   onClick={() => runQuery(example.query)}
                   disabled={create.isPending}
-                  className="flex flex-col gap-2 rounded-xl bg-card p-3.5 text-left shadow-e1 ring-1 ring-inset ring-border transition-all duration-[var(--dur-base)] hover:-translate-y-0.5 hover:shadow-e3 disabled:pointer-events-none disabled:opacity-50"
+                  className="size-auto whitespace-normal font-normal hover:shadow-none active:scale-100 flex shrink items-stretch justify-start text-[length:inherit] text-inherit ease-in-out hover:no-underline flex flex-col gap-2 rounded-xl bg-card p-3.5 text-left shadow-e1 ring-1 ring-inset ring-border transition-all duration-[var(--dur-base)] hover:-translate-y-0.5 hover:shadow-e3 disabled:pointer-events-none disabled:opacity-50"
                 >
                   <span className="flex items-center gap-1.5 text-100 font-semibold uppercase tracking-wide text-accent-700">
                     <Icon aria-hidden className="size-3.5 shrink-0" />
@@ -515,7 +517,7 @@ export function DiscoveryChatPage() {
                   </span>
                   <span className="text-100 text-foreground">&ldquo;{example.query}&rdquo;</span>
                   <span className="mt-auto text-100 font-semibold text-accent-700">Run this question →</span>
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -542,16 +544,21 @@ export function DiscoveryChatPage() {
           <ul className="space-y-1">
             {history.data.items
               .filter((h) => !turns.some((t) => t.id === h.id))
+              // One line per question: asking the same thing five times listed it five
+              // times. The list is newest first, so the kept copy is the latest answer.
+              .filter((h, i, all) => all.findIndex((o) => sameQuery(o.query, h.query)) === i)
               .slice(0, 10)
               .map((h) => (
                 <li key={h.id}>
-                  <button
+                  <Button
+                    variant="link"
+                    size="icon"
                     type="button"
-                    className="rounded-md text-left text-200 text-accent-700 underline-offset-2 hover:underline"
+                    className="size-auto whitespace-normal font-normal hover:shadow-none active:scale-100 inline-block shrink transition-none duration-0 rounded-md text-left text-200 text-accent-700 underline-offset-2 hover:underline"
                     onClick={() => setTurns((prev) => [...prev, { key: crypto.randomUUID(), id: h.id, query: h.query }])}
                   >
                     {h.query}
-                  </button>
+                  </Button>
                 </li>
               ))}
           </ul>
@@ -560,3 +567,6 @@ export function DiscoveryChatPage() {
     </main>
   );
 }
+
+const sameQuery = (a: string, b: string) =>
+  a.trim().toLowerCase().replace(/\s+/g, " ") === b.trim().toLowerCase().replace(/\s+/g, " ");

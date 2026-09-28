@@ -24,7 +24,7 @@ const engine = createEngine();
  * longer competing. Everything else is ranked — including PARKED and BLOCKED, because
  * an idea being stuck is a fact about its progress, not about its merit.
  */
-const RANKABLE: readonly IdeaStatus[] = [
+export const RANKABLE_STATUSES: readonly IdeaStatus[] = [
   "EVALUATED", "RANKED", "UNDER_REVIEW", "NEEDS_CLARIFICATION",
   "PROTOTYPE_CANDIDATE", "PILOT", "PRODUCTION_CANDIDATE", "IMPLEMENTED",
   "PARKED", "BLOCKED",
@@ -55,7 +55,7 @@ export async function recomputeRankings(
       engineVersion: config.engineVersion,
       // Only the CURRENT version of each idea competes. An old version's score is
       // history, not a second entry in the same race.
-      ideaVersion: { currentOf: { status: { in: [...RANKABLE] } } },
+      ideaVersion: { currentOf: { status: { in: [...RANKABLE_STATUSES] } } },
     },
     include: {
       criterionScores: { include: { criterion: { select: { key: true } } } },
@@ -107,7 +107,7 @@ export async function recomputeRankings(
     }
   }
 
-  const cohortKey = { profile: config.profile.key, statuses: RANKABLE, scope: "all" };
+  const cohortKey = { profile: config.profile.key, statuses: RANKABLE_STATUSES, scope: "all" };
 
   const evaluationByVersionId = new Map(evaluations.map((e) => [e.ideaVersionId, e]));
   const versionIdByEvaluationId = new Map(evaluationRows.map((e) => [e.id, e.ideaVersionId]));

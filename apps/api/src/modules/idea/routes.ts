@@ -4,6 +4,7 @@ import {
   UpdateDraftRequest, canTransition, can, ideaListScope,
   type IdeaStatus, type Role,
 } from "@iep/contracts";
+import { RANKABLE_STATUSES } from "@iep/evaluation";
 import type { Handler } from "../../server.js";
 import type { AppContext } from "../../context.js";
 import { requireActor, sendError } from "../../server.js";
@@ -12,6 +13,7 @@ import {
   type IdeaListFilterParams,
 } from "./repo.js";
 import { toIdeaDetail, toIdeaSummary, toVersionDetail, toVersionSummary, toStatusEntry } from "./present.js";
+import { commentCountsFor, socialFor } from "../social/queries.js";
 
 /**
  * Start analysis. Deliberately fire-and-forget: a queue outage must not fail a
@@ -262,7 +264,10 @@ export async function listIdeasByRank(
   // the page back in rank order rather than trusting it did.
   const byId = new Map(pageRows.map((row) => [row.id, row]));
   const rows = pageIds.map((id) => byId.get(id)).filter((row): row is (typeof pageRows)[number] => Boolean(row));
-  const feedback = await feedbackForIdeas({ db }, rows, userId);
+  const [feedback, comments] = await Promise.all([
+    feedbackForIdeas({ db }, rows, userId),
+    commentCountsFor(db, rows.map((row) => row.id)),
+  ]);
 
   return {
     items: rows.map((row) =>
@@ -270,6 +275,7 @@ export async function listIdeasByRank(
         row,
         scores.get(row.id) ?? { compositeScore: null, rank: null },
         feedback.get(row.id),
+        comments.get(row.id) ?? 0,
       ),
     ),
     meta: { page, perPage, total, totalPages: Math.ceil(total / perPage) },
@@ -306,9 +312,10 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
       perPage: parsed.data.perPage,
     });
 
-    const [scores, feedback] = await Promise.all([
+    const [scores, feedback, comments] = await Promise.all([
       scoresForCurrentVersions(ctx, rows),
       feedbackForIdeas(ctx, rows, actor.userId),
+      commentCountsFor(ctx.db, rows.map((row: { id: string }) => row.id)),
     ]);
 
     return {
@@ -317,6 +324,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
           row,
           scores.get(row.id) ?? { compositeScore: null, rank: null },
           feedback.get(row.id),
+          comments.get(row.id) ?? 0,
         ),
       ),
       meta: {
@@ -379,12 +387,13 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     if (!can(actor, "idea:read", resource).allowed) {
       return sendError(reply, "NOT_FOUND", NOT_FOUND);
     }
-    const [feedback, scores, detection] = await Promise.all([
+    const [feedback, scores, detection, social] = await Promise.all([
       feedbackForIdeas(ctx, [idea], actor.userId),
       scoresForCurrentVersions(ctx, [idea]),
       detectionForIdea(ctx, idea),
+      socialFor(ctx.db, idea.id, actor.userId),
     ]);
-    return toIdeaDetail(idea, actor, feedback.get(idea.id), detection, scores.get(idea.id));
+    return toIdeaDetail(idea, actor, feedback.get(idea.id), detection, scores.get(idea.id), social);
   });
 
   handlers.set("updateDraft", async (request, reply, ctx) => {
@@ -453,8 +462,11 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     }
     const fresh = await repo.findById(ideaId);
     if (!fresh) throw new Error(`Idea ${ideaId} disappeared between its own update and re-fetch`);
-    const feedback = await feedbackForIdeas(ctx, [fresh], actor.userId);
-    return toIdeaDetail(fresh, actor, feedback.get(fresh.id));
+    const [feedback, social] = await Promise.all([
+      feedbackForIdeas(ctx, [fresh], actor.userId),
+      socialFor(ctx.db, fresh.id, actor.userId),
+    ]);
+    return toIdeaDetail(fresh, actor, feedback.get(fresh.id), undefined, undefined, social);
   });
 
   handlers.set("createVersion", async (request, reply, ctx) => {
@@ -680,13 +692,33 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
       await startAnalysis(ctx, ideaId, idea.currentVersionId);
     }
 
+    /*
+     * P9 (found on the redesigned dashboard): archiving or rejecting an idea took it out of
+     * every count but left it on the board, because the latest ranking run is an immutable
+     * snapshot taken before the change — "11 on the board" against "9 ideas". A move INTO
+     * or OUT OF the rankable set changes the cohort itself, so it asks for a recompute, the
+     * same fire-and-forget queue a score override already uses (ADR-008). Moves within the
+     * set (e.g. RANKED → UNDER_REVIEW) change nothing the engine reads, so they don't.
+     */
+    const wasRankable = RANKABLE_STATUSES.includes(from);
+    const isRankable = RANKABLE_STATUSES.includes(parsed.data.to);
+    if (wasRankable !== isRankable) {
+      await ctx.ranking.enqueue({
+        triggeredById: actor.userId,
+        triggerReason: `idea ${ideaId} moved ${from} → ${parsed.data.to}`,
+      });
+    }
+
     const transitioned = await repo.findById(ideaId);
     if (!transitioned) throw new Error(`Idea ${ideaId} disappeared between its own transition and re-fetch`);
-    const [feedback, scores, detection] = await Promise.all([
+    const [feedback, scores, detection, social] = await Promise.all([
       feedbackForIdeas(ctx, [transitioned], actor.userId),
       scoresForCurrentVersions(ctx, [transitioned]),
       detectionForIdea(ctx, transitioned),
+      socialFor(ctx.db, transitioned.id, actor.userId),
     ]);
-    return toIdeaDetail(transitioned, actor, feedback.get(transitioned.id), detection, scores.get(transitioned.id));
+    return toIdeaDetail(
+      transitioned, actor, feedback.get(transitioned.id), detection, scores.get(transitioned.id), social,
+    );
   });
 }

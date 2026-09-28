@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  ChevronDown, Compass, LayoutDashboard, ListChecks, LogOut, Menu, PenSquare, Plus, Settings,
+  Bell, ChevronDown, Compass, LayoutDashboard, ListChecks, LogOut, Menu, PenSquare, Plus, Settings,
   ShieldCheck, Sparkles, Trophy, User, X,
 } from "lucide-react";
 import { Button } from "@iep/ui";
@@ -11,8 +11,10 @@ import type { Role } from "@iep/contracts";
 import { api } from "./api-client";
 import { canSee, useSession } from "./use-session";
 import { ThemeToggle } from "./theme";
+import { useUnreadCount } from "../features/notifications/api";
 import { BrandMark } from "./BrandMark";
 import { CommandPalette } from "./CommandPalette";
+import { MobileTabBar } from "./MobileTabBar";
 import { PRODUCT_NAME, PRODUCT_SHORT } from "./product";
 
 /**
@@ -222,15 +224,15 @@ function AccountMenu() {
         // `hidden` below the `sm` breakpoint) — a button whose only accessible name comes
         // from text that can be hidden by CSS is one layout change away from having none.
         aria-label={`Account menu for ${data.user.displayName}`}
-        className={`flex h-11 items-center gap-2 rounded-lg px-2 py-1.5 transition-colors duration-[var(--dur-fast)] sm:h-auto ${ON_BAR}`}
+        className={`flex h-11 items-center gap-2 rounded-lg px-1.5 py-1.5 transition-colors sm:px-2 duration-[var(--dur-fast)] sm:h-auto ${ON_BAR}`}
       >
         <span className="flex size-7 items-center justify-center rounded-full bg-grad-highlight/20 text-100 font-bold text-grad-highlight ring-1 ring-grad-rule">
           {initials}
         </span>
-        <span className="hidden text-200 font-medium sm:inline">{data.user.displayName}</span>
+        <span className="hidden text-200 font-medium lg:inline">{data.user.displayName}</span>
         <ChevronDown
           aria-hidden
-          className={`size-4 transition-transform duration-[var(--dur-fast)] ${open ? "rotate-180" : ""}`}
+          className={`hidden size-4 transition-transform duration-[var(--dur-fast)] sm:block ${open ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -278,19 +280,10 @@ function AccountMenu() {
             </div>
           </div>
 
+          {/* P9 tester feedback: "How your data is handled" moved out of this menu to the
+              foot of the sidebar (`SidebarHelp`) — people did not expect a privacy notice
+              behind their own avatar. */}
           <div className="p-1.5">
-            <Link
-              to="/help/data-and-ai"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-200 no-underline transition-colors duration-[var(--dur-fast)] hover:bg-accent hover:text-accent-foreground"
-            >
-              <ShieldCheck aria-hidden className="size-4 shrink-0" />
-              How your data is handled
-            </Link>
-
-            <div className="my-1.5 border-t border-border" />
-
             {/*
               Sign out is where every application on earth puts it, and it is tinted
               destructive so it reads as the one item that ends something.
@@ -312,46 +305,29 @@ function AccountMenu() {
   );
 }
 
-/**
- * The signed-in person, pinned to the foot of the sidebar (design-review request,
- * against a reference screenshot whose sidebar closes on an avatar + name + role).
- *
- * Reuses `AccountMenu`'s own avatar-initials-and-role markup rather than inventing a
- * second version of it — same `useSession()` hook AccountMenu already calls
- * independently (React Query dedupes the request; this is not a second fetch), same
- * initials computation. Deliberately plain text here, not a second interactive menu:
- * the account menu in the header is already the one place sign-out and role details
- * live, and a sidebar with two different "click me for your account" controls is a
- * worse pattern than a single quiet identity strip.
+/*
+ * No signed-in-person strip at the foot of the sidebar any more (owner feedback,
+ * 2026-09-25): the header's account menu already shows who is signed in, their roles and
+ * sign-out, and a second copy of the same name in the corner was repetition.
  */
-function SidebarUserFooter() {
-  const { data } = useSession();
-  if (!data) return null;
+/**
+ * "How your data is handled", as a utility link at the foot of the sidebar (P9 tester
+ * feedback — it used to sit inside the account menu, where nobody looked for it).
+ *
+ * Deliberately NOT a tenth main-navigation destination: REQUIREMENTS §20 keeps that list
+ * to the seven it names. This sits below them, past a divider —
+ * help chrome, the same place other enterprise tools put "How X works".
+ */
+const HELP_ITEM: NavItem = {
+  to: "/help/data-and-ai", label: "How your data is handled", icon: ShieldCheck, roles: [],
+  tone: "bg-muted text-muted-foreground",
+};
 
-  const initials = data.user.displayName
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
-  const primaryRole = data.user.roles[0];
-
+function SidebarHelp() {
+  const { pathname } = useLocation();
   return (
-    <div className="mt-auto flex items-center gap-2.5 border-t border-border p-3">
-      <span
-        aria-hidden
-        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-grad-highlight/20 text-100 font-bold text-grad-highlight ring-1 ring-grad-rule"
-      >
-        {initials}
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-200 font-semibold text-foreground">{data.user.displayName}</p>
-        {primaryRole ? (
-          <p className="truncate text-100 text-muted-foreground">
-            {primaryRole.charAt(0) + primaryRole.slice(1).toLowerCase()}
-          </p>
-        ) : null}
-      </div>
+    <div className="mt-auto border-t border-border p-3">
+      <NavLink item={HELP_ITEM} active={pathname === HELP_ITEM.to} />
     </div>
   );
 }
@@ -437,7 +413,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         moment somebody signs in. Text on it is white in BOTH themes — the bar is dark in
         both, so a token that flips would be wrong here.
       */}
-      <header className="brand-bar sticky top-0 z-40 flex h-14 items-center gap-3 px-4 text-grad-ink shadow-e2">
+      <header className="brand-bar sticky top-0 z-40 flex h-14 items-center gap-1.5 px-2 sm:gap-3 sm:px-4 text-grad-ink shadow-e2">
         <Button
           variant="ghost"
           size="sm"
@@ -487,7 +463,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </span>
         </Link>
 
-        <div className="mx-2 md:flex-1 md:max-w-80">
+        <div className="sm:mx-2 md:flex-1 md:max-w-80">
           {/*
             Design-audit finding: the header search was a bare text box that only
             submitted on Enter — no live results, no way to reach a page directly, and
@@ -510,7 +486,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           on a white popover. The control was rendered, focusable and clickable, and
           completely invisible. Reported, reasonably, as "there is no sign out".
         */}
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center sm:gap-1">
           {/*
             "Submit an idea" in the bar, in amber (Idea Platform Redesign — header).
 
@@ -532,12 +508,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           */}
           <Link
             to="/ideas/new"
-            className="mr-1 inline-flex h-11 items-center gap-1.5 rounded-full bg-grad-highlight px-3 text-200 font-bold text-grad-from no-underline transition-transform duration-[var(--dur-fast)] hover:-translate-y-px sm:h-8"
+            className="inline-flex h-11 w-11 items-center justify-center gap-1.5 rounded-full bg-grad-highlight sm:h-8 sm:w-8 md:mr-1 md:w-auto md:px-3 text-200 font-bold text-grad-from no-underline transition-transform duration-[var(--dur-fast)] hover:-translate-y-px"
           >
             <Plus aria-hidden className="size-4" />
-            <span className="hidden sm:inline">Submit an idea</span>
-            <span aria-hidden className="sm:hidden">Submit</span>
-            <span className="sr-only sm:hidden">Submit an idea</span>
+            <span className="hidden whitespace-nowrap md:inline">Submit an idea</span>
+            <span className="sr-only md:hidden">Submit an idea</span>
           </Link>
           {/*
             SPC-001 — AI Discovery Agent. Deliberately a header icon, not a sidebar item:
@@ -550,11 +525,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             to="/discovery"
             aria-label="Discover"
             title="Discover — ask the AI research agent"
-            className={`${ON_BAR} inline-flex h-11 w-11 items-center justify-center gap-1.5 rounded-md px-2 sm:h-8 sm:w-auto sm:justify-start sm:px-2.5`}
+            className={`${ON_BAR} inline-flex h-11 w-11 items-center justify-center gap-1.5 rounded-md px-2 sm:h-8 sm:w-8 lg:w-auto lg:justify-start lg:px-2.5`}
           >
             <Sparkles aria-hidden className="size-4 shrink-0" />
-            <span className="hidden text-200 font-medium sm:inline">Discover</span>
+            <span className="hidden text-200 font-medium lg:inline">Discover</span>
           </Link>
+          <NotificationBell />
           <ThemeToggle className={ON_BAR} />
           <AccountMenu />
         </div>
@@ -578,7 +554,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         */}
         <aside className="brand-rail hidden border-r border-border bg-sidebar md:sticky md:top-14 md:flex md:h-[calc(100dvh-3.5rem)] md:flex-col md:overflow-y-auto">
           {nav}
-          <SidebarUserFooter />
+          <SidebarHelp />
         </aside>
         {/*
           A real overlay drawer on a phone, not an inline panel that shoves the page's own
@@ -618,14 +594,46 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
               {nav}
-              <SidebarUserFooter />
+              <SidebarHelp />
             </div>
           </div>
         ) : null}
-        <div id="main-content" tabIndex={-1} className="min-w-0 focus:outline-none">
+        <div id="main-content" tabIndex={-1} className="has-tab-bar min-w-0 focus:outline-none">
           {children}
         </div>
       </div>
+      {/* P20 — the phone's bottom tab bar; hidden from `md` up, where the sidebar is. */}
+      <MobileTabBar />
     </div>
+  );
+}
+
+/**
+ * P13 — the notification bell. A header icon for the same reason Discover is one:
+ * REQUIREMENTS §20 fixes the sidebar's destinations, and this is account-level chrome,
+ * like the theme toggle, not a new section of the product.
+ */
+function NotificationBell() {
+  const session = useSession();
+  const unread = useUnreadCount(Boolean(session.data));
+  const count = unread.data ?? 0;
+  const label = count > 0 ? `Notifications, ${count} unread` : "Notifications";
+  return (
+    <Link
+      to="/notifications"
+      aria-label={label}
+      title={label}
+      className={`${ON_BAR} relative inline-flex h-11 w-11 items-center justify-center rounded-md sm:h-8 sm:w-8`}
+    >
+      <Bell aria-hidden className="size-4" />
+      {count > 0 ? (
+        <span
+          aria-hidden
+          className="absolute -right-0.5 -top-0.5 grid min-w-4 place-items-center rounded-full bg-state-danger px-1 text-100 font-bold leading-4 text-primary-foreground tabular-nums"
+        >
+          {count > 99 ? "99+" : count}
+        </span>
+      ) : null}
+    </Link>
   );
 }

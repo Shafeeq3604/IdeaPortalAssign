@@ -1,6 +1,9 @@
 import * as React from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
-import { Button } from "@iep/ui";
+import { Check, Monitor, Moon, Sun } from "lucide-react";
+import {
+  Button, DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@iep/ui";
 import { ThemeContext, type Theme } from "./theme-context";
 
 /**
@@ -64,41 +67,69 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
-const NEXT: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
+/**
+ * The three choices, in the order a person reads them. "Auto" is the word people know for
+ * "follow my device"; the stored value stays `system`.
+ */
+const OPTIONS: readonly { value: Theme; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "Auto", icon: Monitor },
+];
+
 const LABEL: Record<Theme, string> = {
-  system: "Theme: follow my system",
+  system: "Theme: auto (follows your device)",
   light: "Theme: light",
   dark: "Theme: dark",
 };
 
 /**
- * @param className Styling from the surface this sits on.
+ * The theme picker: a small menu with Light, Dark and Auto, and a tick on the current one.
  *
- * It exists because the header is a dark gradient and this button has to be white there
- * and not elsewhere. The alternative — a `[&_button]` descendant rule on the header —
- * is what made the sign-out item white-on-white inside the account dropdown, because a
- * descendant selector cannot tell a toolbar button from one three levels down in a popover.
+ * P9 tester feedback: this used to be a button that CYCLED system → light → dark, so
+ * getting to dark from the default took up to three clicks, with no way to see what the
+ * next click would do. A menu is one click to open and one to choose, and shows all three.
+ *
+ * @param className Styling from the surface this sits on. It exists because the header is
+ * a dark gradient and this button has to be white there and not elsewhere — a `[&_button]`
+ * descendant rule is what once made the sign-out item white-on-white inside a popover.
  */
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = React.useContext(ThemeContext);
   const Icon = theme === "light" ? Sun : theme === "dark" ? Moon : Monitor;
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className={`${className ?? ""} h-11 w-11 gap-1.5 px-2 sm:h-8 sm:w-auto sm:px-2.5`}
-      onClick={() => setTheme(NEXT[theme])}
-      // The label says the CURRENT state, not the next one. "Switch to dark" on a button
-      // showing a sun is ambiguous about which it is describing.
-      aria-label={LABEL[theme]}
-      title={LABEL[theme]}
-    >
-      <Icon aria-hidden className="size-4 shrink-0" />
-      {/* A fixed word, not the current mode's name — the icon already carries which mode
-          this is, and swapping "Light"/"Dark"/"System" in and out of the header on every
-          click would shift the layout beside it on every toggle. */}
-      <span className="hidden text-200 font-medium sm:inline">Theme</span>
-    </Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`${className ?? ""} h-11 w-11 gap-1.5 px-2 sm:h-8 sm:w-8 lg:w-auto lg:px-2.5`}
+          // Names the CURRENT state; the menu itself shows the choices.
+          aria-label={LABEL[theme]}
+          title={LABEL[theme]}
+        >
+          <Icon aria-hidden className="size-4 shrink-0" />
+          <span className="hidden text-200 font-medium lg:inline">Theme</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-40">
+        <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as Theme)}>
+          {OPTIONS.map((o) => (
+            <DropdownMenuRadioItem
+              key={o.value}
+              value={o.value}
+              // The primitive's own dot indicator is hidden: a tick at the right edge is
+              // the convention people recognise for "this one is selected".
+              className="gap-2.5 py-2 pl-2.5 text-200 [&>span:first-child]:hidden"
+            >
+              <o.icon aria-hidden className="size-4 text-muted-foreground" />
+              <span className="flex-1">{o.label}</span>
+              {theme === o.value ? <Check aria-hidden className="size-4 text-accent-700" /> : null}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

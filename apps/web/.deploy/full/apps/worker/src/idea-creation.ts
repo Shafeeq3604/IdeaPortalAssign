@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@iep/db";
 import {
-  redact, type IdeaCreationProvider,
+  IDEA_CREATION_ROUTE, redact, type IdeaCreationProvider, type ModelRoute,
 } from "@iep/ai";
 import { EMPTY_IDEA_CREATION_DRAFT, type DraftField, type IdeaCreationDraft } from "@iep/contracts";
 import type { ObservabilityClient } from "./observability.js";
@@ -109,10 +109,12 @@ export async function runIdeaCreationTurn(
     content: redact(m.content, deps.redactionEnabled).text,
   }));
 
+  const route = await loadIdeaCreationRoute(db);
   const started = Date.now();
   const outcome = await provider.turn({
     history,
     currentDraft: redactDraftForProvider(currentDraft, deps.redactionEnabled),
+    route,
   });
 
   deps.observability.record({
@@ -184,4 +186,25 @@ export async function runIdeaCreationTurn(
       },
     }),
   ]);
+}
+
+/**
+ * The chat's model settings, from `ai_model_routes` (ADR-021: model choice is config, not
+ * code). Read per turn, so a change to the row takes effect on the next reply without a
+ * restart. A missing or disabled row falls back to the seeded default rather than failing
+ * the turn — an environment seeded before the IDEA_CREATION row existed keeps working.
+ */
+async function loadIdeaCreationRoute(db: PrismaClient): Promise<ModelRoute> {
+  const row = await db.aiModelRoute.findUnique({ where: { storyKey: "IDEA_CREATION" } });
+  if (!row || !row.enabled) return IDEA_CREATION_ROUTE;
+  return {
+    storyKey: "IDEA_CREATION",
+    tier: row.tier,
+    modelId: row.modelId,
+    effort: (row.effort ?? null) as ModelRoute["effort"],
+    thinkingMode: row.thinkingMode,
+    thinkingBudgetTokens: row.thinkingBudgetTokens,
+    maxTokens: row.maxTokens,
+    enabled: row.enabled,
+  };
 }

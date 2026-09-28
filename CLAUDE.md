@@ -119,28 +119,48 @@ MILESTONE M0 — Foundations
 MILESTONE M1 — MVP1 (must be a real, usable, navigable product on its own)
   [x] P1  Identity, Access & App Shell
   [x] P2  Idea Capture & Lifecycle
-  [~] P3  AI Analysis Pipeline   (UI + pipeline + SSE progress all done — getAnalysisStream
-                                  wires up the streamUrl P0 already reserved, and the web
-                                  client (useAnalysisStatus) now consumes it live, falling
-                                  back to the original poll when no stream proves itself
-                                  healthy (no EventSource support, a proxy that drops it).
-                                  AI evals: tests/evals, `pnpm eval` — now at SPEC §12.4's
-                                  full case count (65: 10 strong/10 vague/10 infeasible/10
-                                  near-duplicate + 25 adversarial), with the F1/band-match/
-                                  feasibility-match/risk-recall metrics computed and
-                                  reported. The one real gap left is annotation quality, not
-                                  case count: ground truth is still a first-pass single-
-                                  author draft, not the two-annotator, disagreement-resolved
-                                  labelling §12.4 requires — needs a real second reviewer
-                                  before these metrics can gate a release. See cases.ts's header)
+  [x] P3  AI Analysis Pipeline   (UI + pipeline + SSE progress (getAnalysisStream, with a
+                                  poll fallback). AI evals: tests/evals — 65 golden cases;
+                                  the safety metrics (injection 0/25, PII 0, schema 100%,
+                                  faithfulness 100%, fallback rankable 100%) block every PR
+                                  via `pnpm eval:pr`; the four accuracy metrics are REPORTED
+                                  by the real-model `pnpm eval`, not release-blocking, and the
+                                  labels may stay single-author — SPEC §16.1 D-22 (owner
+                                  decision, 2026-09-24): accuracy is watched via a one-off
+                                  spot-check of real analyses + the P6 score-override rate.
+                                  tests/evals/labelling/ keeps the annotator workbooks as an
+                                  optional tool)
   [x] P4  Evaluation & Ranking Engine        (parallel-safe with P2/P3)
   [x] P5  Explanation & Improvement   (AI-09 narrative deferred — optional in SPEC)
   [x] P6  Human Review, Overrides & Audit
   [x] P7  Ranked Board & Management Dashboard   (settle-rank FLIP reorder not built)
   [x] P8  Re-evaluation & Version History
-  [~] P9  Config Viewer (read-only) + MVP1 hardening   (axe + J1-J5 + Lighthouse + k6 +
-                                  a starter AI eval suite all exist; no real usability
-                                  validation with an actual person has happened yet)
+  [x] P9  Config Viewer (read-only) + MVP1 hardening   (axe + J1-J5 + Lighthouse + k6 +
+                                  AI evals all exist. Usability round 1 with real testers
+                                  DONE (2026-09-24) and worked through: dark-mode link/text
+                                  contrast (links 3.5:1 → 7.1:1), idea byline, light-theme
+                                  hero fading to white, Create page contrast + "form" option,
+                                  archived ideas out of default lists, parallel AI analysis
+                                  steps, chat reply polling + progress wording, idea-chat
+                                  history. "Richer, enterprise-grade look" pass DONE for the
+                                  Dashboard (attention-led hero, KPI row, top-opportunities
+                                  table, pipeline, attention list, activity, departments) and
+                                  the idea page (header card + navy score panel on every tab;
+                                  Overview "at a glance", analysis findings, why-it-ranks,
+                                  timeline) — real data only, no invented deltas — then carried
+                                  to every other page through the shared pieces (PageHeading/
+                                  PageHero, Card, Table, heading weights) plus a dark-mode
+                                  primary-button contrast fix (3.7:1 → 5.2:1). Second look
+                                  DONE (2026-09-24), all three notes fixed: Light/Dark/Auto
+                                  theme menu (was a 3-click cycle), rank-1 tile on the
+                                  podium, "How your data is handled" moved from the account
+                                  menu to the sidebar foot; dot grid slightly stronger.
+                                  Final checks: e2e 43/43 on the stub provider (as CI), and
+                                  the WCAG AA sweep re-run 30/30 in both themes after the
+                                  last UI changes. Found on the way:
+                                  real-model duplicate-dimension crash fixed in the worker,
+                                  and the injection check narrowed — SPEC §16.1 D-23. Owner
+                                  marked P9 done 2026-09-24)
 
 MILESTONE M2 — Signals, Duplication & Config
   [x] P10 Admin Configuration (write)   (evaluation-profile weight editing; categories
@@ -182,7 +202,16 @@ MILESTONE M2 — Signals, Duplication & Config
                                   packages/evaluation/src/detection.test.ts against a real
                                   pgvector-backed Postgres plus a live end-to-end browser
                                   verification)
-  [ ] P13 Notifications
+  [x] P13 Notifications   (in-app centre + header bell + per-event email opt-out; events
+                                  = analysis finished, status changed by a person, review
+                                  recorded, leadership decision — always to the idea's owner,
+                                  never the actor. Email is a worker-drained OUTBOX written in
+                                  the event's own transaction; transport defaults to `log`
+                                  (sends nothing, masks the address) until SMTP_URL +
+                                  EMAIL_FROM are set. F-13 BDD flow covers ownership, self-
+                                  action skip, per-person scoping, opt-out, exactly-once send.
+                                  Not built: password reset (ADR-023 parked it here — needs
+                                  its own security design), Slack/Teams (nothing to target))
   [x] P14 Analytics & Reporting   (one read-only /analytics page off the dashboard — ideas
                                   by status, submissions/month, participation by department
                                   and category, median cycle times, review activity,
@@ -195,9 +224,42 @@ MILESTONE M2 — Signals, Duplication & Config
                                   dashboard's department-scoped tiles opened unfiltered lists)
 
 MILESTONE M3 — Outcomes
-  [ ] P15 Prototype & Pilot Tracking
-  [ ] P16 KPIs, Actual-vs-Predicted, ROI
-  [ ] P17 Integrations
+  [x] P15 Prototype & Pilot Tracking   (PROTOTYPE_CANDIDATE → PILOT → PRODUCTION_CANDIDATE →
+                                  IMPLEMENTED unlocked; pilot/production now interruptible per
+                                  SPEC §5.4. Pilot dates stamped by the lifecycle itself; scope,
+                                  outcome and a progress timeline on the idea's Delivery tab)
+  [x] P16 KPIs, Actual-vs-Predicted, ROI   (KPIs with unit/target/prediction/direction,
+                                  append-only measurements, actual-vs-predicted as plain
+                                  arithmetic; ROI = (benefit − investment) ÷ investment on
+                                  PERSON-ENTERED figures only, never estimated, never scored.
+                                  Writes: reviewer/admin, delivery stages only, never on their
+                                  own idea; every write audited. F-14 BDD flow)
+  [ ] P17 Integrations   (BLOCKED on a named target system — owner chose to skip. SPEC
+                                  names none and calls connector tool surfaces unverified.
+                                  Pick a target (e.g. outbound webhooks, Teams, Jira) to unblock)
+
+MILESTONE M4 — Engagement   (added 2026-09-25, SPEC §14 M4 + §16.1 D-24; nothing here is scored)
+  [~] P18 Social layer   (comments + @mentions for anyone who can open the idea — author
+                                  edits/deletes own, admin hides with a reason, audited; follow
+                                  (auto on comment); team = the existing "I could help build
+                                  this" signal made visible + "Join the team"; share link;
+                                  COMMENT_ADDED / MENTIONED / FOLLOWED_IDEA_MOVED notifications,
+                                  only to people who can open the idea. Thumbs kept. F-15 BDD
+                                  flow. Built and tested — awaiting the owner demo)
+  [ ] P19 Light gamification   (ON HOLD — owner, 2026-09-25, D-25. Badges, department +
+                                  individual leaderboards with opt-out, challenges, digest —
+                                  thresholds need sign-off. Milestone moments moved to P20)
+  [~] P20 Experience layer     (built before P19 at no new running cost — D-25: no model call,
+                                  no new endpoint. Role home at /, "since you were last here",
+                                  live analysis reveal, boardroom mode /rankings/boardroom, swipe
+                                  to weigh in /ideas/swipe, mobile tab bar, smart filters on
+                                  Explore (no AI), interactive portfolio map on Analytics,
+                                  settle-rank FLIP, celebrations, "What it achieved" impact card (money + results from
+                                  the Delivery figures, RESULTS_RECORDED notification to
+                                  submitter + team). The AI "ask the portfolio"
+                                  answer was previewed and left out. axe clean on every new or
+                                  changed page in both themes. Built and tested — awaiting the
+                                  owner demo)
 ```
 
 **Stop for review when:**

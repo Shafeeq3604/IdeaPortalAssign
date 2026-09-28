@@ -128,7 +128,7 @@ export function LoginPage() {
         {options.data?.enabled ? (
           <p>
             First time here?{" "}
-            <Link to="/signup" className="font-medium text-welcome-accent">
+            <Link to="/signup" className="font-medium text-link">
               Create an account
             </Link>
             .

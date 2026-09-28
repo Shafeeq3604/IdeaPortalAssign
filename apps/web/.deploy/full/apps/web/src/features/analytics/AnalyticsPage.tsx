@@ -1,11 +1,11 @@
 import * as React from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { BarChart3, Download } from "lucide-react";
 import {
   Button, Card, CardContent, CardHeader, CardTitle, ErrorState, Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@iep/ui";
-import type { AnalyticsResponse } from "@iep/contracts";
+import type { AnalyticsResponse, IdeaStatus } from "@iep/contracts";
 import { PageHeading } from "../../app/PageHero";
 import { STATUS_LABEL } from "../ideas/api";
 import { DECISION_LABEL } from "../review/api";
@@ -173,33 +173,128 @@ function Body({ query }: { query: ReturnType<typeof useAnalytics> }) {
   );
 }
 
-/* ── Ideas by status (REQUIREMENTS §18) ── */
+/* ── Where ideas are (REQUIREMENTS §18) ── */
+
+/**
+ * The lifecycle grouped into the five phases a reader actually thinks in, with EVERY phase
+ * shown — an empty phase is information ("nothing has reached a reviewer yet"), and a card
+ * that only drew the one non-empty bar left a reader to guess at the rest. The summary
+ * sentence is plain arithmetic over the same counts. Counts link to the API's own href;
+ * a status with nothing in it has nothing to link to.
+ */
+const PHASES: readonly {
+  key: string;
+  label: string;
+  sentence: string;
+  statuses: readonly IdeaStatus[];
+  dot: string;
+  bar: string;
+}[] = [
+  { key: "in", label: "Coming in", sentence: "still coming in", statuses: ["SUBMITTED", "AI_ANALYSIS"], dot: "bg-state-info", bar: "bg-state-info" },
+  { key: "scored", label: "Ranked", sentence: "scored and ranked, waiting for a person", statuses: ["EVALUATED", "RANKED"], dot: "bg-accent-600", bar: "bg-accent-600" },
+  { key: "review", label: "In review", sentence: "with a reviewer", statuses: ["UNDER_REVIEW"], dot: "bg-state-warn", bar: "bg-state-warn" },
+  { key: "build", label: "Being built", sentence: "being built", statuses: ["PROTOTYPE_CANDIDATE", "PILOT", "PRODUCTION_CANDIDATE"], dot: "bg-ramp-5", bar: "bg-ramp-5" },
+  { key: "done", label: "Done", sentence: "implemented", statuses: ["IMPLEMENTED"], dot: "bg-state-ok", bar: "bg-state-ok" },
+];
+
+const PAUSED: readonly IdeaStatus[] = ["NEEDS_CLARIFICATION", "PARKED", "BLOCKED", "REJECTED"];
 
 function StatusBreakdown({ data }: { data: AnalyticsResponse }) {
-  const max = Math.max(1, ...data.statusBreakdown.map((s) => s.count));
+  const byStatus = new Map(data.statusBreakdown.map((s) => [s.status, s]));
+  const countOf = (statuses: readonly IdeaStatus[]) =>
+    statuses.reduce((sum, st) => sum + (byStatus.get(st)?.count ?? 0), 0);
+  const phases = PHASES.map((p) => ({ ...p, count: countOf(p.statuses) }));
+  const paused = PAUSED.map((st) => byStatus.get(st)).filter((s): s is NonNullable<typeof s> => Boolean(s && s.count > 0));
+  const pausedCount = paused.reduce((sum, s) => sum + s.count, 0);
+  const total = data.totalIdeas;
+  const biggest = phases.reduce((a, b) => (b.count > a.count ? b : a));
+  const movedOn = phases.slice(2).reduce((sum, p) => sum + p.count, 0);
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Ideas by status</CardTitle>
-        <p className="text-200 text-muted-foreground">{data.totalIdeas} submitted ideas</p>
+        <CardTitle>Where ideas are</CardTitle>
+        <p className="text-300 font-semibold text-foreground">
+          {biggest.count === total
+            ? `All ${total} ideas are ${biggest.sentence}.`
+            : `${biggest.count} of ${total} ideas are ${biggest.sentence}.`}
+        </p>
+        <p className="text-200 text-muted-foreground">
+          {movedOn === 0
+            ? "None has reached a reviewer yet."
+            : `${movedOn} ${movedOn === 1 ? "has" : "have"} moved on to a reviewer or beyond.`}
+        </p>
       </CardHeader>
-      <CardContent>
-        <ul className="grid gap-2.5">
-          {data.statusBreakdown.map((s) => (
-            <li key={s.status}>
-              <Link to={s.href} className="group grid grid-cols-[9rem_1fr_2.5rem] items-center gap-3 rounded-md">
-                <span className="truncate text-200 group-hover:underline">{STATUS_LABEL[s.status]}</span>
-                <span className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
-                  <span
-                    className="block h-full rounded-full bg-accent-600"
-                    style={{ width: `${(s.count / max) * 100}%` }}
-                  />
+      <CardContent className="space-y-5">
+        {/* Share of all ideas by phase — one bar, five colours, the same phases as below. */}
+        <div className="flex h-3 overflow-hidden rounded-full bg-muted" aria-hidden>
+          {phases.map((p) =>
+            p.count > 0 ? (
+              <span key={p.key} className={p.bar} style={{ width: `${(p.count / Math.max(1, total)) * 100}%` }} />
+            ) : null,
+          )}
+        </div>
+
+        <ol className="grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-5">
+          {phases.map((p) => {
+            const statuses = p.statuses.map((st) => byStatus.get(st)).filter((s): s is NonNullable<typeof s> => Boolean(s && s.count > 0));
+            const only = statuses.length === 1 ? statuses[0] : undefined;
+            const body = (
+              <>
+                <span className="flex items-center gap-1.5 whitespace-nowrap text-100 font-semibold leading-tight text-muted-foreground">
+                  <span aria-hidden className={`size-2 rounded-full ${p.count > 0 ? p.dot : "bg-border"}`} />
+                  {p.label}
                 </span>
-                <span className="text-right text-200 font-semibold tabular-nums">{s.count}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                <span className={`mt-1.5 block font-serif text-600 font-extrabold leading-none tabular-nums ${p.count > 0 ? "text-foreground" : "text-muted-foreground/60"}`}>
+                  {p.count}
+                </span>
+              </>
+            );
+            return (
+              <li
+                key={p.key}
+                className={`min-w-0 rounded-xl border px-2.5 py-3 ${p.count > 0 ? "border-border bg-card" : "border-dashed border-border bg-muted/40"}`}
+              >
+                {only ? (
+                  <Link to={only.href} className="block text-foreground no-underline hover:underline" aria-label={`${p.label}: ${p.count}`}>
+                    {body}
+                  </Link>
+                ) : (
+                  body
+                )}
+                {statuses.length > 1 ? (
+                  <ul className="mt-2 list-none space-y-0.5 p-0 text-100">
+                    {statuses.map((s) => (
+                      <li key={s.status}>
+                        <Link to={s.href} className="text-muted-foreground hover:underline">
+                          {STATUS_LABEL[s.status]} <span className="font-semibold tabular-nums text-foreground">{s.count}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+
+        <p className="text-200 text-muted-foreground">
+          {pausedCount === 0 ? (
+            "Nothing is paused, blocked or turned down."
+          ) : (
+            <>
+              Paused or stopped:{" "}
+              {paused.map((s, i) => (
+                <React.Fragment key={s.status}>
+                  {i > 0 ? " · " : ""}
+                  <Link to={s.href} className="hover:underline">
+                    {STATUS_LABEL[s.status]} <span className="font-semibold tabular-nums text-foreground">{s.count}</span>
+                  </Link>
+                </React.Fragment>
+              ))}
+            </>
+          )}
+        </p>
       </CardContent>
     </Card>
   );
@@ -257,94 +352,135 @@ function Submissions({ data }: { data: AnalyticsResponse }) {
   );
 }
 
-/* ── Impact vs effort (REQUIREMENTS §19) ── */
+/* ── Portfolio map: impact vs effort (REQUIREMENTS §19; P20) ── */
+
+type Quarter = "hi-easy" | "hi-hard" | "lo-easy" | "lo-hard";
+
+/**
+ * A 2×2, not a scatter (owner feedback: the scatter was hard to read). Every ranked idea
+ * sits in one box, named in plain words, and the box lists them — no reading positions off
+ * an axis. The split is at 50, the middle of the 0–100 scale: the box names describe where
+ * an idea sits and nothing more — not a target, not a threshold anyone signed off.
+ * "Ease" is the engine's effort average inverted, so higher means less effort.
+ */
+const QUARTERS: readonly {
+  key: Quarter;
+  title: string;
+  hint: string;
+  /** Desktop placement: impact up the rows, ease across the columns. */
+  place: string;
+  test: (p: { impact: number; ease: number }) => boolean;
+}[] = [
+  { key: "hi-easy", title: "Bigger payoff, lighter lift", hint: "Impact 50+ · ease 50+", place: "sm:col-start-2 sm:row-start-1", test: (p) => p.impact >= 50 && p.ease >= 50 },
+  { key: "hi-hard", title: "Bigger payoff, heavier lift", hint: "Impact 50+ · ease under 50", place: "sm:col-start-1 sm:row-start-1", test: (p) => p.impact >= 50 && p.ease < 50 },
+  { key: "lo-easy", title: "Smaller payoff, lighter lift", hint: "Impact under 50 · ease 50+", place: "sm:col-start-2 sm:row-start-2", test: (p) => p.impact < 50 && p.ease >= 50 },
+  { key: "lo-hard", title: "Smaller payoff, heavier lift", hint: "Impact under 50 · ease under 50", place: "sm:col-start-1 sm:row-start-2", test: (p) => p.impact < 50 && p.ease < 50 },
+];
+
+const SHOWN_PER_BOX = 4;
 
 function ImpactVsEffort({ data }: { data: AnalyticsResponse }) {
-  const navigate = useNavigate();
   const { points, profileName, computedAt } = data.impactVsEffort;
-  // Plot area inset: room on the left for impact ticks + label, below for ease ticks + label.
-  const size = 320;
-  const pad = 36;
-  const top = 12;
-  const plot = size - pad - top;
-  const x = (ease: number) => pad + (ease / 100) * plot;
-  const y = (impact: number) => top + (1 - impact / 100) * plot;
+  const [expanded, setExpanded] = React.useState<Quarter | null>(null);
+  const cardRef = React.useRef<HTMLDivElement>(null);
+
+  // Home's "Portfolio map" link lands here. The card only exists once the data has
+  // arrived, which is after the browser's own hash jump has already given up.
+  React.useEffect(() => {
+    if (window.location.hash === "#portfolio-map") cardRef.current?.scrollIntoView({ block: "start" });
+  }, []);
+
   return (
-    <Card>
+    <Card id="portfolio-map" ref={cardRef} className="scroll-mt-20">
       <CardHeader>
-        <CardTitle>Impact vs effort</CardTitle>
+        <CardTitle>Portfolio map</CardTitle>
         <p className="text-200 text-muted-foreground">
           {points.length > 0 && computedAt
-            ? `${points.length} ranked ideas, from the ${new Date(computedAt).toLocaleDateString()} ranking run (${profileName ?? "default"} profile). Impact is the average of each idea's value-criteria scores; ease is the average of its effort-criteria scores, where higher means less effort. Dashed lines mark the middle of the 0–100 scale, not a target.`
+            ? `Every ranked idea, sorted by how much it would deliver and how much work it takes — from the ${new Date(computedAt).toLocaleDateString()} ranking run (${profileName ?? "default"} profile).`
             : "No ranking run covers these ideas yet."}
         </p>
       </CardHeader>
       {points.length > 0 ? (
-        <CardContent className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr] [&>*]:min-w-0">
-          <svg
-            viewBox={`0 0 ${size} ${size}`}
-            className="w-full max-w-md"
-            role="img"
-            aria-label="Scatter of ranked ideas by ease (horizontal) and impact (vertical). The table beside it lists the same ideas."
-          >
-            <rect x={pad} y={top} width={plot} height={plot} className="fill-muted" rx="4" />
-            <line x1={x(50)} x2={x(50)} y1={top} y2={top + plot} className="stroke-border" strokeDasharray="4 4" />
-            <line x1={pad} x2={pad + plot} y1={y(50)} y2={y(50)} className="stroke-border" strokeDasharray="4 4" />
-            {[0, 50, 100].map((t) => (
-              <g key={t}>
-                <text x={x(t)} y={top + plot + 12} textAnchor="middle" className="fill-muted-foreground text-[0.6rem]">{t}</text>
-                <text x={pad - 6} y={y(t) + 3} textAnchor="end" className="fill-muted-foreground text-[0.6rem]">{t}</text>
-              </g>
-            ))}
-            <text x={pad + plot / 2} y={size - 4} textAnchor="middle" className="fill-muted-foreground text-[0.6rem]">
-              Ease → (less effort)
-            </text>
-            <text
-              transform={`translate(10 ${top + plot / 2}) rotate(-90)`}
-              textAnchor="middle"
-              className="fill-muted-foreground text-[0.6rem]"
-            >
-              Impact →
-            </text>
-            {points.map((p) => (
-              <a
-                key={p.ideaId}
-                href={p.href}
-                aria-label={`#${p.rank} ${p.title}`}
-                // In-app navigation, not a full reload; the real href keeps open-in-new-tab working.
-                onClick={(e) => {
-                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-                  e.preventDefault();
-                  void navigate(p.href);
-                }}
-              >
-                <title>{`#${p.rank} ${p.title} — impact ${p.impact}, ease ${p.ease}`}</title>
-                <circle cx={x(p.ease)} cy={y(p.impact)} r="5" className="fill-accent-600 stroke-card" strokeWidth="1.5" />
-              </a>
-            ))}
-          </svg>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">Rank</TableHead>
-                <TableHead>Idea</TableHead>
-                <TableHead className="text-right">Impact</TableHead>
-                <TableHead className="text-right">Ease</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {points.slice(0, 10).map((p) => (
-                <TableRow key={p.ideaId}>
-                  <TableCell className="tabular-nums">#{p.rank}</TableCell>
-                  <TableCell className="whitespace-normal">
-                    <Link to={p.href} className="hover:underline">{p.title}</Link>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{p.impact.toFixed(1)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{p.ease.toFixed(1)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <CardContent className="space-y-3">
+          <div className="flex items-stretch gap-3">
+            {/* The one axis a reader needs named: up means more payoff. */}
+            <div aria-hidden className="hidden flex-col items-center justify-between py-2 text-100 font-semibold uppercase tracking-wide text-muted-foreground sm:flex">
+              <span>More</span>
+              <span className="[writing-mode:vertical-rl] rotate-180">Impact</span>
+              <span>Less</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <ul className="grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2">
+                {QUARTERS.map((q) => {
+                  const ideas = points.filter(q.test);
+                  const open = expanded === q.key;
+                  const shown = open ? ideas : ideas.slice(0, SHOWN_PER_BOX);
+                  const lead = q.key === "hi-easy";
+                  return (
+                    <li
+                      key={q.key}
+                      className={`${q.place} flex flex-col rounded-2xl p-4 ring-1 ring-inset ${
+                        lead ? "bg-accent-100 ring-accent-600/30" : "bg-muted/50 ring-border"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className={`text-300 font-bold ${lead ? "text-accent-700" : "text-foreground"}`}>{q.title}</h3>
+                          <p className="text-100 text-muted-foreground">{q.hint}</p>
+                        </div>
+                        <span
+                          className={`font-serif text-600 font-extrabold leading-none tabular-nums ${
+                            lead ? "text-accent-700" : ideas.length === 0 ? "text-muted-foreground/60" : "text-foreground"
+                          }`}
+                        >
+                          {ideas.length}
+                        </span>
+                      </div>
+                      {ideas.length === 0 ? (
+                        <p className="mt-3 text-200 text-muted-foreground">No ideas here.</p>
+                      ) : (
+                        <ol className="mt-3 flex list-none flex-col gap-1.5 p-0">
+                          {shown.map((p) => (
+                            <li key={p.ideaId} className="flex items-baseline gap-2 text-200">
+                              <span className="w-7 shrink-0 text-100 font-semibold tabular-nums text-muted-foreground">#{p.rank}</span>
+                              <Link
+                                to={p.href}
+                                title={`Impact ${p.impact.toFixed(0)} · ease ${p.ease.toFixed(0)}`}
+                                className="min-w-0 truncate font-medium text-foreground hover:underline"
+                              >
+                                {p.title}
+                              </Link>
+                            </li>
+                          ))}
+                        </ol>
+                      )}
+                      {ideas.length > SHOWN_PER_BOX ? (
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="mt-1 h-auto self-start px-0"
+                          onClick={() => setExpanded(open ? null : q.key)}
+                          aria-expanded={open}
+                        >
+                          {open ? "Show fewer" : `Show all ${ideas.length}`}
+                        </Button>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div aria-hidden className="mt-2 hidden grid-cols-2 text-center text-100 font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
+                <span>← More effort</span>
+                <span>Less effort →</span>
+              </div>
+            </div>
+          </div>
+          <p className="text-100 text-muted-foreground">
+            Impact is the average of an idea&rsquo;s value scores; ease is the average of its effort
+            scores, where higher means less work. Boxes split at 50, the middle of the 0–100 scale —
+            a position, not a target. Hover an idea to see its two figures.
+          </p>
         </CardContent>
       ) : null}
     </Card>

@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { TIER_MODELS, TIER_RATES } from "./routing/routes.js";
+import {
+  IDEA_CREATION_ROUTE, TIER_RATES, normaliseRequestParams, type ModelRoute,
+} from "./routing/routes.js";
 import type { DraftField, IdeaCreationDraft } from "@iep/contracts";
 
 /**
@@ -54,6 +56,8 @@ export interface IdeaCreationTurnInput {
   /** Oldest first. */
   readonly history: readonly { readonly role: "USER" | "AI"; readonly content: string }[];
   readonly currentDraft: IdeaCreationDraft;
+  /** From `ai_model_routes` (key IDEA_CREATION). Omitted → `IDEA_CREATION_ROUTE`. */
+  readonly route?: ModelRoute | undefined;
 }
 
 export interface IdeaCreationProvider {
@@ -217,7 +221,11 @@ export class AnthropicIdeaCreationProvider implements IdeaCreationProvider {
   }
 
   async turn(input: IdeaCreationTurnInput): Promise<IdeaCreationTurnResult> {
-    const model = TIER_MODELS.B;
+    const route = input.route ?? IDEA_CREATION_ROUTE;
+    // Model, token cap, thinking mode and effort all come from the route — the router is
+    // the one place the per-model request shape lives (Sonnet 5: adaptive + effort).
+    const params = normaliseRequestParams(route);
+    const model = params.model;
     try {
       const transcript = input.history
         .map((m) => `${m.role === "USER" ? "Employee" : "You"}: ${m.content}`)
@@ -225,7 +233,8 @@ export class AnthropicIdeaCreationProvider implements IdeaCreationProvider {
 
       const response = await this.client.messages.create({
         model,
-        max_tokens: 3_000,
+        max_tokens: params.max_tokens,
+        ...(params.thinking ? { thinking: params.thinking } : {}),
         system: [
           { type: "text", text: IDEA_CREATION_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
         ],
@@ -238,7 +247,10 @@ export class AnthropicIdeaCreationProvider implements IdeaCreationProvider {
               `Respond with your next turn as the JSON object described by the schema.`,
           },
         ],
-        output_config: { format: { type: "json_schema", schema: IDEA_CREATION_OUTPUT_SCHEMA } },
+        output_config: {
+          ...(params.output_config ?? {}),
+          format: { type: "json_schema", schema: IDEA_CREATION_OUTPUT_SCHEMA },
+        },
       } as Parameters<Anthropic["messages"]["create"]>[0]) as Anthropic.Message;
 
       if (response.stop_reason === "refusal") return { ok: false, errorCode: "REFUSAL" };
@@ -257,7 +269,7 @@ export class AnthropicIdeaCreationProvider implements IdeaCreationProvider {
       }
       if (!data.aiMessage?.trim()) return { ok: false, errorCode: "SCHEMA_INVALID" };
 
-      const rate = TIER_RATES.B;
+      const rate = TIER_RATES[route.tier];
       const costUsd =
         (response.usage.input_tokens / 1_000_000) * rate.in +
         (response.usage.output_tokens / 1_000_000) * rate.out;

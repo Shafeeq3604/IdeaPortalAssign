@@ -192,7 +192,7 @@ async function main(): Promise<void> {
   console.log(
     `seeded: ${DEPARTMENTS.length} departments, ${CATEGORIES.length} categories, ` +
       `${CRITERIA.length} criteria, ${PROFILES.length} profiles, ` +
-      `${DEFAULT_ROUTES.length} model routes, ${DEMO_USERS.length} users, ` +
+      `${DEFAULT_ROUTES.length + 1 /* + IDEA_CREATION */} model routes, ${DEMO_USERS.length} users, ` +
       `${createdIdeas} new demo idea(s)`,
   );
 }

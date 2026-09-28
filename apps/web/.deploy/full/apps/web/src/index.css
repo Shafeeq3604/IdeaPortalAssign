@@ -50,7 +50,7 @@
   }
 
   a {
-    color: var(--accent-600);
+    color: var(--link);
     text-decoration: none;
   }
 
@@ -190,7 +190,17 @@
   margin: 0 0 var(--sp-2);
   font-size: var(--fs-700);
   line-height: var(--lh-tight);
-  font-weight: 600;
+  /* P9 "richer look": the mockups set every page title at 800 with tight tracking —
+     the weight carries the hierarchy now that display and body share one face. */
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+@media (min-width: 64rem) {
+  .page > h1 {
+    font-size: var(--fs-800);
+  }
 }
 
 .crumbs {
@@ -368,20 +378,6 @@
 }
 
 /*
- * A page heading gets a short gradient underline. Cheap, and it is what stops every
- * screen opening with the same undifferentiated slab of text.
- */
-.page > h1::after {
-  content: "";
-  display: block;
-  width: var(--sp-12);
-  height: 3px;
-  margin-top: var(--sp-3);
-  border-radius: var(--r-full);
-  background-image: linear-gradient(90deg, var(--accent-600), var(--grad-to));
-}
-
-/*
  * Dashboard hero (Idea Platform Redesign — "hero").
  *
  * Here rather than in the component for the same reason as `.welcome-panel`:
@@ -406,8 +402,8 @@
   background-image:
     radial-gradient(900px 320px at 26% 62%, color-mix(in oklab, var(--accent-600) 38%, transparent), transparent 72%),
     radial-gradient(700px 420px at 84% 12%, color-mix(in oklab, var(--accent-500) 14%, transparent), transparent 70%),
-    radial-gradient(520px 380px at 6% 108%, color-mix(in oklab, var(--surface) 85%, transparent), transparent 60%),
-    linear-gradient(120deg, var(--grad-from) 0%, var(--grad-via) 52%, var(--surface) 100%);
+    radial-gradient(520px 380px at 6% 108%, color-mix(in oklab, var(--grad-end) 85%, transparent), transparent 60%),
+    linear-gradient(120deg, var(--grad-from) 0%, var(--grad-via) 52%, var(--grad-end) 100%);
   /* "-lit" (visual-identity pass) plus a soft outer bloom bleeding past the card's own
      edge — the "gravity" a page's one hero surface needs to visibly outweigh the ordinary
      cards around it, rather than reading as "box, box, box" in a flat wall of boxes. */
@@ -445,7 +441,7 @@
    * reasoning as its own background-image, which never reads a light-mode token
    * either), so the dot colour that suits it does not need a per-theme variant.
    */
-  background-image: radial-gradient(rgba(80, 140, 255, 0.035) 1.6px, transparent 1.6px);
+  background-image: radial-gradient(rgba(80, 140, 255, 0.06) 1.6px, transparent 1.6px);  /* P9: 3.5% → 6% */
   background-size: 24px 24px;
   mask-image: linear-gradient(205deg, #000 0%, #000 55%, transparent 92%);
 }
@@ -657,4 +653,72 @@
     var(--border-strong) 0 6px,
     transparent 6px 12px
   );
+}
+
+/* ── P20 experience layer (SPEC §14 M4, D-25) ── */
+
+/*
+ * The celebration burst (app/motion.ts `celebrate()`). Each bit flies out along its own
+ * --dx/--dy, then drops by --fall and fades. `prefers-reduced-motion` never gets here —
+ * the function returns before building anything.
+ */
+:root {
+  --dur-celebrate: 1200ms;
+}
+.celebrate {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow: hidden;
+  pointer-events: none;
+}
+.celebrate-bit {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 0.45rem;
+  height: 0.7rem;
+  border-radius: 0.125rem;
+  opacity: 0;
+  animation: celebrate-fly var(--dur-celebrate) var(--ease-out-quint) forwards;
+}
+.celebrate-bit:nth-child(3n) { width: 0.55rem; height: 0.55rem; border-radius: 999rem; }
+@keyframes celebrate-fly {
+  0%   { opacity: 1; transform: translate(-50%, -50%) rotate(0deg) scale(0.6); }
+  55%  { opacity: 1; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(calc(var(--rot) * 0.6)) scale(1); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + var(--fall))) rotate(var(--rot)) scale(0.9); }
+}
+
+/*
+ * The live analysis reveal: a single soft glow behind the score as it arrives. One
+ * surface, once — the "one focal moment" rule, not a page full of effects.
+ */
+.reveal-glow {
+  animation: reveal-glow var(--dur-tally) var(--ease-out-quint) both;
+}
+@keyframes reveal-glow {
+  from { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent-600) 45%, transparent); }
+  to   { box-shadow: 0 0 0 1.25rem transparent; }
+}
+
+/*
+ * Boardroom slides and the swipe card move with the same settle curve the board uses.
+ * The swipe card follows the finger while dragging (no transition), then settles.
+ */
+.slide-in {
+  animation: slide-in var(--dur-slow) var(--ease-out-quint) both;
+}
+.slide-in--back { animation-name: slide-in-back; }
+@keyframes slide-in      { from { opacity: 0; transform: translateX(2.5rem); } to { opacity: 1; transform: none; } }
+@keyframes slide-in-back { from { opacity: 0; transform: translateX(-2.5rem); } to { opacity: 1; transform: none; } }
+
+.swipe-card {
+  touch-action: pan-y;
+  transition: transform var(--dur-settle) var(--ease-settle), opacity var(--dur-base) var(--ease-standard);
+}
+.swipe-card[data-dragging="true"] { transition: none; }
+
+/* The mobile tab bar sits over the page foot; the page keeps room for it. */
+@media (max-width: 47.99rem) {
+  .has-tab-bar { padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)); }
 }

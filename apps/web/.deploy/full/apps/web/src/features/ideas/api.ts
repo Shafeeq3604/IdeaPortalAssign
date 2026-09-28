@@ -159,3 +159,23 @@ export const STATUS_LABEL: Record<IdeaStatus, string> = {
   REJECTED: "Rejected",
   ARCHIVED: "Archived",
 };
+
+/**
+ * P9 tester feedback: an idea withdrawn or stopped BEFORE its analysis finished showed
+ * "Not evaluated yet — the analysis has to finish…", which reads as a stuck pipeline when
+ * nothing will ever run. For these statuses, with no results, say what actually happened.
+ */
+const HALTED_LABEL: Partial<Record<IdeaStatus, string>> = {
+  ARCHIVED: "withdrawn",
+  REJECTED: "rejected",
+  PARKED: "parked",
+  BLOCKED: "blocked",
+};
+
+/** A plain sentence for an idea stopped before it was analysed, or null if it is not stopped. */
+export function haltedBeforeAnalysisNote(status: IdeaStatus): string | null {
+  const how = HALTED_LABEL[status];
+  return how
+    ? `This idea was ${how} before its analysis finished, so it has no AI analysis or score — and none will run while it stays ${how}.`
+    : null;
+}

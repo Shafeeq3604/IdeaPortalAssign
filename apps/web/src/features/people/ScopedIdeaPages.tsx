@@ -9,6 +9,7 @@ import { queryKeys } from "../../app/query-keys";
 import { HeadingStat, PageHeading } from "../../app/PageHero";
 import { IdeaCard } from "../ideas/IdeaCard";
 import { PersonActivity } from "./PersonActivity";
+import { IdeasImpactSection } from "../delivery/ImpactCard";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -163,7 +164,12 @@ export function PersonPage() {
       filterKey="submitterId"
       filterValue={userId}
       emptyDescription="This person has not submitted an idea yet."
-      belowHeading={<PersonActivity userId={userId} />}
+      belowHeading={
+        <div className="space-y-6">
+          <IdeasImpactSection submitterId={userId} heading="What their ideas achieved" />
+          <PersonActivity userId={userId} />
+        </div>
+      }
       showIdeaCount={false}
     />
   );

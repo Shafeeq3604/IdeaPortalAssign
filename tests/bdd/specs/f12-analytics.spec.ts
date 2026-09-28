@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "@iep/db";
 import type { ApiEnv } from "@iep/contracts/env";
-import type { AnalyticsResponse, ListIdeasResponse } from "@iep/contracts";
+import type { AnalyticsResponse, DashboardResponse, ListIdeasResponse } from "@iep/contracts";
 import { buildServer } from "@iep/api/src/server.js";
 import type { AppContext } from "@iep/api/src/context.js";
 import { MemorySessionStore } from "@iep/api/src/auth/session.js";
@@ -132,12 +132,35 @@ describe("F-12 · organisational analytics", () => {
     //    disclose what the list it links to would refuse to show.
     expect((await analytics()).totalIdeas).toBe(0);
 
+    // The dashboard's tiles keep the same rule (they used to count every idea in the
+    // table, so a Manager's "New ideas: 2" opened a list of 0).
+    const dashboard = async () => {
+      const res = await app.inject({
+        method: "GET", url: `/dashboard?departmentId=${departmentId}`, headers: { cookie: manager },
+      });
+      expect(res.statusCode).toBe(200);
+      return new Map((res.json() as DashboardResponse).tiles.map((t) => [t.key, t]));
+    };
+    expect((await dashboard()).get("new")?.count).toBe(0);
+    expect((await dashboard()).get("total")?.count).toBe(0);
+
     // The worker's own move (SUBMITTED → EVALUATED once scored), done directly here: this
     // flow is about analytics, not the pipeline (f03 covers that).
     await db.idea.updateMany({ where: { id: { in: createdIdeas } }, data: { status: "EVALUATED" } });
     await db.review.create({ data: { ideaId: ideaA, reviewerId, decision: "VALIDATED", comment: "F-12" } });
 
     const data = await analytics();
+
+    // Dashboard, once visible: the count and the list it opens agree for this Manager.
+    const evaluating = (await dashboard()).get("under_evaluation");
+    expect(evaluating?.count).toBe(2);
+    const evalHref = new URL(evaluating?.href ?? "/", "http://x.invalid");
+    const evalList = await app.inject({
+      method: "GET",
+      url: `/ideas?${evalHref.searchParams.getAll("status").map((s) => `status=${s}`).join("&")}&departmentId=${departmentId}`,
+      headers: { cookie: manager },
+    });
+    expect((evalList.json() as ListIdeasResponse).meta.total).toBe(evaluating?.count);
 
     // 1. Scoped everywhere.
     expect(data.totalIdeas).toBe(2);

@@ -3,6 +3,7 @@ import type { IdeaStatus } from "@iep/contracts";
 import type { Handler } from "../../server.js";
 import { requireActor, sendError } from "../../server.js";
 import { writeAudit } from "../../lib/audit.js";
+import { recordIdeaNotification } from "@iep/evaluation";
 
 /**
  * The final organisational decision (ADR-026).
@@ -105,6 +106,16 @@ export function registerLeadershipRoutes(handlers: Map<string, Handler>): void {
         after: { status: decision.status },
         reason: decision.rationale,
         requestId: request.id,
+      });
+
+      // P13 — the owner hears about the decision, in the same transaction.
+      await recordIdeaNotification(tx, {
+        ideaId,
+        actorId: actor.userId,
+        payload: (ideaTitle) => ({
+          event: "LEADERSHIP_DECISION_RECORDED", ideaTitle, decisionStatus: decision.status,
+          actorName: decision.decidedBy.displayName,
+        }),
       });
 
       return decision;

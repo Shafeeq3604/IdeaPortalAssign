@@ -14,6 +14,8 @@ import { HeadingStat, PageHeading } from "../../app/PageHero";
 import { STATUS_LABEL, parseSort, useIdeaList, type IdeaSort } from "./api";
 import { FeaturedIdeaCard, IdeaCard } from "./IdeaCard";
 import { useSession } from "../../app/use-session";
+import { SmartAsk } from "./SmartAsk";
+import type { SmartFilter } from "./smart-filter";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -225,6 +227,19 @@ export function IdeaListPage({ scope }: Props) {
     setParams(next);
   };
 
+  /** P20 smart filters: a fresh set of the ordinary filters, replacing what was there. */
+  const applySmart = (f: SmartFilter) => {
+    const next = new URLSearchParams();
+    const keptView = params.get("view");
+    if (keptView) next.set("view", keptView);
+    if (f.department) next.set("department", f.department.id);
+    if (f.category) next.set("category", f.category.id);
+    for (const s of f.statuses) next.append("status", s);
+    if (f.sort) next.set("sort", f.sort);
+    if (f.keyword) next.set("q", f.keyword);
+    setParams(next);
+  };
+
   const setPage = (next: number) => {
     const p = new URLSearchParams(params);
     p.set("page", String(next));
@@ -331,6 +346,8 @@ export function IdeaListPage({ scope }: Props) {
         `brand-pill` for the active state, not the accent: see the note in index.css —
         white on --accent-700 fails AA once the tokens flip to dark.
       */}
+      {scope === "all" ? <SmartAsk onApply={applySmart} /> : null}
+
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <SearchBox value={search} onSubmit={(v) => update((n) => (v ? n.set("q", v) : n.delete("q")))} />
 

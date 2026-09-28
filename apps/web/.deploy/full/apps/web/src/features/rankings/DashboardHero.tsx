@@ -1,8 +1,8 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, ListChecks, TrendingDown, TrendingUp, Trophy } from "lucide-react";
+import { ArrowRight, ListChecks, TrendingDown, TrendingUp } from "lucide-react";
 import { matchRouteId } from "@iep/contracts";
-import type { DashboardResponse, ExplanationItem, ListRankingsResponse } from "@iep/contracts";
+import type { AnalyticsResponse, DashboardResponse, ListRankingsResponse } from "@iep/contracts";
 import { canSee, useSession } from "../../app/use-session";
 import { ago } from "../../app/relative-time";
 import { BrandMark } from "../../app/BrandMark";
@@ -32,20 +32,21 @@ const count = (data: DashboardResponse, key: string): number =>
 export function DashboardHero({
   data,
   board,
+  analytics,
 }: {
   data: DashboardResponse;
   /** Undefined while the board is still loading — the hero renders without it. */
   board: ListRankingsResponse | undefined;
+  /** Undefined while loading or on failure — the two tiles it feeds fall back to counts. */
+  analytics: AnalyticsResponse | undefined;
 }) {
   const session = useSession();
   const firstName = (session.data?.user.displayName ?? "").split(/\s+/)[0] ?? "";
 
   /*
    * The dashboard is MANAGEMENT/ADMIN's; the review queue is REVIEWER/ADMIN's — the two
-   * overlap only at ADMIN. A Manager was shown "Review N ideas" pointing at a page they
-   * cannot open, landing on "Not available for your role" as their first click on their
-   * own home screen. Read from the nav map rather than a second hardcoded role list, so
-   * this cannot drift from the route's own declared access the way two copies would.
+   * overlap only at ADMIN. Read from the nav map rather than a second hardcoded role list,
+   * so this cannot drift from the route's own declared access.
    */
   const canReview = canSee(session.data?.user.roles ?? [], matchRouteId("/review")?.roles ?? []);
 
@@ -53,75 +54,59 @@ export function DashboardHero({
   const evaluating = count(data, "under_evaluation");
   const fresh = count(data, "new");
   const ranked = count(data, "top_ranked");
+  const inDelivery = count(data, "prototype") + count(data, "pilot");
 
-  /**
-   * "Three ideas moved overnight", computed rather than asserted.
-   *
-   * `previousRank` is null on an idea's first appearance, which is a new entrant rather
-   * than a move — counting it as movement would report a busy night on a board that had
-   * simply never been computed before.
-   */
+  /** `previousRank` is null on a first appearance — a new entrant, not a move. */
   const moved = (board?.items ?? []).filter(
     (e) => e.previousRank !== null && e.previousRank !== e.rank,
   ).length;
   const leader = board?.items.find((e) => e.rank === 1);
 
   /*
-   * Design-audit finding: the flat case ("The board is settled since the last run")
-   * read as accurate but forgettable — correct, and nothing else. `changedPlaces`
-   * unifies both branches under one verb instead of two unrelated ones ("moved" vs.
-   * "settled"), so the sentence reads as one considered thought about the same fact
-   * (did anyone change places, yes or no) rather than a template that swaps a whole
-   * clause. Nothing here claims anything the numbers above it don't already say.
+   * P9 usability round 1 ("richer, enterprise-grade look"): the headline leads with what
+   * needs doing, when something does. A dashboard that opens on "3 ideas are waiting on a
+   * reviewer" is a to-do; one that opens on board movement is a report. Movement is still
+   * said — in the line underneath — and is the headline when nothing is waiting.
    */
   const headline =
-    moved > 0
-      ? `${moved === 1 ? "One idea" : `${moved} ideas`} changed places on the last run.`
-      : "Quiet since the last run — nobody changed places.";
+    toReview > 0
+      ? `${toReview === 1 ? "One idea is" : `${toReview} ideas are`} waiting on a reviewer.`
+      : moved > 0
+        ? `${moved === 1 ? "One idea" : `${moved} ideas`} changed places on the last run.`
+        : "Quiet since the last run — nobody changed places.";
 
   const detail = [
-    toReview > 0
-      ? `${toReview === 1 ? "One idea needs" : `${toReview} ideas need`} a reviewer`
-      : null,
-    // "leading" matches the Spotlight card's own "LEADING THE BOARD" label below —
-    // one term for the same idea, not two ("leads on" here, "leading" there).
     leader ? `“${leader.title}” is leading at ${leader.compositeScore.toFixed(1)}` : null,
+    toReview > 0 && moved > 0
+      ? `${moved === 1 ? "one idea" : `${moved} ideas`} changed places on the last run`
+      : null,
   ]
     .filter(Boolean)
     .join(" · ");
 
+  /* ── the four hero figures — every one computed, none drawn for effect ── */
+  const topScores = data.history
+    .map((h) => h.topScore)
+    .filter((s): s is number => s !== null);
+  const months = analytics?.submissionsByMonth ?? [];
+  const thisMonth = months[months.length - 1];
+  const firstScore = analytics?.cycleTimes.find((c) => c.key === "SUBMITTED_TO_FIRST_SCORE");
+  const showReviewCta = toReview > 0 && canReview;
+
   return (
-    <div className="dash-hero relative overflow-hidden rounded-2xl p-6 text-grad-ink shadow-e4-lit sm:p-8 lg:p-10">
-      {/* The product's own mark, as a large watermark (visual-identity pass) — see the
-          identical treatment on `WelcomeShell`'s gradient panel for the full reasoning. */}
+    <div className="dash-hero relative overflow-hidden rounded-2xl p-6 text-grad-ink shadow-e4-lit sm:p-8 lg:p-9">
       <BrandMark
         aria-hidden
-        className="pointer-events-none absolute -right-12 -top-12 size-72 text-grad-ink opacity-[0.06]"
+        className="pointer-events-none absolute -right-12 -top-12 size-72 text-grad-ink opacity-[0.05]"
       />
-      <div className="relative flex flex-wrap items-start justify-between gap-8 lg:gap-10">
-        {/*
-          Design-review finding: a fixed 52ch cap wrapped the headline into an
-          awkwardly-shaped block regardless of how much room the card actually had —
-          `flex-1` lets it use the real available width beside the (now `shrink-0`) panel,
-          and a wider ceiling (64ch) means it only wraps where the words actually run out
-          of room, not where an arbitrary character count says to.
-        */}
-        <div className="max-w-[64ch] flex-1">
-          <span className="inline-flex items-center gap-2 rounded-full bg-grad-ink/10 px-3 py-1 text-100 uppercase tracking-[0.06em] text-grad-ink-soft ring-1 ring-grad-rule">
+      <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:items-center">
+        <div className="min-w-0">
+          <span className="inline-flex items-center gap-2 rounded-full bg-grad-ink/10 px-3 py-1 text-100 font-bold uppercase tracking-[0.08em] text-grad-ink-soft ring-1 ring-grad-rule">
             <span className="dash-pulse size-1.5 rounded-full bg-grad-highlight" />
             Board recomputed {ago(data.generatedAt)}
           </span>
 
-          {/*
-            Mobile-recomposition finding: at phone width this headline used the same
-            `text-600` a desktop reader sees, which on a four-word-per-line serif face
-            wrapped to four lines and pushed every actionable number below the fold — the
-            hero became something to scroll PAST, not the first useful thing on the
-            screen. `text-400` on a phone is still the largest text in the header, still
-            bold serif, still the same words; it simply stops competing with the numbers
-            underneath it for a small screen's limited vertical budget.
-          */}
-          <h2 className="mt-4 font-serif text-500 font-semibold leading-tight tracking-tight sm:mt-4.5 sm:text-700 lg:text-800">
+          <h2 className="mt-4 text-500 font-extrabold leading-tight tracking-tight text-balance sm:text-700 lg:text-800">
             {greeting()}
             {firstName ? `, ${firstName}` : ""}.
             <br />
@@ -129,199 +114,152 @@ export function DashboardHero({
           </h2>
 
           {detail ? (
-            <p className="mt-2.5 text-300 leading-relaxed text-grad-ink-soft sm:mt-3 sm:text-400">{detail}.</p>
+            <p className="mt-3 max-w-[60ch] text-300 leading-relaxed text-grad-ink-soft sm:text-400">{detail}.</p>
           ) : null}
 
-          <div className="mt-5 flex flex-wrap gap-3 sm:mt-6">
-            {/*
-              Design-review finding: primary and secondary read as near-equal weight —
-              both a filled pill with a ring. The primary keeps its solid fill and gains a
-              real shadow bloom (high emphasis); the secondary drops its ring and border
-              entirely, falling back to a bare translucent surface tint with no outline —
-              low emphasis, "surface-based," not a second button competing for the same
-              amount of attention.
-            */}
-            {toReview > 0 && canReview ? (
+          <div className="mt-6 flex flex-wrap gap-3">
+            {showReviewCta ? (
               <Link
                 to="/review"
-                className="inline-flex h-10 items-center gap-2 rounded-full bg-grad-highlight px-5 text-200 font-bold text-grad-from no-underline shadow-[0_8px_24px_-6px_var(--grad-highlight)] transition-transform duration-[var(--dur-fast)] hover:-translate-y-px sm:h-11"
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-grad-highlight px-5 text-200 font-extrabold text-grad-from no-underline shadow-[0_8px_24px_-8px_var(--grad-highlight)] transition-transform duration-[var(--dur-fast)] hover:-translate-y-px"
               >
                 <ListChecks aria-hidden className="size-4" />
-                Review {toReview} idea{toReview === 1 ? "" : "s"}
+                Open the review queue
+                <ArrowRight aria-hidden className="size-4" />
               </Link>
             ) : null}
             <Link
               to="/rankings"
-              className="inline-flex h-10 items-center gap-2 rounded-full bg-grad-ink/8 px-5 text-200 font-medium text-grad-ink-soft no-underline transition-colors duration-[var(--dur-fast)] hover:bg-grad-ink/15 hover:text-grad-ink sm:h-11"
+              className="inline-flex h-11 items-center gap-2 rounded-xl px-5 text-200 font-bold text-grad-ink no-underline ring-1 ring-inset ring-grad-ink/25 transition-colors duration-[var(--dur-fast)] hover:bg-grad-ink/10"
             >
               See the board
-              <ArrowRight aria-hidden className="size-4" />
+              {showReviewCta ? null : <ArrowRight aria-hidden className="size-4" />}
             </Link>
           </div>
         </div>
 
-        {/*
-          ── pipeline overview ──
-
-          Enterprise-audit pass: replaces a decorative three-circle "flow" connected by an
-          animated shimmer with a plain KPI list — "remove progress circles, fancy flow
-          diagrams, decorative connectors... prioritize information over decoration." The
-          five rows below are the same real counts the flow diagram drew, just read
-          directly rather than acted out.
-        */}
-        <div className="hero-panel w-full max-w-[19rem] shrink-0 rounded-2xl p-5 sm:p-6">
-          <p className="text-200 font-bold uppercase tracking-[0.14em] text-grad-ink-soft">
-            Pipeline overview
-          </p>
-          <span aria-hidden className="mt-2 block h-0.5 w-7 rounded-full bg-grad-highlight" />
-
-          <dl className="mt-4 flex flex-col gap-2.5">
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-300 text-grad-ink-soft">New</dt>
-              <dd className="m-0 text-300 font-bold tabular-nums text-grad-ink">{fresh}</dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-300 text-grad-ink-soft">Evaluating</dt>
-              <dd className="m-0 text-300 font-bold tabular-nums text-grad-ink">{evaluating}</dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-300 text-grad-ink-soft">On the board</dt>
-              <dd className="m-0 text-300 font-bold tabular-nums text-grad-ink">
-                {board?.run.cohortSize ?? ranked}
-              </dd>
-            </div>
-          </dl>
-
-          {/*
-            Two figures the engine actually knows. The canvas had "4.2d idea → score" and
-            "92% explained"; nothing measures either, and inventing them here would be the
-            one thing this product is built not to do.
-          */}
-          <div className="mt-4.5 flex gap-6 border-t border-grad-rule pt-4.5">
-            {/*
-              "/100" appended (audit finding: first-time-user clarity) — a bare "61.8"
-              means nothing to someone who hasn't yet learned this product's scoring
-              model, and every other place a composite score appears (`ScoreRing`, the
-              Evaluation tab) already states the scale it's out of. This is the one place
-              that had dropped it.
-            */}
-            <Stat
-              value={leader ? `${leader.compositeScore.toFixed(1)}/100` : "—"}
-              label="top score"
+        <dl className="m-0 grid grid-cols-2 gap-3">
+          <HeroStat
+            label="On the board"
+            value={String(board?.run.cohortSize ?? ranked)}
+            note={
+              topScores.length >= 2
+                // The chart is the top score's trend, not the count above it — so the
+                // caption names the figure it charts ("Top score, last 3 runs" under
+                // "On the board: 8" read as a mislabel).
+                ? `Top score ${(topScores[topScores.length - 1] ?? 0).toFixed(1)} · trend over ${topScores.length} runs`
+                : leader
+                  ? `Top score ${leader.compositeScore.toFixed(1)}`
+                  : "No ranking run yet"
+            }
+            series={topScores.length >= 2 ? topScores : undefined}
+            seriesLabel={`Top score across the last ${topScores.length} ranking runs, from ${topScores[0]?.toFixed(1) ?? "—"} to ${topScores[topScores.length - 1]?.toFixed(1) ?? "—"}.`}
+          />
+          {thisMonth ? (
+            <HeroStat
+              label="Submitted this month"
+              value={String(thisMonth.count)}
+              note="Per month, last 12 months"
+              series={months.map((m) => m.count)}
+              seriesLabel={`Submissions per month for the last 12 months: ${months.map((m) => m.count).join(", ")}.`}
             />
-            <Stat value={ago(data.generatedAt)} label="last run" />
-          </div>
-
-          {/*
-            Design-audit finding: this dashboard had no time dimension at all — every
-            visit rendered the same single "now" snapshot, with nothing to show whether
-            the board is actually moving. `data.history` is real stored `RankingRun`
-            history (CONTRACT-LOG 2026-09-17), not a derived or invented series — the
-            same "every number is real" rule this whole hero already holds itself to. Kept
-            deliberately (unlike the flow diagram above): a real sparkline of real history
-            is information, not decoration.
-          */}
-          <TopScoreTrend history={data.history} />
-        </div>
+          ) : (
+            <HeroStat label="New ideas" value={String(fresh)} note="Submitted, not yet analysed" />
+          )}
+          {firstScore ? (
+            <HeroStat
+              label="Median time to first score"
+              value={formatDays(firstScore.medianDays)}
+              note={
+                firstScore.sampleSize === 0
+                  ? "Nothing scored yet"
+                  : `Across ${firstScore.sampleSize} scored idea${firstScore.sampleSize === 1 ? "" : "s"}`
+              }
+            />
+          ) : (
+            <HeroStat label="Being analysed" value={String(evaluating)} note="AI analysis in progress" />
+          )}
+          <HeroStat
+            label="In prototype or pilot"
+            value={String(inDelivery)}
+            note={`${count(data, "implemented")} implemented so far`}
+          />
+        </dl>
       </div>
+    </div>
+  );
+}
+
+/** "< 1 day" rather than "0.3 days" — a median this small is a speed, not a figure. */
+function formatDays(days: number | null): string {
+  if (days === null) return "—";
+  if (days < 1) return "< 1 day";
+  const d = Math.round(days * 10) / 10;
+  return `${Number.isInteger(d) ? d.toFixed(0) : d.toFixed(1)} day${d === 1 ? "" : "s"}`;
+}
+
+function HeroStat({
+  label,
+  value,
+  note,
+  series,
+  seriesLabel = "",
+}: {
+  label: string;
+  value: string;
+  note: string;
+  /** A real stored series only — a stat with no history simply has no line. */
+  series?: readonly number[] | undefined;
+  seriesLabel?: string;
+}) {
+  return (
+    <div className="hero-panel flex min-w-0 flex-col rounded-2xl p-4 sm:p-4.5">
+      <dt className="text-100 font-semibold text-grad-ink-soft">{label}</dt>
+      <dd className="m-0 mt-1.5 text-600 font-extrabold leading-none tracking-tight tabular-nums text-grad-ink sm:text-700">
+        {value}
+      </dd>
+      {series ? (
+        <dd className="m-0">
+          <Sparkline values={series} label={seriesLabel} />
+        </dd>
+      ) : null}
+      <dd className="m-0 mt-auto pt-2 text-100 text-grad-ink-soft">{note}</dd>
     </div>
   );
 }
 
 /**
- * "Top score, over the runs this board actually has" — the one series worth a glance
- * here: it is the single figure the hero already leads with ("X leads on Y"), so seeing
- * it move (or not) across recent runs is the direct answer to "is this dashboard doing
- * anything." Cohort size is deliberately NOT drawn a second time here — the two stats
- * above it already say "on the board" plainly, and a second line for the same shape of
- * number would be two charts arguing about which one to look at.
+ * A sparkline of a real series (the ranking-run history, the monthly submissions).
+ *
+ * A perfectly flat series is real information ("nothing changed") and is drawn level and
+ * centred, not pinned to the floor by a zero range.
  */
-function TopScoreTrend({ history }: { history: DashboardResponse["history"] }) {
-  const withScore = history.filter(
-    (h): h is typeof h & { topScore: number } => h.topScore !== null,
-  );
-
-  if (withScore.length < 2) {
-    return (
-      <p className="mt-3 border-t border-grad-rule pt-3 text-100 text-grad-ink-soft">
-        {withScore.length === 0
-          ? "No ranking run has a score yet."
-          : "Only one ranking run so far — a trend needs at least two."}
-      </p>
-    );
-  }
-
-  const w = 208;
-  const h = 32;
-  const pad = 3;
-  const scores = withScore.map((p) => p.topScore);
-  const min = Math.min(...scores);
-  const max = Math.max(...scores);
-  /*
-   * A perfectly flat run (every recompute landing on the same top score, which a
-   * profile with no data changes between runs genuinely does) is the one case
-   * `max - min` is 0 — falling back to a range of 1 without also re-centering left the
-   * line pinned to the BOTTOM of the track instead of sitting level, because dividing a
-   * zero numerator by that fallback range still lands on `min`. A flat line is real
-   * information ("nothing changed") and has to look flat and centered, not like it fell.
-   */
+function Sparkline({ values, label }: { values: readonly number[]; label: string }) {
+  const w = 120;
+  const h = 26;
+  const pad = 2.5;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
   const flat = max === min;
   const range = max - min || 1;
-  const coords = scores.map((s, i) => ({
-    x: pad + (i / (scores.length - 1)) * (w - pad * 2),
-    y: flat ? h / 2 : pad + (1 - (s - min) / range) * (h - pad * 2),
+  const coords = values.map((v, i) => ({
+    x: pad + (values.length === 1 ? 0.5 : i / (values.length - 1)) * (w - pad * 2),
+    y: flat ? h / 2 : pad + (1 - (v - min) / range) * (h - pad * 2),
   }));
-  const last = coords[coords.length - 1]!;
-  const delta = scores[scores.length - 1]! - scores[0]!;
 
   return (
-    <div className="mt-3 border-t border-grad-rule pt-3">
-      <div className="flex items-baseline justify-between">
-        <p className="text-100 font-bold uppercase tracking-[0.14em] text-grad-ink-soft">
-          Top score, last {withScore.length} runs
-        </p>
-        {/*
-          Design-audit finding: a flat line and a bare "0.0" read as a stalled widget,
-          not as "nothing changed between these two runs" — the one piece of information
-          this figure exists to carry. Same fix as `RankDelta`'s own "No change" chip
-          above: say the fact in words when the number alone doesn't, without touching
-          what it means for the runs to have tied.
-        */}
-        <span
-          className={`text-100 font-semibold tabular-nums ${delta === 0 ? "text-grad-ink-soft" : "text-grad-highlight"}`}
-        >
-          {delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${delta.toFixed(1)}`}
-        </span>
-      </div>
-      <svg
-        viewBox={`0 0 ${w} ${h}`}
-        className="mt-1.5 w-full"
-        role="img"
-        aria-label={`Top score across the last ${withScore.length} ranking runs, from ${scores[0]!.toFixed(1)} to ${scores[scores.length - 1]!.toFixed(1)}.`}
-      >
-        <polyline
-          points={coords.map((c) => `${c.x},${c.y}`).join(" ")}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-grad-highlight"
-        />
-        <circle cx={last.x} cy={last.y} r="2.5" className="fill-grad-highlight" />
-      </svg>
-    </div>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <span>
-      <b className="block whitespace-nowrap font-serif text-500 font-semibold leading-none tabular-nums text-grad-highlight">
-        {value}
-      </b>
-      <span className="mt-1.5 block text-100 text-grad-ink-soft">{label}</span>
-    </span>
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="mt-2 h-6.5 w-full" role="img" aria-label={label}>
+      <polyline
+        points={coords.map((c) => `${c.x},${c.y}`).join(" ")}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+        className="text-grad-highlight"
+      />
+    </svg>
   );
 }
 
@@ -373,7 +311,7 @@ export function ScoreRing({
       style={{ "--ring-turn": `${display / 100}turn` } as React.CSSProperties}
     >
       <span
-        className={`flex ${inner} flex-col items-center justify-center rounded-full bg-primary-foreground`}
+        className={`flex ${inner} flex-col items-center justify-center rounded-full bg-[color:var(--ink-000)]`}
       >
         {/*
           Dark-mode final-polish pass: was gradient-filled, fading toward `--grad-to` at
@@ -392,7 +330,8 @@ export function ScoreRing({
           the digits. Once `--surface` became Aurora's translucent glass, the ring's colour
           bled straight through the "solid" disc, and the numeral (still `--accent-700`,
           itself a blue) landed on a bright blue backdrop instead of a neutral one.
-          `bg-primary-foreground` (`--ink-000`) is deliberately opaque in both themes — in
+          `--ink-000` is deliberately opaque in both themes (read directly since P9 made
+          `--primary-foreground` white in dark mode for contrast on blue fills) — in
           light mode it's the same white `bg-card` already was, so nothing changes there;
           in dark mode it's Aurora's solid near-black on-accent ink, which is exactly the
           occluding disc this ring's contrast math already assumed it had.
@@ -409,70 +348,6 @@ export function ScoreRing({
         ) : null}
       </span>
     </span>
-  );
-}
-
-/**
- * One factor as a labelled bar.
- *
- * The canvas shows three bars per idea. The board's contract carries two — the top
- * strength and the top constraint — and inventing a third from the criteria we happen to
- * know about would be a bar whose length nothing computed. Two real bars beat three, one
- * of which is a drawing.
- *
- * A strength is measured by what it CONTRIBUTED; a constraint by the headroom it left.
- * They are different quantities, so they are labelled differently and drawn in different
- * tones — teal for direction up, clay for direction down, neither of them green or red
- * (P-1).
- */
-function FactorBar({ item, kind }: { item: ExplanationItem; kind: "up" | "down" }) {
-  const up = kind === "up";
-
-  /*
-   * The bar's length is `normalized`, the criterion's own 0–100 score — the one figure
-   * here that IS a proportion of something. `contribution` is in composite points and
-   * depends on the profile's weight, so drawing it against a 100-wide track would make a
-   * heavily-weighted criterion look weak.
-   *
-   * A run computed before the engine recorded `normalized` has no length to draw; the
-   * figure is shown without a bar rather than with a bar of a guessed width.
-   */
-  const width = item.normalized;
-
-  return (
-    <div>
-      <div className="flex justify-between gap-3 text-100">
-        <span className="font-semibold">{item.criterionLabel}</span>
-        <span className={`font-bold tabular-nums ${up ? "text-factor-up" : "text-factor-down"}`}>
-          {up
-            ? `+${item.contribution.toFixed(1)} pts`
-            : item.headroom === undefined
-              ? "held it back"
-              /*
-               * Design-audit finding: "6.5 pts available" didn't say available toward
-               * WHAT — a first-time reader has no way to know this is upside if the
-               * criterion improves, not a number already lost. Spelling out "to gain if
-               * this improves" costs a few characters and removes the ambiguity entirely.
-               */
-              : `up to ${item.headroom.toFixed(1)} pts to gain if this improves`}
-        </span>
-      </div>
-      {width === undefined ? null : (
-        <div
-          aria-hidden
-          className={`mt-1 h-1.5 overflow-hidden rounded-full ${up ? "bg-ramp-1" : "bg-factor-down-bg"}`}
-        >
-          <div
-            className={`h-full rounded-full transition-[width] duration-[var(--dur-settle)] ease-[var(--ease-out-quint)] ${
-              up ? "bg-gradient-to-r from-ramp-4 to-ramp-5" : "bg-factor-down"
-            }`}
-            style={{ width: `${Math.max(2, Math.min(100, width))}%` }}
-          />
-        </div>
-      )}
-      {/* The engine's own sentence, in full, for anyone not reading the bar. */}
-      <span className="sr-only">{item.text}</span>
-    </div>
   );
 }
 
@@ -510,7 +385,7 @@ export function RankDelta({
       // carries the rest, same wording as the sr-only text on the up/down chip below.
       <span
         title="Same rank as the last board update"
-        className={`inline-flex items-center rounded-full px-2.5 py-1 text-100 font-bold ${
+        className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-100 font-bold ${
           onBrand ? "bg-grad-ink/15 text-grad-ink-soft" : "bg-muted text-muted-foreground"
         }`}
       >
@@ -527,7 +402,7 @@ export function RankDelta({
       : "bg-factor-down-bg text-factor-down";
 
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-100 font-bold ${tone}`}>
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-100 font-bold ${tone}`}>
       {up ? (
         <TrendingUp aria-hidden className="size-3" />
       ) : (
@@ -536,144 +411,5 @@ export function RankDelta({
       {up ? "up" : "down"} {Math.abs(delta)}
       <span className="sr-only">{Math.abs(delta) === 1 ? "place" : "places"} since the last run</span>
     </span>
-  );
-}
-
-/**
- * The leader, given a face (Idea Platform Redesign — "spotlight").
- *
- * The canvas calls this "Idea of the week" and pairs it with an "up 2 places" chip. It is
- * not the idea of the week — it is the idea at the top of the current run, and nothing
- * here knows about weeks. The chip is real and comes from `previousRank`, so it is kept
- * and only rendered when the idea actually moved.
- */
-export function Spotlight({ board }: { board: ListRankingsResponse | undefined }) {
-  const leader = board?.items.find((e) => e.rank === 1);
-  if (!leader) return null;
-
-  return (
-    /*
-      `card-texture` + `shadow-e4` (visual-richness pass — hero-card depth): this is the
-      one card on the dashboard that answers "what's the single most important thing
-      happening on the board," so it gets more depth than the KPI tiles above it and
-      the outcome track below it, not just a coloured edge.
-
-      No longer its own full-width `<section>` — paired with `BoardComposition` in a
-      two-column focal section on `DashboardPage` (visual-composition pass §8: "Featured
-      opportunity | Opportunity overview"), so the page's one most-important fact sits
-      beside the one panel that gives it context, instead of alone above it.
-    */
-    <div className="card-texture relative h-full overflow-hidden rounded-2xl bg-card p-5 shadow-e4-lit ring-1 ring-inset ring-border transition-transform duration-[var(--dur-base)] hover:-translate-y-1">
-      {/* The amber-to-violet edge the canvas runs down the spotlight, and the only thing
-          marking this card out from the ones below it. */}
-      <span
-        aria-hidden
-        className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-grad-highlight to-grad-to"
-      />
-
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="inline-flex items-center gap-1.5 rounded-full bg-grad-highlight/20 px-2.5 py-1 text-100 font-extrabold uppercase tracking-[0.1em] text-state-warn">
-          <Trophy aria-hidden className="size-3" />
-          Leading the board
-        </h2>
-        <RankDelta rank={leader.rank} previousRank={leader.previousRank} />
-      </div>
-
-      <div className="mt-3.5 flex flex-wrap items-start gap-5">
-        <span className="shrink-0">
-          <ScoreRing value={leader.compositeScore} />
-          {/* `ScoreRing` is entirely `aria-hidden` — without this, a screen-reader user
-              hears "Leading the board" and the title but never the actual score. */}
-          <span className="sr-only">
-            Composite score {leader.compositeScore.toFixed(1)} out of 100, ranked #{leader.rank}
-          </span>
-        </span>
-
-        <div className="min-w-[16rem] flex-1">
-          <h3 className="text-400 font-semibold leading-snug">
-            <Link to={`/ideas/${leader.ideaId}/evaluation`}>{leader.title}</Link>
-          </h3>
-          <p className="mt-1 text-200 text-muted-foreground">
-            <Link to={`/people/${leader.submitter.id}`}>{leader.submitter.displayName}</Link>
-            {leader.department ? ` · ${leader.department}` : ""} ·{" "}
-            <span className="font-semibold text-primary">
-              #{leader.rank} of {board?.run.cohortSize ?? leader.rank}
-            </span>
-          </p>
-
-          {/* P-2 travels with the rank, here as much as on the board itself. */}
-          <div className="mt-3.5 flex flex-col gap-2.5">
-            {leader.topStrength ? <FactorBar item={leader.topStrength} kind="up" /> : null}
-            {leader.topConstraint ? (
-              <FactorBar item={leader.topConstraint} kind="down" />
-            ) : null}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * "Opportunity overview" — the Spotlight's paired panel (visual-composition pass §8).
- *
- * Real, already-fetched data only: each ranked idea's own `department` (RankingEntry's
- * own field — no new query), grouped and counted client-side. Deliberately NOT a score
- * distribution or a "quality" bucketing — a chart that groups ideas into bands by
- * composite score would read as a verdict palette by another name (P-1), exactly what
- * this product exists to avoid. Department is a plain fact about who submitted, not a
- * judgement about the idea, so it is the one grouping this board can show without
- * inventing a threshold nobody asked for.
- */
-export function BoardComposition({ board }: { board: ListRankingsResponse | undefined }) {
-  const items = board?.items ?? [];
-  if (items.length === 0) return null;
-
-  const counts = new Map<string, number>();
-  for (const item of items) {
-    const key = item.department ?? "No department";
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  const rows = [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
-  const max = Math.max(...rows.map(([, n]) => n));
-
-  return (
-    /*
-      Design-review finding: this panel used a flatter treatment (thinner padding, a
-      plain uppercase label, the generic blue ramp for its bars) than everything else on
-      the page, and read as "a component from another dashboard" sitting right beside
-      Spotlight's much richer card. It stays deliberately quieter than Spotlight — this
-      is the page's THIRD priority, not its second — but now shares the same label
-      pattern as the hero's own "Pipeline overview" (underline rule) and the same accent
-      family as the tiles above it (cyan), rather than a different visual language.
-    */
-    <div className="h-full rounded-2xl bg-card p-6 shadow-e2 ring-1 ring-inset ring-border">
-      <h2 className="text-200 font-bold uppercase tracking-[0.1em] text-muted-foreground">
-        Opportunity overview
-      </h2>
-      <span aria-hidden className="mt-2 block h-0.5 w-7 rounded-full bg-ramp-5" />
-      <p className="mt-3 text-200 text-muted-foreground">
-        Where the board's {items.length} ranked idea{items.length === 1 ? "" : "s"} come from.
-      </p>
-
-      <ul className="mt-4.5 flex flex-col gap-3.5">
-        {rows.map(([name, n]) => (
-          <li key={name}>
-            <div className="flex items-baseline justify-between gap-3 text-200">
-              <span className="min-w-0 truncate font-semibold text-foreground">{name}</span>
-              <span className="shrink-0 font-bold tabular-nums text-muted-foreground">{n}</span>
-            </div>
-            <div aria-hidden className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-ramp-1">
-              <div
-                className="h-full rounded-full bg-ramp-5"
-                style={{ width: `${Math.max(6, (n / max) * 100)}%` }}
-              />
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }

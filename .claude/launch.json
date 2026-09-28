@@ -6,6 +6,18 @@
       "runtimeExecutable": "corepack",
       "runtimeArgs": ["pnpm", "dev"],
       "port": 5173
+    },
+    {
+      "name": "iep-api",
+      "runtimeExecutable": "corepack",
+      "runtimeArgs": ["pnpm", "--filter", "@iep/api", "exec", "node", "--env-file-if-exists=../../.env", "--import", "tsx", "src/main.ts"],
+      "port": 3001
+    },
+    {
+      "name": "iep-web",
+      "runtimeExecutable": "corepack",
+      "runtimeArgs": ["pnpm", "--filter", "@iep/web", "dev"],
+      "port": 5173
     }
   ]
 }

@@ -36,6 +36,9 @@ export const queryKeys = {
     version: (ideaId: string, versionNo: number) =>
       ["ideas", "detail", ideaId, "versions", versionNo] as const,
     history: (ideaId: string) => ["ideas", "detail", ideaId, "history"] as const,
+    /** P15/P16 — under the idea's detail prefix, so a transition (which stamps pilot
+     *  dates) refreshes it along with everything else about the idea. */
+    delivery: (ideaId: string) => ["ideas", "detail", ideaId, "delivery"] as const,
     analysis: (ideaId: string) => ["ideas", "detail", ideaId, "analysis"] as const,
     analysisStatus: (ideaId: string) => ["ideas", "detail", ideaId, "analysis", "status"] as const,
     evaluation: (ideaId: string) => ["ideas", "detail", ideaId, "evaluation"] as const,
@@ -50,6 +53,8 @@ export const queryKeys = {
      *  above (the thumb vote) since they're two different requests to two different
      *  endpoints, not two views of the same data. */
     signals: (ideaId: string) => ["ideas", "detail", ideaId, "signals"] as const,
+    /** P18 — the comment thread, under the detail prefix so it refreshes with the idea. */
+    comments: (ideaId: string) => ["ideas", "detail", ideaId, "comments"] as const,
     attachments: (ideaId: string) => ["ideas", ideaId, "attachments"] as const,
   },
 
@@ -76,6 +81,12 @@ export const queryKeys = {
   dashboard: (departmentId?: string) => ["dashboard", departmentId ?? null] as const,
   analytics: (filters: { departmentId?: string | undefined; categoryId?: string | undefined }) =>
     ["analytics", filters.departmentId ?? null, filters.categoryId ?? null] as const,
+  notifications: {
+    all: () => ["notifications"] as const,
+    list: (filters: { page: number; unread: boolean }) => ["notifications", "list", filters] as const,
+    unread: () => ["notifications", "unread"] as const,
+    preferences: () => ["notifications", "preferences"] as const,
+  },
 
   admin: {
     audit: (filters: Filters) => ["admin", "audit", filters] as const,
@@ -88,6 +99,8 @@ export const queryKeys = {
    *  fresh on every visit to a `/people/:userId` page the same as `ideas.list` does. */
   people: {
     activity: (userId: string) => ["people", userId, "activity"] as const,
+    /** P18 — the @mention picker's matches, scoped to who can open the idea. */
+    search: (q: string, ideaId?: string) => ["people", "search", q, ideaId ?? null] as const,
   },
 
   /** SPC-001 — AI Discovery Agent. Standalone: no idea-scoped key touches this. */

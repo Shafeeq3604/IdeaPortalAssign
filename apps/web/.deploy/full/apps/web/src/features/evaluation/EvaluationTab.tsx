@@ -6,6 +6,7 @@ import {
 import type { CriterionGroup, CriterionScore, ExistingSolutionAssessmentRef, MaturityLevel } from "@iep/contracts";
 import { ApiError } from "../../app/api-client";
 import { IdeaShell } from "../ideas/IdeaShell";
+import { haltedBeforeAnalysisNote } from "../ideas/api";
 import { GROUP_LABEL, MATURITY_HELP, MATURITY_LABEL, useEvaluation } from "./api";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
@@ -34,6 +35,20 @@ const RECOMMENDATION_LABEL: Record<
   INTEGRATE: "Integrate — reuse an existing platform capability instead of duplicating it.",
 };
 
+/**
+ * A mid-scale criterion is legitimately both a top contributor and a top gap (50/100 adds
+ * points AND leaves as many on the table), so the engine can list it under "What lifted
+ * this idea" and "What held it back" at once — which read as the page contradicting
+ * itself. It stays where it is listed first (lifted); the held-back list shows the rest.
+ * If every constraint is also a strength, the list is left as the engine wrote it rather
+ * than emptied (FR-14: a rank is never shown without what limits it).
+ */
+function withoutRepeats<T extends { criterionKey: string }>(constraints: readonly T[], strengths: readonly T[]): T[] {
+  const lifted = new Set(strengths.map((s) => s.criterionKey));
+  const rest = constraints.filter((c) => !lifted.has(c.criterionKey));
+  return rest.length > 0 ? rest : [...constraints];
+}
+
 export function EvaluationTab() {
   const { ideaId = "" } = useParams();
   const query = useEvaluation(ideaId);
@@ -57,15 +72,21 @@ export function EvaluationTab() {
            * product look broken during the two minutes it is working hardest.
            */
           const notYet = query.error instanceof ApiError && query.error.status === 404;
+          const halted = haltedBeforeAnalysisNote(idea.status);
           return notYet ? (
             <EmptyState
-              title="Not evaluated yet"
+              title={halted ? "Not scored" : "Not evaluated yet"}
               description={
-                idea.status === "DRAFT"
+                halted ??
+                (idea.status === "DRAFT"
                   ? "Submitting this idea starts the analysis, and the score follows it."
-                  : "The analysis has to finish before the engine can score this idea. The Analysis tab shows how far it has got."
+                  : "The analysis has to finish before the engine can score this idea. The Analysis tab shows how far it has got.")
               }
-              action={{ label: "See the analysis", to: `/ideas/${ideaId}/analysis` }}
+              action={
+                halted
+                  ? { label: "Back to the idea", to: `/ideas/${ideaId}/overview` }
+                  : { label: "See the analysis", to: `/ideas/${ideaId}/analysis` }
+              }
               renderLink={link}
             />
           ) : (
@@ -217,11 +238,11 @@ export function EvaluationTab() {
             */}
             {e.ranking ? (
               <section className="rounded-xl border-l-4 border-accent-600 bg-accent-050/50 p-6">
-                <h2 className="font-serif text-500 font-semibold">Why it ranks here</h2>
+                <h2 className="font-serif text-500 font-extrabold">Why it ranks here</h2>
                 <div className="mt-4">
                   <ExplanationPanel
                     strengths={e.ranking.explanation.strengths}
-                    constraints={e.ranking.explanation.constraints}
+                    constraints={withoutRepeats(e.ranking.explanation.constraints, e.ranking.explanation.strengths)}
                     peerComparisons={e.ranking.explanation.peerComparisons}
                     generatedBy={e.ranking.explanation.generatedBy}
                     tieBreakNote={e.ranking.explanation.tieBreakNote}
@@ -237,7 +258,7 @@ export function EvaluationTab() {
               </section>
             ) : (
               <section className="rounded-xl border-l-4 border-border bg-muted/40 p-6">
-                <h2 className="font-serif text-500 font-semibold">Why it ranks here</h2>
+                <h2 className="font-serif text-500 font-extrabold">Why it ranks here</h2>
                 <p className="mt-2 text-200 text-muted-foreground">
                   This idea has a score but has not been included in a ranking run yet.
                   The scores below already explain how that number was reached.

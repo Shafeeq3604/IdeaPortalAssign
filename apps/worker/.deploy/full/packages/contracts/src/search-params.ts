@@ -77,6 +77,13 @@ export const AnalyticsParams = z.object({
 });
 export type AnalyticsParams = z.infer<typeof AnalyticsParams>;
 
+/** P13. The centre's "unread only" toggle and paging — Back restores both. */
+export const NotificationParams = z.object({
+  unread: z.enum(["true"]).optional(),
+  page,
+});
+export type NotificationParams = z.infer<typeof NotificationParams>;
+
 export const HistoryParams = z.object({
   /** "2-3" compares v2 with v3. */
   diff: z
@@ -122,6 +129,7 @@ export const SEARCH_PARAM_SCHEMAS = {
   "review.queue": ReviewQueueParams,
   dashboard: DashboardParams,
   analytics: AnalyticsParams,
+  notifications: NotificationParams,
   "idea.history": HistoryParams,
   "idea.revise": ReviseParams,
   "admin.audit": AuditParams,

@@ -26,7 +26,7 @@ import { GOLDEN_CASES, type GroundTruth, type StepExpectation } from "./cases.js
  *  2. Aggregate model-dependent metrics against SPEC §12.4's own targets (use-case F1,
  *     value-band match, feasibility exact match, risk recall), computed across whatever
  *     cases in cases.ts carry a `groundTruth` block. These are REPORTED, not gating —
- *     see "why these don't fail the build yet" below.
+ *     SPEC §16.1 D-22 (owner decision) — accuracy is watched, not release-blocking.
  */
 
 const BUDGET_PER_STEP_USD = 5; // comfortably above any single real step's cost
@@ -303,13 +303,11 @@ function printAggregateReport(metrics: AggregateMetrics, caseCountWithGroundTrut
       `(target ≥0.80)`,
   );
   console.log(
-    "\nNOT gating the exit code. SPEC §12.4 calls for a 40-case + 25-adversarial golden set,\n" +
-      "human-labelled by two annotators with disagreements resolved. cases.ts currently has\n" +
-      `${GOLDEN_CASES.length} cases with first-pass DRAFT labels (see cases.ts's own header) — too few,\n` +
-      "and not annotator-verified, to responsibly fail a release on. These numbers are printed\n" +
-      "so the harness's own mechanics are visible and reviewable now; once the golden set is\n" +
-      "the real size and the labels have had a second, independent pass, wire this report's\n" +
-      "thresholds into the exit code the same way the per-case checks already are.",
+    "\nReported, NOT gating the exit code — by decision (SPEC §16.1 D-22): for an advisory AI\n" +
+      "whose every output a reviewer sees and can override, these accuracy numbers are watched,\n" +
+      `not release-blocking, and the ${GOLDEN_CASES.length} cases' labels may stay single-author.\n` +
+      "Production accuracy signal: the P6 score-override rate. To make these gate again, fail\n" +
+      "the process here when a metric is below its target.",
   );
 }
 

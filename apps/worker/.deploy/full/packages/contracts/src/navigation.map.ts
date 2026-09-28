@@ -78,6 +78,9 @@ export const ROUTES: readonly RouteDef[] = [
     backPath: "/ideas/:ideaId/history", renders: ["IdeaVersion"] },
   { id: "idea.revise", path: "/ideas/:ideaId/revise", title: "Revise", roles: ALL,
     backPath: "/ideas/:ideaId/overview", renders: ["IdeaVersion"] },
+  // P15/P16 — one tab for everything after the review: pilot, progress, KPIs, ROI.
+  { id: "idea.delivery", path: "/ideas/:ideaId/delivery", title: "Delivery", roles: ALL, backPath: "/ideas",
+    renders: ["PilotRecord", "DeliveryUpdate", "KpiDefinition", "KpiMeasurement", "IdeaFinancials"] },
 
   { id: "rankings", path: "/rankings", title: "Rankings", roles: ALL, backPath: "/",
     renders: ["RankingRun", "RankingEntry", "RankingExplanation", "EvaluationProfile"],
@@ -99,6 +102,8 @@ export const ROUTES: readonly RouteDef[] = [
     renders: ["Department", "Idea"] },
   { id: "person", path: "/people/:userId", title: "Person", roles: ALL, backPath: "/ideas",
     renders: ["User", "Idea"] },
+  { id: "notifications", path: "/notifications", title: "Notifications", roles: ALL, backPath: "/",
+    renders: ["Notification", "Idea"], searchParams: ["unread", "page"] },
 
   { id: "config.criteria", path: "/config/criteria", title: "Evaluation criteria", roles: ALL, backPath: "/",
     renders: ["EvaluationCriterion"], searchParams: ["criterion"] },
@@ -154,6 +159,20 @@ export const ROUTES: readonly RouteDef[] = [
   { id: "idea.leadershipDecision", path: "/ideas/:ideaId/leadership-decision",
     title: "Leadership decision", roles: LEADERSHIP, backPath: "/ideas/:ideaId/analysis",
     renders: ["ImplementationRecommendation", "LeadershipDecision"] },
+
+  /**
+   * P20 (SPEC §14 M4, D-25) — additive amendment (SPEC §14.1), same shape as the entries
+   * above: real reachable routes, not RELATIONSHIPS rows (locked to §6.2's 46).
+   *
+   * Boardroom is the current board presented one idea at a time, for a meeting room —
+   * the same audience as Compare, since that is who runs those meetings. It reads
+   * `/rankings` only, which every role may, so no permission changes with it.
+   *
+   * Swipe is a quicker way to give the thumb vote that already exists on every idea.
+   */
+  { id: "rankings.boardroom", path: "/rankings/boardroom", title: "Boardroom",
+    roles: LEADERSHIP.concat(["REVIEWER"]), backPath: "/rankings", renders: ["RankingEntry", "RankingExplanation"] },
+  { id: "ideas.swipe", path: "/ideas/swipe", title: "Weigh in", roles: ALL, backPath: "/", renders: ["Idea"] },
 ];
 
 /** The 46 relationships of SPEC §6.2, in order. */

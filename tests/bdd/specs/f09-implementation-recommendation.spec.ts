@@ -184,4 +184,44 @@ describe("F-09 · the AI recommendation is a real artifact, the final decision i
       }),
     ).rejects.toThrow();
   });
+
+  it("Given an earlier step is re-run, Then the recommendation is re-written too — it synthesizes their findings", async () => {
+    guard();
+    const { ideaId, versionId } = await givenAnAnalysedIdea("stale-synthesis");
+    const version = await db.ideaVersion.findUniqueOrThrow({ where: { id: versionId } });
+    const rerun = () =>
+      runPipeline(
+        { db, provider: new StubProvider(), budgetPerVersionUsd: 0.75, redactionEnabled: true, observability: NOOP_OBSERVABILITY_CLIENT },
+        { ideaId, ideaVersionId: versionId, contentHash: version.contentHash },
+      );
+    const recommendationRun = () =>
+      db.aiAnalysis.findUniqueOrThrow({
+        where: { ideaVersionId_step: { ideaVersionId: versionId, step: "IMPLEMENTATION_RECOMMENDATION" } },
+      });
+
+    // Nothing to redo: every step is skipped, the recommendation included.
+    const first = await recommendationRun();
+    await rerun();
+    expect((await recommendationRun()).finishedAt).toEqual(first.finishedAt);
+
+    // Feasibility is re-run (as after the injection-check false positive) → so is the synthesis.
+    await db.aiAnalysis.update({
+      where: { ideaVersionId_step: { ideaVersionId: versionId, step: "FEASIBILITY" } },
+      data: { status: "PENDING" },
+    });
+    await rerun();
+    expect((await recommendationRun()).finishedAt?.getTime()).toBeGreaterThan(first.finishedAt?.getTime() ?? 0);
+
+    // Once leadership has decided against it, it stays exactly what they were shown.
+    const shown = await db.aiImplementationRecommendation.findUniqueOrThrow({ where: { ideaVersionId: versionId } });
+    await db.leadershipDecision.create({
+      data: { ideaId, recommendationId: shown.id, decidedById: managerId, status: "APPROVED", rationale: "Proceed." },
+    });
+    await db.aiAnalysis.update({
+      where: { ideaVersionId_step: { ideaVersionId: versionId, step: "FEASIBILITY" } },
+      data: { status: "PENDING" },
+    });
+    await rerun();
+    expect((await db.aiImplementationRecommendation.findUniqueOrThrow({ where: { ideaVersionId: versionId } })).id).toBe(shown.id);
+  });
 });

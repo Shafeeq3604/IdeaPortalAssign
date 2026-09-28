@@ -227,6 +227,10 @@ test.describe("J-1 employee journey", () => {
     */
     const up = page.getByRole("button", { name: /thumbs up/i });
     await expect(up).toBeVisible();
+    // The vote buttons render (disabled, reading 0) while this person's feedback is still
+    // loading. Reading the count then gives 0 on an idea that already has votes, and the
+    // click below lands on the real count — found when a seeded vote made it 1 → 2 ≠ 0 + 1.
+    await expect(up).toBeEnabled();
 
     const before = Number((await up.innerText()).trim());
     await up.click();

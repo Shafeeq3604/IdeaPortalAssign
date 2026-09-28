@@ -32,8 +32,15 @@ export const TIER_RATES: Record<ModelTier, { in: number; out: number }> = {
   C: { in: 1, out: 5 },
 };
 
+/**
+ * What a route is keyed by: the eight analysis steps, plus the idea-creation chat (P9 —
+ * it used to hard-code its model in idea-creation.ts, outside this table, so it was the
+ * one AI call a config edit could not change).
+ */
+export type RouteKey = AnalysisStep | "IDEA_CREATION";
+
 export interface ModelRoute {
-  readonly storyKey: AnalysisStep;
+  readonly storyKey: RouteKey;
   readonly tier: ModelTier;
   readonly modelId: string;
   /**
@@ -112,3 +119,20 @@ export function estimateCostUsd(
   const rate = TIER_RATES[tier];
   return (inputTokens / 1_000_000) * rate.in + (outputTokens / 1_000_000) * rate.out;
 }
+
+/**
+ * The idea-creation chat (P9 tester feedback: "takes too long to generate a response").
+ *
+ * Tier B, and deliberately `low` effort: a turn is one short follow-up question plus a
+ * small draft patch — conversational extraction, not judgement (nothing it writes is
+ * scored until the person submits and the Tier A analysis runs). Most of a Sonnet turn's
+ * wait was adaptive thinking this job does not need. `maxTokens` covers thinking + the
+ * JSON answer (the old hard-coded call used 3 000 with no effort cap).
+ *
+ * Also the fallback when the table has no IDEA_CREATION row yet (a database seeded
+ * before this route existed), so the chat never depends on a re-seed to work.
+ */
+export const IDEA_CREATION_ROUTE: ModelRoute = {
+  storyKey: "IDEA_CREATION", tier: "B", modelId: TIER_MODELS.B, effort: "low",
+  thinkingMode: "ADAPTIVE", thinkingBudgetTokens: null, maxTokens: 4_000, enabled: true,
+};

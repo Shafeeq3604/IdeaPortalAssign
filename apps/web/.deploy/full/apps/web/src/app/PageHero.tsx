@@ -37,63 +37,51 @@ export function PageHero({
   aside?: React.ReactNode;
 }) {
   return (
-    <div className="dash-hero relative mb-6 overflow-hidden rounded-2xl p-6 text-grad-ink shadow-e4 sm:p-7">
-      <div className="relative flex flex-wrap items-start justify-between gap-6">
-        <div className="max-w-[60ch]">
+    <div className="dash-hero relative mb-6 overflow-hidden rounded-2xl p-6 text-grad-ink shadow-e4-lit sm:p-8">
+      <div className="relative flex flex-wrap items-center justify-between gap-6">
+        <div className="min-w-0 max-w-[64ch] flex-[1_1_24rem]">
           {eyebrow ? (
-            <span className="inline-flex items-center gap-2 rounded-full bg-grad-ink/10 px-3 py-1 text-100 uppercase tracking-[0.06em] text-grad-ink-soft ring-1 ring-grad-rule">
+            <span className="inline-flex items-center gap-2 rounded-full bg-grad-ink/10 px-3 py-1 text-100 font-bold uppercase tracking-[0.08em] text-grad-ink-soft ring-1 ring-grad-rule">
               <span aria-hidden className="dash-pulse size-1.5 rounded-full bg-grad-highlight" />
               {eyebrow}
             </span>
           ) : null}
 
           <h1
-            className={`flex items-center gap-3 font-serif font-semibold leading-tight tracking-tight text-grad-ink text-600 sm:text-700 ${eyebrow ? "mt-3.5" : ""}`}
+            className={`flex items-center gap-3 text-600 font-extrabold leading-tight tracking-tight text-balance text-grad-ink sm:text-700 ${eyebrow ? "mt-4" : ""}`}
           >
             {Icon ? (
               <span
                 aria-hidden
-                className="grid size-9 shrink-0 place-items-center rounded-xl bg-grad-highlight/20 text-grad-highlight ring-1 ring-grad-rule sm:size-10"
+                className="grid size-10 shrink-0 place-items-center rounded-xl bg-grad-highlight/20 text-grad-highlight ring-1 ring-grad-rule sm:size-11"
               >
-                <Icon className="size-4.5 sm:size-5" />
+                <Icon className="size-5" />
               </span>
             ) : null}
             {heading}
           </h1>
 
           {description ? (
-            <p className="mt-2.5 text-300 leading-relaxed text-grad-ink-soft">{description}</p>
+            <p className="mt-3 text-300 leading-relaxed text-grad-ink-soft">{description}</p>
           ) : null}
 
-          {actions ? <div className="mt-5 flex flex-wrap gap-2.5">{actions}</div> : null}
+          {actions ? <div className="mt-6 flex flex-wrap gap-3">{actions}</div> : null}
         </div>
 
-        {aside ? <div className="w-full max-w-[16rem] shrink-0">{aside}</div> : null}
+        {aside ? <div className="hero-panel w-full max-w-[17rem] shrink-0 rounded-2xl p-4.5">{aside}</div> : null}
       </div>
     </div>
   );
 }
 
 /**
- * The plain heading for a "working" page — one someone operates rather than arrives at.
+ * The heading for a "working" page — one someone operates rather than arrives at.
  *
- * `PageHero` used to open every single routed page, landing or working alike: Submit an
- * idea, Rankings, Criteria, the Review queue and both admin screens got the identical
- * gradient-plus-dot-grid banner as the Dashboard and Discover, so nothing distinguished
- * "somewhere I arrive" from "somewhere I operate thirty times a day," and eleven
- * unmodified copies of the same component read as a template rather than a design.
- *
- * This keeps the one piece of hero furniture worth keeping on a working page — a per-page
- * icon, so the destination is still identifiable at a glance — and drops the rest: no
- * gradient, no dot texture, no serif display type. `<h1>` is a direct child of `.page`
- * here on purpose (index.css's `.page > h1::after` rule), so the same short gradient
- * underline that already marks every plain heading in the product (the People/Department
- * pages) marks this one too, instead of inventing a second identity mark for "a heading
- * with an icon." IdeaShell is the one deliberate exception, not an example of this
- * convention: its own comment marks the serif treatment there as the flagship of the
- * enterprise-polish pass (§12), for the one screen every role lands on to decide
- * something — this file used to cite it as a "plain heading" example, which stopped
- * being true the moment that pass shipped.
+ * Deliberately NOT the navy hero: a page used thirty times a day should open on its
+ * content, not a banner. P9 ("richer, enterprise-grade look") gives it the mockups'
+ * treatment instead — an icon chip, an 800-weight title, a description, and any real
+ * figures as the same bordered KPI cards the dashboard uses, so every page reads as the
+ * same product.
  */
 export function PageHeading({
   icon: Icon,
@@ -106,52 +94,32 @@ export function PageHeading({
   heading: React.ReactNode;
   description?: React.ReactNode;
   actions?: React.ReactNode;
-  /** A small inline figure or two — the thing an aside stat panel would have carried on
-   * the old hero, sized down to fit beside a plain heading instead of inside a card. */
+  /** A small figure or two (`HeadingStat` / `InlineStat`). */
   stats?: React.ReactNode;
 }) {
   return (
-    <>
-      <h1 className="flex flex-wrap items-center gap-3">
-        {Icon ? (
-          <span
-            aria-hidden
-            className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent-100 text-accent-700"
-          >
-            <Icon className="size-4" />
-          </span>
-        ) : null}
-        {heading}
-      </h1>
-
-      {/*
-        `items-start`, not `items-end` (design-review finding): a description is a real
-        sentence and routinely wraps to two lines at ordinary desktop width (this one
-        does, "Explore ideas" and "Rankings" both do), while `stats` is one line tall.
-        Bottom-aligning the two put the stat at the SECOND line's baseline — nowhere
-        near the heading it belongs to, reading as text stray in the corner rather than
-        a figure attached to the header. Top-aligning puts it level with the
-        description's first line, right under the heading, every time — regardless of
-        how many lines the sentence next to it wraps to.
-      */}
-      <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-3">
-        {description ? <p className="muted mb-0 max-w-[60ch]">{description}</p> : <span />}
-        {stats ? <div className="flex shrink-0 flex-wrap gap-3">{stats}</div> : null}
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+      <div className="min-w-0 max-w-[68ch] flex-[1_1_26rem]">
+        <h1 className="flex flex-wrap items-center gap-3">
+          {Icon ? (
+            <span
+              aria-hidden
+              className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent-100 text-accent-700 shadow-e1"
+            >
+              <Icon className="size-5" />
+            </span>
+          ) : null}
+          {heading}
+        </h1>
+        {description ? <p className="mt-2 text-300 leading-relaxed text-muted-foreground">{description}</p> : null}
+        {actions ? <div className="mt-5 flex flex-wrap gap-2.5">{actions}</div> : null}
       </div>
-
-      {actions ? <div className="mt-4 mb-8 flex flex-wrap gap-2.5">{actions}</div> : null}
-    </>
+      {stats ? <div className="flex shrink-0 flex-wrap gap-3">{stats}</div> : null}
+    </div>
   );
 }
 
-/**
- * A `PageHeading` stat as a self-contained tile, not bare "N / label" text (design-
- * review finding: naked numerals next to a paragraph read as a stray leftover — see the
- * comment on the row above). Same visual language as `PersonActivity.tsx`'s Activity
- * tiles and `DashboardPage.tsx`'s pipeline tiles: a coloured top rule and a tinted
- * surface, so a page-level "at a glance" figure looks like it belongs to this product
- * rather than a generic dashboard template, wherever it appears.
- */
+/** A `PageHeading` figure as a small KPI card — the dashboard's own card treatment. */
 export function HeadingStat({
   icon: Icon, value, label,
 }: {
@@ -160,51 +128,49 @@ export function HeadingStat({
   label: string;
 }) {
   return (
-    <div className="relative shrink-0 overflow-hidden rounded-xl bg-accent-050 px-4 py-3 shadow-e1 ring-1 ring-inset ring-ramp-2">
-      <span aria-hidden className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-ramp-3 to-ramp-5" />
-      <Icon aria-hidden className="size-3.5 text-accent-700" />
-      <span className="mt-1 block font-serif text-500 font-bold leading-none tabular-nums text-accent-700">
+    <div className="flex min-w-[9.5rem] shrink-0 flex-col gap-2 rounded-2xl border border-border bg-card px-4 py-3.5 shadow-e2">
+      <span className="flex items-center justify-between gap-3">
+        <span className="text-100 font-semibold text-muted-foreground first-letter:uppercase">{label}</span>
+        <span aria-hidden className="grid size-7 place-items-center rounded-lg bg-accent-100 text-accent-700">
+          <Icon className="size-3.5" />
+        </span>
+      </span>
+      <span className="text-600 font-extrabold leading-none tracking-tight tabular-nums text-foreground">
         {value}
       </span>
-      <span className="mt-1 block text-100 text-muted-foreground">{label}</span>
     </div>
   );
 }
 
-/** A compact inline figure for `PageHeading`'s `stats` slot — same numeral treatment as
- * `HeroStat`, sized for sitting beside a plain heading rather than inside a hero card. */
+/** A compact figure for `PageHeading`'s `stats` slot, as a small bordered card. */
 export function InlineStat({ value, label }: { value: string; label: string }) {
   return (
-    <span className="text-right">
-      <b className="block font-serif text-400 font-semibold leading-none tabular-nums text-accent-700">
+    <span className="flex min-w-[7.5rem] flex-col rounded-2xl border border-border bg-card px-4 py-3 shadow-e2">
+      <span className="text-100 font-semibold text-muted-foreground first-letter:uppercase">{label}</span>
+      <b className="mt-1 block text-500 font-extrabold leading-none tracking-tight tabular-nums text-foreground">
         {value}
       </b>
-      <span className="mt-1 block text-100 text-muted-foreground">{label}</span>
     </span>
   );
 }
 
-/** One real figure, styled like `DashboardHero`'s own `Stat` — reused so a hero's aside
- * panel never has to invent its own numeral treatment. */
+/** One real figure inside a hero's aside panel. */
 export function HeroStat({ value, label }: { value: string; label: string }) {
   return (
     <span>
-      <b className="block font-serif text-500 font-semibold leading-none tabular-nums text-grad-highlight">
+      <b className="block text-600 font-extrabold leading-none tracking-tight tabular-nums text-grad-ink">
         {value}
       </b>
-      <span className="mt-1 block text-100 text-grad-ink-soft">{label}</span>
+      <span className="mt-1.5 block text-100 text-grad-ink-soft">{label}</span>
     </span>
   );
 }
 
-/** A hero action styled as the primary amber pill (matches DashboardHero's "Review N
- * ideas" / the header bar's "Submit an idea" — the one call to action a hero makes,
- * always amber, always this shape). Renders as a plain <span>'s child via `asChild`-less usage:
- * wrap a <Link> or <button> in this for the visual treatment. */
+/** A hero's primary action — the dashboard hero's own button shape. Wrap a <Link> or
+ * <button> in this for the visual treatment. */
 export const HERO_PRIMARY_ACTION =
-  "inline-flex h-9 items-center gap-2 rounded-full bg-grad-highlight px-4 text-100 font-bold text-grad-from no-underline shadow-e2 transition-transform duration-[var(--dur-fast)] hover:-translate-y-px";
+  "inline-flex h-11 items-center gap-2 rounded-xl bg-grad-highlight px-5 text-200 font-extrabold text-grad-from no-underline shadow-[0_8px_24px_-8px_var(--grad-highlight)] transition-transform duration-[var(--dur-fast)] hover:-translate-y-px";
 
-/** A hero action styled as the secondary ghost pill (matches DashboardHero's "See the
- * board"). */
+/** A hero's secondary action (the dashboard hero's "See the board"). */
 export const HERO_SECONDARY_ACTION =
-  "inline-flex h-9 items-center gap-2 rounded-full bg-grad-ink/10 px-4 text-100 font-semibold text-grad-ink no-underline ring-1 ring-grad-rule transition-colors duration-[var(--dur-fast)] hover:bg-grad-ink/20";
+  "inline-flex h-11 items-center gap-2 rounded-xl px-5 text-200 font-bold text-grad-ink no-underline ring-1 ring-inset ring-grad-ink/25 transition-colors duration-[var(--dur-fast)] hover:bg-grad-ink/10";

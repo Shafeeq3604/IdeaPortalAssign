@@ -22,16 +22,14 @@ import type { StructureOutput } from "@iep/ai";
  * on regardless of judgement quality (SPC-* — untrusted text is data, never instructions).
  *
  * ═══════════════════════════════════════════════════════════════════════════════════════
- *  GROUND TRUTH IS DRAFT (2026-09-23)
- *  SPEC §12.4 specifies a 40-case golden set (10 strong, 10 vague, 10 infeasible, 10
- *  near-duplicate) plus 25 adversarial submissions, "human-labelled by two annotators with
- *  disagreements resolved." This file now has that full count — 65 cases — but the
- *  `groundTruth` blocks are still a first-pass draft: my own single-pass judgment calls,
- *  not a second annotator's independent read, and not yet disagreement-resolved. Reaching
- *  the SPEC-specified CASE COUNT is not the same thing as reaching SPEC-specified
- *  ANNOTATION QUALITY — that half of §12.4 still needs a real second reviewer. Treat every
- *  label as a starting point for that review, not a finished one; run-evals.ts's aggregate
- *  metrics are reported, not gating, for exactly this reason.
+ *  GROUND TRUTH IS SINGLE-AUTHOR — BY DECISION (SPEC §16.1 D-22, 2026-09-24)
+ *  SPEC §12.4 originally asked for these labels to be "human-labelled by two annotators
+ *  with disagreements resolved." The product owner scaled that down: the AI here is
+ *  advisory and every output is reviewed by a person who can override the score, so the
+ *  `groundTruth` blocks below may stay a single author's judgment calls, and
+ *  run-evals.ts's four accuracy metrics are reported, not release-blocking. Accuracy is
+ *  watched instead through a spot-check of real analyses and the P6 score-override rate.
+ *  If labels are ever improved, tests/evals/labelling/ has the annotator workbooks.
  *  A label is OMITTED, never guessed, wherever a confident call could not be made from the
  *  fictional submission text alone — an absent label is excluded from that metric's
  *  denominator (see run-evals.ts), not counted as a miss.

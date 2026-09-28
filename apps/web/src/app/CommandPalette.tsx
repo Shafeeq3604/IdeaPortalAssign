@@ -140,7 +140,10 @@ export function CommandPalette({ className }: { className?: string }) {
         <span className="hidden flex-1 truncate text-left md:inline">
           Search ideas, or jump to a page…
         </span>
-        <CommandShortcut className="hidden shrink-0 rounded border border-current/30 px-1 py-0.5 text-100 normal-case md:inline">
+        {/* `text-inherit`: the hint takes the header bar's ink (its border is `border-current`), not the
+            shortcut's default muted grey, which is too dark on the navy bar. It inherited only
+            by accident while cn() misread `text-100` as a colour. */}
+        <CommandShortcut className="hidden shrink-0 rounded border border-current/30 px-1 py-0.5 text-100 text-inherit normal-case md:inline">
           Ctrl K
         </CommandShortcut>
       </button>

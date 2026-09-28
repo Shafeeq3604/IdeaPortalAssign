@@ -69,6 +69,13 @@ export const AuditEntry = z.object({
   at: Timestamp,
   /** Canonical route for the subject, so every audit row links out (SPEC §6.2 row 44). */
   entityHref: z.string().nullable(),
+  /**
+   * What the subject is called — an idea's current title, a person's name. Additive
+   * (optional): the Subject column said only "idea" on every row, so a page of the log
+   * could not answer "which idea?" without opening each one. Null when the subject no
+   * longer exists (the log outlives what it describes); `entityHref` is then null too.
+   */
+  entityLabel: z.string().nullable().optional(),
 });
 export type AuditEntry = z.infer<typeof AuditEntry>;
 

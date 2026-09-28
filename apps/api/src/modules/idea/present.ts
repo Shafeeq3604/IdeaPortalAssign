@@ -1,4 +1,5 @@
 import { ALL_TRANSITIONS, can, type IdeaStatus, type MaturityLevel, type Role } from "@iep/contracts";
+import { NO_SOCIAL, type IdeaSocial } from "../social/queries.js";
 
 /**
  * Row → API response mapping (P2).
@@ -54,6 +55,8 @@ export function toIdeaSummary(
     rank: null,
   },
   feedback: { up: number; down: number; myVote: "UP" | "DOWN" | null } = NO_FEEDBACK,
+  /** P18 — visible comments, batched by the caller like `feedback`. */
+  commentCount = 0,
 ) {
   return {
     id: idea.id,
@@ -77,6 +80,7 @@ export function toIdeaSummary(
      * without doing it, and nothing noticed because no list rendered the column. It
      * surfaced the moment one did.
      */
+    commentCount,
     rank: scored.rank,
     compositeScore: scored.compositeScore,
     feedback,
@@ -161,6 +165,8 @@ export function toIdeaDetail(
     compositeScore: null,
     rank: null,
   },
+  /** P18 — follow state and comment count, from `socialFor`. */
+  social: IdeaSocial = NO_SOCIAL,
 ) {
   const resource = {
     ideaId: idea.id,
@@ -187,7 +193,7 @@ export function toIdeaDetail(
   const canSeeMatchDetail = actor.roles.some((r) => r !== "EMPLOYEE");
 
   return {
-    ...toIdeaSummary(idea, scored, feedback),
+    ...toIdeaSummary(idea, scored, feedback, social.commentCount),
     currentVersion: toVersionDetail(idea.currentVersion),
     versionCount: idea._count?.versions ?? 1,
     openRecommendationCount: 0, // P5 supplies this
@@ -202,6 +208,8 @@ export function toIdeaDetail(
       canDecideLeadership: can(actor, "leadership:decide", resource).allowed,
       allowedTransitions: [...new Set(allowedTransitions)],
       canSeeMatchDetail,
+      canComment: can(actor, "idea:comment", resource).allowed,
     },
+    social: { following: social.following, followerCount: social.followerCount },
   };
 }

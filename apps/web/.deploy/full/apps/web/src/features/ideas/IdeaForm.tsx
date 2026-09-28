@@ -429,7 +429,7 @@ export function IdeaForm({
                 {done ? <Check aria-hidden className="size-4" /> : section.step}
               </span>
               <div>
-                <h2 className="text-400 font-semibold">{section.title}</h2>
+                <h2 className="text-400 font-extrabold">{section.title}</h2>
                 <p className="text-200 text-muted-foreground">{section.blurb}</p>
               </div>
             </div>
@@ -456,7 +456,7 @@ export function IdeaForm({
             <AccordionItem value="optional" className="border-0">
               <AccordionTrigger className="rounded-2xl border border-dashed border-border bg-muted/50 px-6 py-4 hover:no-underline">
                 <div className="text-left">
-                  <h2 className="text-400 font-semibold">Additional details (optional)</h2>
+                  <h2 className="text-400 font-extrabold">Additional details (optional)</h2>
                   <p className="mt-1 text-200 font-normal text-muted-foreground">
                     Technology, existing tools, support, risks, cost. None of this blocks
                     submission — skip it if you'd rather.
@@ -479,7 +479,7 @@ export function IdeaForm({
               different glyph, since optional means optional and this isn't a step at all.
             */}
             <div>
-              <h2 className="text-400 font-semibold">Anything else? (all optional)</h2>
+              <h2 className="text-400 font-extrabold">Anything else? (all optional)</h2>
               <p className="text-200 text-muted-foreground">
                 Leaving these blank is fine — it never blocks submission. Filling them in
                 gives the analysis more to work with, and raises the maturity level.

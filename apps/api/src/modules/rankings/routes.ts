@@ -1,10 +1,11 @@
 import { recomputeRankings } from "@iep/evaluation";
-import { ExplanationItem, can, matchRouteId } from "@iep/contracts";
+import { ExplanationItem, can, ideaListScope, matchRouteId } from "@iep/contracts";
 import type { IdeaStatus } from "@iep/contracts";
 import type { Handler } from "../../server.js";
 import { requireActor, sendError } from "../../server.js";
 import { writeAudit } from "../../lib/audit.js";
 import { presentCriterionScore } from "../evaluation/present.js";
+import { scopeToWhere } from "../idea/repo.js";
 
 /**
  * The ranked board, comparison and recompute (P7 — FR-26, ADR-008).
@@ -411,9 +412,17 @@ export function registerRankingRoutes(handlers: Map<string, Handler>): void {
     });
     const latestRunId = latest?.id ?? null;
 
+    /*
+     * The same idea visibility as /ideas (SPEC §4.2). Every tile links to an idea list,
+     * and a MANAGEMENT actor's list shows their own ideas plus EVALUATED-onward only — so
+     * counting every idea in the table made "New ideas: 3" open a list of 0 (§6.2 row 40:
+     * a count and the page it opens must agree). ADMIN sees everything, unchanged.
+     */
+    const visible = scopeToWhere(ideaListScope(requireActor(request)));
+
     const count = (status: IdeaStatus | IdeaStatus[]) =>
       ctx.db.idea.count({
-        where: { ...scope, status: Array.isArray(status) ? { in: status } : status },
+        where: { AND: [visible, { ...scope, status: Array.isArray(status) ? { in: status } : status }] },
       });
 
     /**
@@ -433,7 +442,9 @@ export function registerRankingRoutes(handlers: Map<string, Handler>): void {
       total, fresh, underEvaluation, topRanked, prototypes, pilots, implemented,
       parked, requiringReview,
     ] = await Promise.all([
-      ctx.db.idea.count({ where: { ...scope, NOT: { status: "DRAFT" } } }),
+      // Not drafts (unshared) and not archived (withdrawn) — the same set the tile's own
+      // destination, the default /ideas view, shows.
+      ctx.db.idea.count({ where: { AND: [visible, { ...scope, status: { notIn: ["DRAFT", "ARCHIVED"] } }] } }),
       count("SUBMITTED"),
       count(["AI_ANALYSIS", "EVALUATED"]),
       // Counted from the run it links to, so the number and the destination agree.
@@ -455,7 +466,9 @@ export function registerRankingRoutes(handlers: Map<string, Handler>): void {
       { key: "total", label: "Total ideas", count: total, href: `/ideas?sort=recent${dept}` },
       { key: "new", label: "New ideas", count: fresh, href: `/ideas?status=SUBMITTED${dept}` },
       { key: "under_evaluation", label: "Ideas under evaluation", count: underEvaluation, href: `/ideas?status=AI_ANALYSIS&status=EVALUATED${dept}` },
-      { key: "top_ranked", label: "Top-ranked ideas", count: topRanked, href: "/rankings?rankBand=top10" },
+      // REQUIREMENTS §29's "Top-ranked ideas", named for what it counts: with fewer than ten
+      // ideas on the board, "Top-ranked ideas: 8" read as though every idea were a winner.
+      { key: "top_ranked", label: "Ideas in the top 10", count: topRanked, href: "/rankings?rankBand=top10" },
       { key: "prototype", label: "Prototype candidates", count: prototypes, href: `/ideas?status=PROTOTYPE_CANDIDATE${dept}` },
       { key: "pilot", label: "Pilot projects", count: pilots, href: `/ideas?status=PILOT${dept}` },
       { key: "implemented", label: "Implemented ideas", count: implemented, href: `/ideas?status=IMPLEMENTED${dept}` },

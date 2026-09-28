@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { writeAudit } from "../../lib/audit.js";
+import { ideaFollowerIds, recordIdeaNotification, recordPeopleNotifications } from "@iep/evaluation";
 import type { PrismaClient, Prisma } from "@iep/db";
 import type { IdeaScope, IdeaStatus } from "@iep/contracts";
 
@@ -121,7 +122,17 @@ function buildIdeaWhere(params: IdeaListFilterParams): Prisma.IdeaWhereInput {
   return {
     AND: [
       scopeToWhere(params.scope),
-      ...(params.status?.length ? [{ status: { in: params.status as IdeaStatus[] } }] : []),
+      /*
+       * No status filter = every status EXCEPT ARCHIVED. P9 tester feedback: an admin
+       * (who can see everything) got withdrawn ideas mixed into every default view, over
+       * and over. Archived ideas stay one click away — the list's own "Archived" toggle
+       * asks for status=ARCHIVED explicitly, which this leaves untouched — and the
+       * dashboard's "Total ideas" tile, which links to this default view, counts the same
+       * set so the two still agree (§6.2 row 40).
+       */
+      params.status?.length
+        ? { status: { in: params.status as IdeaStatus[] } }
+        : { NOT: { status: "ARCHIVED" as const } },
       ...(params.departmentId ? [{ departmentId: params.departmentId }] : []),
       ...(params.categoryId ? [{ categoryId: params.categoryId }] : []),
       ...(params.submitterId ? [{ submitterId: params.submitterId }] : []),
@@ -468,6 +479,53 @@ export function makeIdeaRepo(db: PrismaClient) {
             actorId: input.actorId,
             reason: input.reason,
           },
+        });
+
+        // P15 — the pilot record's dates are kept by the lifecycle itself, so they
+        // cannot drift from the status history: entering PILOT stamps the start (once —
+        // a resume from PARKED keeps the original date and reopens the pilot), leaving
+        // PILOT for anywhere stamps the end. A person can still correct either on the
+        // Delivery tab.
+        if (input.to === "PILOT") {
+          const existing = await tx.pilotRecord.findUnique({ where: { ideaId: input.ideaId } });
+          if (existing) {
+            await tx.pilotRecord.update({
+              where: { ideaId: input.ideaId },
+              data: { endedAt: null, ...(existing.startedAt ? {} : { startedAt: new Date() }) },
+            });
+          } else {
+            await tx.pilotRecord.create({ data: { ideaId: input.ideaId, startedAt: new Date() } });
+          }
+        } else if (input.from === "PILOT") {
+          await tx.pilotRecord.updateMany({
+            where: { ideaId: input.ideaId, endedAt: null },
+            data: { endedAt: new Date() },
+          });
+        }
+
+        // P13 — the owner hears about a person moving their idea, in this same
+        // transaction (a committed move can never lose its notification). Skipped
+        // automatically when the actor IS the owner (submitting, withdrawing).
+        const mover = await tx.user.findUnique({ where: { id: input.actorId }, select: { displayName: true } });
+        await recordIdeaNotification(tx, {
+          ideaId: input.ideaId,
+          actorId: input.actorId,
+          payload: (ideaTitle) => ({
+            event: "STATUS_CHANGED", ideaTitle, from: input.from, to: input.to,
+            actorName: mover?.displayName ?? "Someone",
+          }),
+        });
+        // P18 — and so does everyone following it, in their own wording. Only those who
+        // can still open it at the NEW status: archiving an idea does not tell a
+        // follower about a page they can no longer see.
+        await recordPeopleNotifications(tx, {
+          ideaId: input.ideaId,
+          actorId: input.actorId,
+          recipientIds: await ideaFollowerIds(tx, input.ideaId),
+          payload: (ideaTitle) => ({
+            event: "FOLLOWED_IDEA_MOVED", ideaTitle, from: input.from, to: input.to,
+            actorName: mover?.displayName ?? "Someone",
+          }),
         });
 
         /**

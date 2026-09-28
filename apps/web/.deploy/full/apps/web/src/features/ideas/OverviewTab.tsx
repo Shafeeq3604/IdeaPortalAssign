@@ -1,15 +1,24 @@
 import * as React from "react";
 import { Link, useParams } from "react-router-dom";
-import { CircleAlert, Gavel, Lightbulb, ListChecks, TrendingUp, Users } from "lucide-react";
+import { ArrowRight, CircleAlert, Gavel, Lightbulb, ListChecks, TrendingUp, Users } from "lucide-react";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Button, Card, CardContent,
-  CardHeader, CardTitle,
+  CardHeader, CardTitle, Provenance,
 } from "@iep/ui";
-import type { SimilarIdeaRef } from "@iep/contracts";
+import type { EffortClass, FeasibilityStatus, SimilarIdeaRef } from "@iep/contracts";
 import { IdeaShell } from "./IdeaShell";
+import { STATUS_LABEL, useIdeaHistory } from "./api";
+import {
+  BAND_LABEL, BAND_STEPS, EFFORT_LABEL, FEASIBILITY_LABEL, VALUE_DIMENSION_LABEL, provenanceState,
+  useAnalysis, useAnalysisStatus, validatedByOf,
+} from "../analysis/api";
+import { useEvaluation } from "../evaluation/api";
 import { AnalysisProgress } from "../analysis/AnalysisProgress";
+import { ImpactCard } from "../delivery/ImpactCard";
+import { DELIVERY_STAGES } from "@iep/contracts";
 import { AttachmentsPanel } from "./Attachments";
 import { SignalsPanel } from "../feedback/SignalsPanel";
+import { Discussion } from "../social/Discussion";
 import { DECISION_HELP, DECISION_LABEL, useReviews } from "../review/api";
 
 /**
@@ -44,6 +53,13 @@ function SimilarIdeaBanner({ similarIdeas }: { similarIdeas: readonly SimilarIde
     </Card>
   );
 }
+
+const GLANCE = [
+  { key: "problemStatement", label: "The problem", icon: CircleAlert },
+  { key: "description", label: "The idea", icon: Lightbulb },
+  { key: "expectedUsers", label: "Who would use it", icon: Users },
+  { key: "expectedOutcome", label: "What would change", icon: TrendingUp },
+] as const;
 
 /** Overview: the submitted content as written, before any AI touches it. */
 export function OverviewTab() {
@@ -87,32 +103,32 @@ export function OverviewTab() {
               <SimilarIdeaBanner similarIdeas={idea.similarIdeas} />
             ) : null}
 
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_23rem] xl:items-start">
+            <div className="min-w-0 space-y-6">
+            {/* Impact — what it achieved, once it is being delivered (only then are there
+                results to show, and only then is the request worth making). */}
+            {(DELIVERY_STAGES as readonly string[]).includes(idea.status) ? <ImpactCard ideaId={ideaId} /> : null}
             {/*
-              The core of the submission, not two identical stacked cards (visual-
-              richness pass — Overview was the one idea-detail tab that never got the
-              hierarchy the other four have). Problem and idea are the two facts every
-              other tab is built from — the AI's read of it, the score, the rank — so
-              they share one card with a brand-accent rule, side by side, instead of
-              reading as two unrelated topics.
+              P9 ("richer look"): the four facts every other tab is built from — the
+              problem, the idea, who it is for, what would change — as one "at a glance"
+              card rather than a card each, in the submitter's own words.
             */}
-            <Card className="overflow-hidden border-l-4 border-l-accent-600 py-0 shadow-e2">
-              <div className="grid gap-6 p-6 md:grid-cols-2">
-                <div>
-                  <h2 className="flex items-center gap-2 font-serif text-300 font-semibold">
-                    <CircleAlert aria-hidden className="size-4 text-accent-700" />
-                    The problem
-                  </h2>
-                  <p className="mt-2 whitespace-pre-wrap text-200">{v.problemStatement}</p>
-                </div>
-                <div>
-                  <h2 className="flex items-center gap-2 font-serif text-300 font-semibold">
-                    <Lightbulb aria-hidden className="size-4 text-accent-700" />
-                    The idea
-                  </h2>
-                  <p className="mt-2 whitespace-pre-wrap text-200">{v.description}</p>
-                </div>
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-e2 sm:p-6">
+              <h2 className="text-400 font-extrabold">The idea at a glance</h2>
+              <div className="mt-4 grid gap-x-8 gap-y-5 md:grid-cols-2">
+                {GLANCE.map((g) => (
+                  <div key={g.key}>
+                    <h3 className="flex items-center gap-2 text-100 font-extrabold uppercase tracking-[0.08em] text-muted-foreground">
+                      <g.icon aria-hidden className="size-3.5 text-accent-700" />
+                      {g.label}
+                    </h3>
+                    <p className="mt-1.5 whitespace-pre-wrap text-200 leading-relaxed">{v[g.key]}</p>
+                  </div>
+                ))}
               </div>
-            </Card>
+            </section>
+
+            {idea.status === "DRAFT" ? null : <AnalysisFindings ideaId={ideaId} enabled />}
 
             {/*
               Implementation recommendation (brief §6, §13) — deliberately human-authored:
@@ -151,27 +167,6 @@ export function OverviewTab() {
                 </CardContent>
               </Card>
             ) : null}
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 font-serif">
-                    <Users aria-hidden className="size-4 text-muted-foreground" />
-                    Who would use it
-                  </CardTitle>
-                </CardHeader>
-                <CardContent><p className="whitespace-pre-wrap">{v.expectedUsers}</p></CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 font-serif">
-                    <TrendingUp aria-hidden className="size-4 text-muted-foreground" />
-                    What would change
-                  </CardTitle>
-                </CardHeader>
-                <CardContent><p className="whitespace-pre-wrap">{v.expectedOutcome}</p></CardContent>
-              </Card>
-            </div>
 
             {/*
               Use cases (platform-transformation brief §7) — a real, structured field the
@@ -255,9 +250,252 @@ export function OverviewTab() {
               draft.
             */}
             {idea.status === "DRAFT" ? null : <SignalsPanel ideaId={ideaId} />}
+
+            {/* P18 — where people actually talk about it. Not on a private draft. */}
+            {idea.status === "DRAFT" ? null : <Discussion ideaId={ideaId} ownerId={idea.submitter.id} />}
+            </div>
+
+            {/* The engine's reasons and the idea's recent path — only once they exist. */}
+            <aside className="space-y-6">
+              {idea.compositeScore !== null ? <WhyItRanks ideaId={ideaId} /> : null}
+              <Timeline ideaId={ideaId} />
+            </aside>
+            </div>
           </div>
         );
       }}
     </IdeaShell>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * P9 usability round 1 — the Overview's richer panels. Every one reads data another tab
+ * already owns (analysis, evaluation, history) and links to that tab for the full story;
+ * none computes anything of its own.
+ * ══════════════════════════════════════════════════════════════════ */
+
+const PANEL = "rounded-2xl border border-border bg-card p-5 shadow-e2 sm:p-6";
+
+function PanelHeading({ title, to, cta }: { title: string; to: string; cta: string }) {
+  return (
+    <div className="flex flex-wrap items-baseline justify-between gap-3">
+      <h2 className="text-400 font-extrabold">{title}</h2>
+      <Link to={to} className="inline-flex items-center gap-1 text-200 font-bold">
+        {cta} <ArrowRight aria-hidden className="size-3.5" />
+      </Link>
+    </div>
+  );
+}
+
+/** A 1-of-N ordinal meter. Its length is the band's POSITION, never a score (the engine
+ *  owns scores) — the same rule `BAND_STEPS` states. */
+function Meter({ step, of, label }: { step: number; of: number; label: string }) {
+  return (
+    <span role="img" aria-label={label} className="mt-2.5 flex gap-1">
+      {Array.from({ length: of }, (_, i) => (
+        <span key={i} className={`h-1.5 flex-1 rounded-full ${i < step ? "bg-accent-600" : "bg-muted"}`} />
+      ))}
+    </span>
+  );
+}
+
+const FEASIBILITY_STEPS: Record<FeasibilityStatus, number> = {
+  NOT_CURRENTLY_FEASIBLE: 1, REQUIRES_INVESTIGATION: 2, FEASIBLE_WITH_CONDITIONS: 3, HIGHLY_FEASIBLE: 4,
+};
+const EFFORT_STEPS: Record<EffortClass, number> = { LOW: 1, MEDIUM: 2, HIGH: 3, VERY_HIGH: 4 };
+
+/**
+ * "What the analysis found": the strongest value finding, the feasibility call and the
+ * effort class — three of the Analysis tab's own sections, one line each. It is model
+ * output, so it sits inside `<Provenance>` (SPEC §7.4) like every AI block on that tab.
+ */
+function AnalysisFindings({ ideaId, enabled }: { ideaId: string; enabled: boolean }) {
+  const analysis = useAnalysis(ideaId, enabled);
+  const a = analysis.data;
+  if (!a) return null;
+
+  const topValue = [...a.valueFindings].sort((x, y) => BAND_STEPS[y.band] - BAND_STEPS[x.band])[0];
+  const cards: { key: string; label: string; headline: string; meter: React.ReactNode; note: string }[] = [];
+
+  if (topValue) {
+    cards.push({
+      key: "value",
+      label: "Strongest value",
+      headline: `${BAND_LABEL[topValue.band]} · ${VALUE_DIMENSION_LABEL[topValue.dimension]}`,
+      meter: <Meter step={BAND_STEPS[topValue.band]} of={5} label={`${BAND_LABEL[topValue.band]}, band ${BAND_STEPS[topValue.band]} of 5`} />,
+      note: topValue.rationale,
+    });
+  }
+  if (a.feasibility) {
+    const steps = FEASIBILITY_STEPS[a.feasibility.status];
+    cards.push({
+      key: "feasibility",
+      label: "Feasibility",
+      headline: FEASIBILITY_LABEL[a.feasibility.status],
+      meter: <Meter step={steps} of={4} label={`${FEASIBILITY_LABEL[a.feasibility.status]}, ${steps} of 4`} />,
+      note: a.feasibility.summary,
+    });
+  }
+  if (a.plan) {
+    const steps = EFFORT_STEPS[a.plan.effortClass];
+    cards.push({
+      key: "effort",
+      label: "Effort to build",
+      headline: EFFORT_LABEL[a.plan.effortClass],
+      meter: <Meter step={steps} of={4} label={`${EFFORT_LABEL[a.plan.effortClass]} effort, ${steps} of 4`} />,
+      note: `Cost ${EFFORT_LABEL[a.plan.costClass].toLowerCase()} · operational complexity ${EFFORT_LABEL[a.plan.operationalComplexity].toLowerCase()}.`,
+    });
+  }
+  if (cards.length === 0) return null;
+
+  const provenance = a.feasibility?.provenance ?? a.plan?.provenance;
+
+  return (
+    <section className={PANEL}>
+      <PanelHeading title="What the analysis found" to={`/ideas/${ideaId}/analysis`} cta="Full analysis" />
+      <div className="mt-4">
+        <Provenance
+          state={provenance ? provenanceState(provenance) : "AI_UNVALIDATED"}
+          validatedBy={provenance ? validatedByOf(provenance) : undefined}
+        >
+          <div className="grid gap-3 md:grid-cols-3">
+            {cards.map((c) => (
+              <div key={c.key} className="rounded-xl border border-border bg-card p-4">
+                <p className="text-100 font-bold uppercase tracking-[0.06em] text-muted-foreground">{c.label}</p>
+                <p className="mt-1.5 text-300 font-extrabold leading-snug">{c.headline}</p>
+                {c.meter}
+                <p className="mt-2.5 line-clamp-4 text-200 leading-relaxed text-foreground/85">{c.note}</p>
+              </div>
+            ))}
+          </div>
+        </Provenance>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * "Why it ranks here": each weighted criterion's contribution in composite points, the
+ * engine's own numbers (FR-14 — a score is never shown without its reasons). Bars are
+ * scaled to the largest contribution; the figure beside each is the real one.
+ */
+function WhyItRanks({ ideaId }: { ideaId: string }) {
+  const evaluation = useEvaluation(ideaId);
+  const e = evaluation.data;
+  if (!e) return null;
+
+  const rows = e.criterionScores
+    .filter((c) => c.weight > 0)
+    .sort((x, y) => y.contribution - x.contribution);
+  const max = Math.max(0.0001, ...rows.map((r) => r.contribution));
+  const strongest = e.ranking?.explanation.strengths[0];
+  const holding = e.ranking?.explanation.constraints[0];
+
+  return (
+    <section className={PANEL}>
+      <PanelHeading title="Why it ranks here" to={`/ideas/${ideaId}/evaluation`} cta="Evaluation" />
+      <p className="mt-1 text-100 text-muted-foreground">
+        Points each criterion added to the {e.compositeScore.toFixed(1)} · {e.profile.name} profile
+      </p>
+      <ul className="mt-4 flex list-none flex-col gap-2.5 p-0">
+        {rows.map((r) => (
+          <li key={r.criterionKey} className="grid grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)_2.75rem] items-center gap-2.5 text-100">
+            <span className="truncate font-semibold text-muted-foreground" title={r.criterionLabel}>
+              {r.criterionLabel}
+            </span>
+            <span aria-hidden className="block h-2 overflow-hidden rounded-full bg-muted">
+              <span
+                className="block h-full rounded-full bg-accent-600"
+                style={{ width: `${Math.max(2, (r.contribution / max) * 100)}%` }}
+              />
+            </span>
+            <span className="text-right text-200 font-extrabold tabular-nums">{r.contribution.toFixed(1)}</span>
+          </li>
+        ))}
+      </ul>
+      {strongest || holding ? (
+        <div className="mt-4 flex flex-col gap-2 border-t border-border pt-3.5 text-200 leading-relaxed">
+          {strongest ? (
+            <p>
+              <b className="text-factor-up">Strongest: </b>
+              {strongest.text}
+            </p>
+          ) : null}
+          {holding ? (
+            <p>
+              <b className="text-factor-down">Holding it back: </b>
+              {holding.text}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * The five most recent things that happened to the idea, newest first.
+ *
+ * Status history alone records only moves a PERSON made (its `actor_id` is required), so
+ * an analysed, scored and ranked idea showed a single "Submitted" line, as if nothing had
+ * happened since. The system's own milestones are merged in from data this page already
+ * loads: when the analysis finished, and when the engine scored and ranked the version.
+ */
+function Timeline({ ideaId }: { ideaId: string }) {
+  const history = useIdeaHistory(ideaId);
+  const analysis = useAnalysisStatus(ideaId);
+  const evaluation = useEvaluation(ideaId);
+
+  const events: { key: string; label: string; at: string; by: string }[] = (
+    history.data?.statusHistory ?? []
+  ).map((s) => ({ key: s.id, label: STATUS_LABEL[s.toStatus], at: s.at, by: s.actor.displayName }));
+
+  const run = analysis.data;
+  if (run?.finishedAt && (run.overall === "SUCCEEDED" || run.overall === "PARTIAL")) {
+    events.push({
+      key: "analysis",
+      label: run.overall === "PARTIAL" ? "AI analysis finished, partly" : "AI analysis finished",
+      at: run.finishedAt,
+      by: "AI analysis",
+    });
+  }
+  const e = evaluation.data;
+  if (e) {
+    events.push({ key: "scored", label: `Scored ${e.compositeScore.toFixed(1)}`, at: e.computedAt, by: "Scoring engine" });
+    if (e.ranking) {
+      events.push({
+        key: "ranked",
+        label: `Ranked #${e.ranking.rank} of ${e.ranking.cohortSize}`,
+        at: e.ranking.computedAt,
+        by: `${e.profile.name} profile`,
+      });
+    }
+  }
+
+  const entries = events.sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 5);
+  if (entries.length === 0) return null;
+
+  return (
+    <section className={PANEL}>
+      <PanelHeading title="Timeline" to={`/ideas/${ideaId}/history`} cta="History" />
+      <ol className="mt-4 flex list-none flex-col gap-3.5 p-0">
+        {entries.map((s, i) => (
+          <li key={s.key} className="flex gap-3">
+            <span
+              aria-hidden
+              className={`mt-1.5 size-2.5 shrink-0 rounded-full ring-4 ${
+                i === 0 ? "bg-accent-600 ring-accent-100" : "bg-border-strong ring-muted"
+              }`}
+            />
+            <span className="min-w-0">
+              <span className="block text-200 font-bold">{s.label}</span>
+              <span className="block text-100 text-muted-foreground">
+                {new Date(s.at).toLocaleDateString()} · {s.by}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

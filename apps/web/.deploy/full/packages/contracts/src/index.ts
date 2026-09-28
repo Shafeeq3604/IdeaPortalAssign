@@ -18,4 +18,7 @@ export * from "./schemas/leadership.js";
 export * from "./schemas/discovery.js";
 export * from "./schemas/idea-creation.js";
 export * from "./schemas/analytics.js";
+export * from "./schemas/notification.js";
+export * from "./schemas/delivery.js";
+export * from "./schemas/social.js";
 export * from "./permissions.js";

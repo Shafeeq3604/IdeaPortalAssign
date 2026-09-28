@@ -105,6 +105,27 @@ export function registerIdeaCreationRoutes(handlers: Map<string, Handler>): void
     return present(row);
   });
 
+  /*
+   * Abandoned conversations piled up on the Create page ("Untitled idea · 1 message",
+   * four of them) with no way to clear them. Own conversations only, and never while the
+   * worker is writing a reply: it would find the row gone mid-turn and retry a job for
+   * nothing. Messages go with it (onDelete: Cascade).
+   */
+  handlers.set("deleteIdeaCreationConversation", async (request, reply, ctx) => {
+    const actor = requireActor(request);
+    const { conversationId } = request.params as { conversationId: string };
+    const row = await ctx.db.ideaCreationConversation.findUnique({
+      where: { id: conversationId },
+      select: { userId: true, status: true },
+    });
+    if (!row || row.userId !== actor.userId) return sendError(reply, "NOT_FOUND", NOT_FOUND);
+    if (row.status === "AWAITING_AI") {
+      return sendError(reply, "CONCURRENT_MODIFICATION", "The assistant is still replying — try again in a moment");
+    }
+    await ctx.db.ideaCreationConversation.deleteMany({ where: { id: conversationId, userId: actor.userId } });
+    return { id: conversationId };
+  });
+
   handlers.set("sendIdeaCreationMessage", async (request, reply, ctx) => {
     const actor = requireActor(request);
     const { conversationId } = request.params as { conversationId: string };

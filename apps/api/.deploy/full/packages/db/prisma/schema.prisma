@@ -360,6 +360,9 @@ model User {
   auditEntries              AuditLog[]
   discoveryQueries          DiscoveryQuery[]
   ideaCreationConversations IdeaCreationConversation[]
+  comments                  IdeaComment[]              @relation("CommentAuthor")
+  hiddenComments            IdeaComment[]              @relation("CommentModerator")
+  follows                   IdeaFollow[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -408,6 +411,14 @@ model Idea {
   statusHistory       StatusHistory[]
   rankingEntries      RankingEntry[]
   leadershipDecisions LeadershipDecision[]
+  // P15/P16 delivery tracking — FKs added at P15 to the M3 tables reserved at P0.
+  pilotRecord         PilotRecord?
+  deliveryUpdates     DeliveryUpdate[]
+  kpiDefinitions      KpiDefinition[]
+  financials          IdeaFinancials?
+  // P18 social layer.
+  comments            IdeaComment[]
+  follows             IdeaFollow[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -1116,6 +1127,20 @@ model DetectionConfig {
   @@map("detection_config")
 }
 
+/// P13 — the email half of a notification is an OUTBOX: the row is written in the same
+/// transaction as the event that caused it, with `emailStatus` PENDING when the recipient
+/// wants email; the worker claims PENDING rows (PENDING → SENDING, conditional update,
+/// so two worker replicas cannot both send one) and marks them SENT/FAILED. A Redis
+/// outage therefore cannot lose an email, and the API process never touches a mail
+/// transport (same worker-only rule as provider keys, SPEC §4.4).
+enum NotificationEmailStatus {
+  NOT_REQUESTED
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
 model Notification {
   id        String    @id @default(uuid()) @db.Uuid
   userId    String    @map("user_id") @db.Uuid
@@ -1125,17 +1150,42 @@ model Notification {
   readAt    DateTime? @map("read_at") @db.Timestamptz(3)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
+  emailStatus      NotificationEmailStatus @default(NOT_REQUESTED) @map("email_status")
+  emailAttemptedAt DateTime?               @map("email_attempted_at") @db.Timestamptz(3)
+
   @@index([userId, readAt, createdAt(sort: Desc)])
+  // The worker's outbox scan: only PENDING/SENDING rows are ever read by status.
+  @@index([emailStatus, createdAt])
   @@map("notifications")
+}
+
+/// P13 — per-user, per-event email opt-out. In-app notifications are always on. A missing
+/// row means the default (email ON), so a new event type needs no backfill.
+model NotificationPreference {
+  userId       String   @map("user_id") @db.Uuid
+  event        String
+  emailEnabled Boolean  @map("email_enabled")
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@id([userId, event])
+  @@map("notification_preferences")
 }
 
 model KpiDefinition {
   id             String   @id @default(uuid()) @db.Uuid
   ideaId         String   @map("idea_id") @db.Uuid
+  idea           Idea     @relation(fields: [ideaId], references: [id], onDelete: Cascade)
   name           String
   unit           String
   targetValue    Decimal? @map("target_value") @db.Decimal(14, 3)
   predictedValue Decimal? @map("predicted_value") @db.Decimal(14, 3)
+
+  /// P16. Whether a higher actual is the good direction — decides only the WORDING of
+  /// actual-vs-predicted ("ahead of" / "behind"), never a score.
+  direction   CriterionDirection @default(HIGHER_IS_BETTER)
+  description String?
+  createdById String?            @map("created_by") @db.Uuid
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
 
   measurements KpiMeasurement[]
 
@@ -1152,18 +1202,63 @@ model KpiMeasurement {
   definition   KpiDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
   actualValue  Decimal       @map("actual_value") @db.Decimal(14, 3)
   measuredAt   DateTime      @map("measured_at") @db.Timestamptz(3)
+  note         String?
+  recordedById String?       @map("recorded_by") @db.Uuid
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
 
+  @@index([definitionId, measuredAt])
   @@map("kpi_measurements")
 }
 
 model PilotRecord {
   id        String    @id @default(uuid()) @db.Uuid
   ideaId    String    @unique @map("idea_id") @db.Uuid
+  idea      Idea      @relation(fields: [ideaId], references: [id], onDelete: Cascade)
   startedAt DateTime? @map("started_at") @db.Timestamptz(3)
   endedAt   DateTime? @map("ended_at") @db.Timestamptz(3)
+  /// P15. One of `PilotOutcome` (contracts) — a person's judgement, never computed.
   outcome   String?
 
+  /// P15. Who and where the pilot runs with, in the recorder's own words.
+  scope        String?
+  outcomeNotes String?  @map("outcome_notes")
+  updatedById  String?  @map("updated_by") @db.Uuid
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
   @@map("pilot_records")
+}
+
+/// P15 — the prototype/pilot progress timeline: dated notes a reviewer adds while an idea
+/// is in a delivery stage. `stage` is the idea's status when the note was written.
+model DeliveryUpdate {
+  id        String     @id @default(uuid()) @db.Uuid
+  ideaId    String     @map("idea_id") @db.Uuid
+  idea      Idea       @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  stage     IdeaStatus
+  note      String
+  authorId  String     @map("author_id") @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([ideaId, createdAt(sort: Desc)])
+  @@map("delivery_updates")
+}
+
+/// P16 — the two ROI inputs, ENTERED BY A PERSON (never estimated by AI or the system).
+/// ROI = (realized_benefit - investment_to_date) / investment_to_date, computed on read
+/// and only when both are present and the investment is above zero.
+model IdeaFinancials {
+  ideaId           String   @id @map("idea_id") @db.Uuid
+  idea             Idea     @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  /// ISO 4217, as entered. Both amounts are in this one currency.
+  currency         String   @db.Char(3)
+  investmentToDate Decimal? @map("investment_to_date") @db.Decimal(14, 2)
+  realizedBenefit  Decimal? @map("realized_benefit") @db.Decimal(14, 2)
+  /// What period/basis the benefit covers, e.g. "first 12 months" — the reader needs it.
+  basisNote        String?  @map("basis_note")
+  updatedById      String   @map("updated_by") @db.Uuid
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("idea_financials")
 }
 
 // ─────────────────────── DISCOVERY AGENT (SPC-001) ───────────────────────
@@ -1264,4 +1359,49 @@ model IdeaCreationMessage {
 
   @@index([conversationId, createdAt])
   @@map("idea_creation_messages")
+}
+
+// ─────────────────────────── P18 — SOCIAL LAYER ───────────────────────────
+
+/// A comment on an idea (P18). Anyone who can read the idea may post one. The author may
+/// edit or delete their own; an administrator may HIDE one, with a reason, audited.
+/// Deleting and hiding both keep the row (a thread with silent gaps reads as tampering):
+/// the body is withheld from everyone but the row still says what happened to it.
+model IdeaComment {
+  id       String @id @default(uuid()) @db.Uuid
+  ideaId   String @map("idea_id") @db.Uuid
+  idea     Idea   @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  authorId String @map("author_id") @db.Uuid
+  author   User   @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  /// Plain text, 1–2000 characters (DB CHECK). @mentions are written as "@Display Name"
+  /// in the text; `mentionIds` is who was actually picked, so a rename never re-points one.
+  body       String
+  mentionIds String[] @default([]) @map("mention_ids") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  editedAt  DateTime? @map("edited_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  hiddenAt     DateTime? @map("hidden_at") @db.Timestamptz(3)
+  hiddenById   String?   @map("hidden_by_id") @db.Uuid
+  hiddenBy     User?     @relation("CommentModerator", fields: [hiddenById], references: [id], onDelete: Restrict)
+  hiddenReason String?   @map("hidden_reason")
+
+  @@index([ideaId, createdAt])
+  @@map("idea_comments")
+}
+
+/// Following an idea (P18): its new comments and stage changes reach you too. The owner
+/// is never a row here — they hear about their own idea regardless.
+model IdeaFollow {
+  ideaId    String   @map("idea_id") @db.Uuid
+  idea      Idea     @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@id([ideaId, userId])
+  @@index([userId])
+  @@map("idea_follows")
 }

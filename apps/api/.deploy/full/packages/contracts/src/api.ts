@@ -9,6 +9,9 @@ import * as L from "./schemas/leadership.js";
 import * as D from "./schemas/discovery.js";
 import * as IC from "./schemas/idea-creation.js";
 import * as AN from "./schemas/analytics.js";
+import * as N from "./schemas/notification.js";
+import * as DL from "./schemas/delivery.js";
+import * as S from "./schemas/social.js";
 
 /**
  * The API endpoint registry (P0 deliverables 2b + 3). FROZEN AT P0.
@@ -154,6 +157,56 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     access: { requires: ["idea:transition"] }, params: IdeaParams, body: I.TransitionRequest,
     response: I.IdeaDetail, successStatus: 200,
     errors: ["ILLEGAL_STATUS_TRANSITION", "REASON_REQUIRED", "ROLE_NOT_PERMITTED", "NOT_FOUND"],
+  },
+
+  /* ── delivery: P15 prototype & pilot tracking, P16 KPIs / actual-vs-predicted / ROI ── */
+  {
+    operationId: "getIdeaDelivery", method: "GET", path: "/ideas/{ideaId}/delivery", tag: "delivery",
+    summary: "Pilot record, progress updates, KPIs with measurements, and ROI inputs for one idea.",
+    access: { requires: [...OWN] }, params: IdeaParams, response: DL.IdeaDeliveryResponse,
+    successStatus: 200, errors: ["NOT_FOUND"],
+  },
+  {
+    operationId: "addDeliveryUpdate", method: "POST", path: "/ideas/{ideaId}/delivery/updates", tag: "delivery",
+    summary: "Add a dated progress note while the idea is in a delivery stage.",
+    access: { requires: ["idea:transition"] }, params: IdeaParams, body: DL.AddDeliveryUpdateRequest,
+    response: DL.IdeaDeliveryResponse, successStatus: 201,
+    errors: ["VALIDATION_FAILED", "NOT_FOUND", "FORBIDDEN", "ROLE_NOT_PERMITTED"],
+  },
+  {
+    operationId: "updatePilotRecord", method: "PATCH", path: "/ideas/{ideaId}/delivery/pilot", tag: "delivery",
+    summary: "Record the pilot's scope, dates and outcome (a person's judgement, never computed).",
+    access: { requires: ["idea:transition"] }, params: IdeaParams, body: DL.UpdatePilotRequest,
+    response: DL.IdeaDeliveryResponse, successStatus: 200,
+    errors: ["VALIDATION_FAILED", "NOT_FOUND", "FORBIDDEN", "ROLE_NOT_PERMITTED"],
+  },
+  {
+    operationId: "createKpi", method: "POST", path: "/ideas/{ideaId}/kpis", tag: "delivery",
+    summary: "Define a KPI for an idea in a delivery stage, with an optional target and prediction.",
+    access: { requires: ["idea:transition"] }, params: IdeaParams, body: DL.CreateKpiRequest,
+    response: DL.IdeaDeliveryResponse, successStatus: 201,
+    errors: ["VALIDATION_FAILED", "NOT_FOUND", "FORBIDDEN", "ROLE_NOT_PERMITTED"],
+  },
+  {
+    operationId: "updateKpi", method: "PATCH", path: "/ideas/{ideaId}/kpis/{kpiId}", tag: "delivery",
+    summary: "Edit a KPI's definition, target or prediction. Measurements are never edited.",
+    access: { requires: ["idea:transition"] }, params: z.object({ ideaId: C.Id, kpiId: C.Id }),
+    body: DL.UpdateKpiRequest, response: DL.IdeaDeliveryResponse, successStatus: 200,
+    errors: ["VALIDATION_FAILED", "NOT_FOUND", "FORBIDDEN", "ROLE_NOT_PERMITTED"],
+  },
+  {
+    operationId: "addKpiMeasurement", method: "POST", path: "/ideas/{ideaId}/kpis/{kpiId}/measurements", tag: "delivery",
+    summary: "Record a measured actual. Append-only: a correction is a new measurement.",
+    access: { requires: ["idea:transition"] }, params: z.object({ ideaId: C.Id, kpiId: C.Id }),
+    body: DL.AddKpiMeasurementRequest, response: DL.IdeaDeliveryResponse, successStatus: 201,
+    errors: ["VALIDATION_FAILED", "NOT_FOUND", "FORBIDDEN", "ROLE_NOT_PERMITTED"],
+  },
+  {
+    operationId: "updateIdeaFinancials", method: "PATCH", path: "/ideas/{ideaId}/financials", tag: "delivery",
+    summary: "Enter the investment to date and the realized benefit. ROI is computed from these, never estimated.",
+    access: { requires: ["idea:transition"] }, params: IdeaParams, body: DL.UpdateFinancialsRequest,
+    response: DL.IdeaDeliveryResponse, successStatus: 200,
+    errors: ["VALIDATION_FAILED", "NOT_FOUND", "FORBIDDEN", "ROLE_NOT_PERMITTED"],
   },
 
   /* ── analysis ── */
@@ -340,6 +393,30 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     summary: "The nine counts of REQUIREMENTS §29. Every tile carries its destination href.",
     access: { requires: ["dashboard:read"] }, query: z.object({ departmentId: C.Id.optional() }),
     response: R.DashboardResponse, successStatus: 200, errors: ["ROLE_NOT_PERMITTED"],
+  },
+  /* ── notifications (P13, FR-28) — always the signed-in person's own rows only ── */
+  {
+    operationId: "listNotifications", method: "GET", path: "/notifications", tag: "notifications",
+    summary: "The signed-in person's notification centre, newest first, plus their unread count.",
+    access: { requires: [] }, query: N.ListNotificationsQuery, response: N.ListNotificationsResponse,
+    successStatus: 200, errors: ["VALIDATION_FAILED"],
+  },
+  {
+    operationId: "markNotificationsRead", method: "POST", path: "/notifications/read", tag: "notifications",
+    summary: "Mark the given notifications (or all of them) read. Ids that are not the caller's are ignored.",
+    access: { requires: [] }, body: N.MarkNotificationsReadRequest, response: N.MarkNotificationsReadResponse,
+    successStatus: 200, errors: ["VALIDATION_FAILED"],
+  },
+  {
+    operationId: "getNotificationPreferences", method: "GET", path: "/notifications/preferences", tag: "notifications",
+    summary: "Per-event email preferences. In-app notifications are always on.",
+    access: { requires: [] }, response: N.NotificationPreferencesResponse, successStatus: 200, errors: [],
+  },
+  {
+    operationId: "updateNotificationPreferences", method: "PATCH", path: "/notifications/preferences", tag: "notifications",
+    summary: "Turn email on or off per event.",
+    access: { requires: [] }, body: N.UpdateNotificationPreferencesRequest,
+    response: N.NotificationPreferencesResponse, successStatus: 200, errors: ["VALIDATION_FAILED"],
   },
   {
     operationId: "getAnalytics", method: "GET", path: "/analytics", tag: "management",
@@ -530,6 +607,67 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     summary: "The signed-in user's own conversations, newest first — never another user's.",
     access: { requires: [...IDEA_CREATE] }, response: IC.ListIdeaCreationConversationsResponse,
     successStatus: 200, errors: [],
+  },
+  {
+    operationId: "deleteIdeaCreationConversation", method: "DELETE",
+    path: "/idea-creation/conversations/{conversationId}", tag: "idea-creation",
+    summary:
+      "Delete one of the signed-in user's own conversations. Scratch state only — no idea " +
+      "exists until the employee submits one, so nothing else is touched.",
+    access: { requires: [...IDEA_CREATE] }, params: IdeaCreationConversationParams,
+    response: z.object({ id: C.Id }), successStatus: 200,
+    errors: ["NOT_FOUND", "CONCURRENT_MODIFICATION"],
+  },
+
+  /* ── P18 social layer (D-24): comments, @mentions, following — none of it is scored ── */
+  {
+    operationId: "listIdeaComments", method: "GET", path: "/ideas/{ideaId}/comments", tag: "social",
+    summary: "The idea's comment thread, oldest first, with what the caller may do to each comment.",
+    access: { requires: [...OWN] }, params: IdeaParams, response: S.ListIdeaCommentsResponse,
+    successStatus: 200, errors: ["NOT_FOUND"],
+  },
+  {
+    operationId: "createIdeaComment", method: "POST", path: "/ideas/{ideaId}/comments", tag: "social",
+    summary:
+      "Comment on an idea you can open (not a draft or archived one). Notifies the owner, " +
+      "followers and anyone @mentioned who can open it; the author starts following it.",
+    access: { requires: [...OWN] }, params: IdeaParams, body: S.CreateIdeaCommentRequest,
+    response: S.IdeaComment, successStatus: 201,
+    errors: ["VALIDATION_FAILED", "NOT_FOUND", "FORBIDDEN"],
+  },
+  {
+    operationId: "updateIdeaComment", method: "PATCH", path: "/comments/{commentId}", tag: "social",
+    summary: "Edit your own comment. Marked as edited; nobody is notified again.",
+    access: { requires: [...OWN] }, params: z.object({ commentId: C.Id }),
+    body: S.UpdateIdeaCommentRequest, response: S.IdeaComment, successStatus: 200,
+    errors: ["VALIDATION_FAILED", "NOT_FOUND", "FORBIDDEN"],
+  },
+  {
+    operationId: "deleteIdeaComment", method: "DELETE", path: "/comments/{commentId}", tag: "social",
+    summary: "Withdraw your own comment. The thread keeps a \"comment deleted\" line in its place.",
+    access: { requires: [...OWN] }, params: z.object({ commentId: C.Id }),
+    response: S.IdeaComment, successStatus: 200, errors: ["NOT_FOUND", "FORBIDDEN"],
+  },
+  {
+    operationId: "hideIdeaComment", method: "POST", path: "/comments/{commentId}/hide", tag: "social",
+    summary: "Moderator: withhold a comment's text, with a reason everyone can read. Audited.",
+    access: { requires: ["comment:moderate"] }, params: z.object({ commentId: C.Id }),
+    body: S.HideIdeaCommentRequest, response: S.IdeaComment, successStatus: 200,
+    errors: ["VALIDATION_FAILED", "NOT_FOUND"],
+  },
+  {
+    operationId: "setIdeaFollow", method: "POST", path: "/ideas/{ideaId}/follow", tag: "social",
+    summary: "Follow or stop following an idea: its new comments and stage changes reach you.",
+    access: { requires: [...OWN] }, params: IdeaParams, body: S.SetIdeaFollowRequest,
+    response: S.IdeaFollowState, successStatus: 200, errors: ["VALIDATION_FAILED", "NOT_FOUND"],
+  },
+  {
+    operationId: "searchPeople", method: "GET", path: "/directory/people", tag: "social",
+    summary:
+      "Up to 8 active people whose name matches — the @mention picker. Names and departments " +
+      "only, never an email; with `ideaId`, only people who can open that idea.",
+    access: { requires: [...OWN] }, query: S.SearchPeopleQuery, response: S.SearchPeopleResponse,
+    successStatus: 200, errors: ["VALIDATION_FAILED"],
   },
 ];
 

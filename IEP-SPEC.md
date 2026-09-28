@@ -1464,6 +1464,12 @@ containing prompt-injection attempts, PII, and schema-confusing text.
 The three PR-blocking metrics are deterministic and cheap, so they run on every PR; the
 model-dependent ones run nightly and gate releases (§11.7).
 
+> **Amended by D-22 (§16.1, 2026-09-24):** the two-annotator labelling rule is dropped and
+> the four model-dependent accuracy metrics (use-case F1, value-band match, feasibility
+> match, risk recall) are **reported, not release-blocking**; accuracy is watched through
+> a one-off spot-check and the P6 score-override rate instead. Every safety metric above
+> (injection, PII, schema validity, faithfulness, fallback) is unchanged and PR-blocking.
+
 ---
 
 # 13. Architecture Decision Records
@@ -1684,6 +1690,103 @@ populated `ExistingSolution` catalogue (P10 admin screen).*
 **P15** Prototype & pilot tracking (unlocks the remaining lifecycle states) ·
 **P16** KPI definition, actual-vs-predicted, ROI · **P17** Internal integrations.
 
+## Milestone M4 — Engagement *(added 2026-09-25 — owner request after the page-by-page review; D-24)*
+
+The product had no place for people to talk about an idea, and nothing that made taking
+part feel like it counted. M4 adds that, phase by phase with a demo stop after each, under
+one rule that does not bend: **nothing in M4 feeds the score** (P-5; REQUIREMENTS §14 —
+popularity must not directly determine the ranking). The one social signal already in the
+engine, "I could help build this" → `demonstrated_demand` (P11, weight 0 unless an admin
+opts in), stays exactly as it was.
+
+**P18** Social layer · *Depends on: P2 visibility, P11 signals, P13 notifications.*
+- **Comments** on an idea, oldest first, for anyone who can open it (`can(…,"idea:comment")`
+  = `idea:read`, and not DRAFT/ARCHIVED). Plain text, 1–2000 characters (DB CHECK). The
+  author edits (marked "edited") or deletes their own — a delete removes the words and
+  leaves a "comment deleted" line. An ADMIN (`comment:moderate`) may **hide** any comment
+  with a reason (3–300 chars) that the whole thread sees; the hide is audited
+  (`comment.hide`) with the withheld text, and the DB refuses a hide without who/when/why.
+- **@mentions** are picked from a people search (`GET /directory/people`: name +
+  department only, never email; with `ideaId`, only people who can open that idea). A
+  mention of someone who cannot open the idea is dropped server-side.
+- **Following**: `POST /ideas/{id}/follow`. Commenting follows automatically. The owner is
+  never a follower row — they hear about their own idea regardless.
+- **Notifications** (P13 outbox, per-event email opt-out, never the actor, only people
+  who can open the idea at send time): `COMMENT_ADDED` (owner + followers), `MENTIONED`
+  (each named person — replaces their COMMENT_ADDED, one line per person),
+  `FOLLOWED_IDEA_MOVED` (followers, on a person's stage change). Links land on the comment.
+- **Team**: the idea header shows the submitter plus everyone with the "I could help build
+  this" signal, and a one-click "Join the team" that sets that same signal — no new concept.
+- **Share**: copy link (or the phone's share sheet). Client-only.
+- Thumbs up/down are **kept as they are** (owner decision, D-24).
+- *Acceptance:* F-15 BDD flow (tests/bdd/specs/f15-social.spec.ts) — reach, visibility,
+  follower fan-out, own-edit/delete only, audited moderation with a DB-level guard, no
+  comments on drafts, no score movement.
+
+**P19** Light gamification · *Depends on: P18.* Badges for taking part and for outcomes,
+**department and individual** leaderboards (owner decision, D-24; individuals can opt out),
+challenges, milestone moments, weekly digest. Numbers (badge thresholds, leaderboard
+windows) to be proposed for owner sign-off before build — none are invented here.
+
+**P20** Experience layer · *Depends on: P18 (P19 is NOT a prerequisite — owner decision
+2026-09-25, D-25: P19 is on hold and P20 is built first).* One constraint shapes all of it
+(owner decision, D-25): **no new running cost** — no new model call, no new service, no
+change to the data notice. Everything below is computed in the browser from endpoints that
+already exist. The AI-written "ask the portfolio" answer was previewed and left out; it
+can be added later behind its own sign-off (cost cap + §4.5 notice wording).
+- **Role home** (`/`, which used to redirect to `/ideas`). One page, sections chosen by the
+  roles the person holds, highest role first: leadership (the dashboard's attention items,
+  the top three, boardroom and portfolio map), reviewer (the five oldest in the queue),
+  and everyone (their own ideas with where each one stands, and a way to weigh in on
+  others). Sign-in still lands leadership on `/dashboard`, as before.
+- **Since you were last here**: the time of the previous visit is kept in the browser
+  (per device, a convenience — never a server record). Shows unread notifications and
+  the ideas the person can see that changed since then. Rank movement is shown only as
+  "since the previous ranking run" (`previousRank`), because that is what it measures.
+- **Live analysis reveal**: when someone is on the idea while its analysis finishes, the
+  score (and rank, once the run places it) arrive with a short count-up. Only when the
+  finish is watched live — a later visit shows the numbers plainly.
+- **Boardroom mode** (`/rankings/boardroom`, MANAGEMENT/REVIEWER/ADMIN — the same audience
+  as Compare): full-screen, one idea per slide from the current board, with its rank,
+  score, top strength, top constraint and "why it ranks" — never a rank without its
+  reason (P-2). Arrow keys / swipe to move, Esc to leave.
+- **Swipe to weigh in** (`/ideas/swipe`): ranked ideas the person can see, did not submit
+  and has not voted on, one card at a time. Thumbs up/down use the existing vote (P11); a
+  skip records nothing. Buttons do everything a swipe does.
+- **Mobile tab bar** (below `md`): Home, Explore, Submit, My ideas, Alerts. The same
+  destinations the header and sidebar already give — REQUIREMENTS §20's navigation list is
+  not extended (Home is the brand link; Alerts is the bell).
+- **Smart filters** on Explore: a plain question ("quick wins in Operations") becomes the
+  list's existing filters — department, category, status, keywords — which are shown as
+  chips before anything is applied, so the person sees exactly what it understood. Pure
+  text matching against names already on the page; no model.
+- **Portfolio map**: the Analytics impact-vs-effort scatter is replaced by a 2×2 of boxes
+  ("bigger payoff, lighter lift" …), each listing its ranked ideas — owner feedback: the
+  scatter was hard to read. Split at 50, the middle of the 0–100 scale; the box names
+  describe position only and are not a target or threshold. "Ideas by status" becomes
+  "Where ideas are": the lifecycle in five phases, every phase shown (empty ones included),
+  with a one-line summary computed from the same counts.
+- **Settling rank reorder** on the board (the P7 item never built): when a recompute moves
+  rows, they glide to their new places.
+- **Celebrations**: a short burst when the owner first opens their idea after it reaches
+  Pilot, Production candidate or Implemented, and when someone joins a team. Pulled
+  forward from P19's "milestone moments"; no badge, count or score is attached.
+- **What it achieved** (owner request, 2026-09-25): once an idea is in a delivery stage,
+  its Overview carries an impact card built from the P16 Delivery figures — money (benefit,
+  investment, return) only when a person entered them, and each success measure as one
+  plain sentence against its prediction and target ("30 rooms, against 20 predicted — 50%
+  better than predicted"), or "not measured yet". Sentences are written by code from the
+  entered figures, never by AI; nothing is estimated; nothing feeds the score. Home and a
+  person's page list their delivery-stage ideas with the same one-line summary. Visibility
+  is unchanged: it is the Delivery tab's own data, readable by anyone who can open the idea.
+  A new `RESULTS_RECORDED` notification (a KPI measurement or the money figures saved) goes
+  to the submitter and the idea's team (the "I could help build this" people), never the
+  recorder, only to people who can open the idea, with the usual email opt-out; money is
+  never quoted in a notification or email. F-14 BDD scenario covers the recipients.
+- Every animation is skipped under `prefers-reduced-motion`.
+- *Acceptance:* nav map + `pnpm test:nav` cover the two new routes; unit tests for the
+  smart-filter parser and the swipe deck's eligibility; axe clean on the new pages.
+
 ---
 
 # 15. Definition of Done
@@ -1749,6 +1852,10 @@ changed, why, and what survived.
 | **D-16a** | D-16 (*`claude-opus-5` for every story* — UPHELD) | **Reversed.** Tiered routing by cognitive demand (ADR-020). My counter-argument — that ~$0.20/idea is the wrong place to economise — was answered better than I answered it: the saving is real (~64%, $0.36 → $0.13) *and* the highest-capability model still runs every story where a wrong answer changes how an idea is treated. Extraction and judgement are different problems; I had treated them as one | The quality floor. Tier A still covers value banding, feasibility, risk, improvement recommendations, and existing-solution comparison. Tier B/C failures escalate one tier before falling back (§12.1.2). The boundary rule is written down so the tiering is auditable rather than ad hoc |
 | **D-19** | *(new)* | **Model choice must not be a code literal** (ADR-021) | Enforced, not intended: an architecture test greps for `claude-` outside `packages/ai/routing` and fails the build. "Configurable" that is not tested is a comment |
 | **D-21** | §14 phase plan | **P0 as written was circular** — four of its deliverables needed the app scaffold, which P0 itself blocked. Caught during execution, not review. Resolved by adding P0.0 (§14.0): bare skeletons, no features, so the freeze completes as specified rather than being narrowed. | The freeze itself. The alternative — moving those four items into P1 — would have let parallel UI slices start without a frozen component baseline or API shape, which is the exact drift P0 exists to prevent |
+| **D-22** | §12.4 golden-set rule ("human-labelled by two annotators with disagreements resolved") and the release-blocking status of its four model-dependent accuracy metrics | **Scaled down by the product owner, 2026-09-24.** For an internal idea portal where the AI is advisory and every decision is human (P-3), a formal two-annotator labelling and adjudication process costs more than the risk it covers. A mis-banded value dimension moves an idea a few ranks, in front of a reviewer who sees the evidence and can override the score (P6) — it does not decide anything. Use-case F1, value-band match, feasibility match and risk recall are therefore **reported, not release-blocking**, and the golden-set labels may stay single-author. Accuracy is watched instead through (a) a one-off spot-check of 10–15 real analyses by someone who knows the business, and (b) the reviewer **score-override rate** already recorded in P6 — overrides clustering on one criterion or dimension are the production signal that the analysis is drifting. P3 is marked done on this basis. The annotator/adjudication workbooks (`tests/evals/labelling/`) are kept as an optional tool, not a gate | Every **safety** metric stays exactly as specified and blocking on every PR, because those are the failures that cause real harm: injection escapes 0/25, PII leakage 0, schema validity 100%, explanation faithfulness 100%, fallback keeps an idea rankable 100% (`pnpm eval:pr`). The real-model `pnpm eval` run and its targets remain available and are still printed against §12.4's numbers — reverting this decision is a one-line change in `run-evals.ts`, not a rebuild |
+| **D-23** | §12.2 post-parse semantic validation — the injection markers in `packages/ai/src/validate.ts` | **Four override/exfiltration markers narrowed, approved by the product owner, 2026-09-24.** Found live: running the demo ideas on the real model, a feasibility note sent a whole section to the "not analysed" fallback on an `injection-marker` hit. A probe of 15 ordinary business sentences ("override the auto-release rule", "skip the approval rules", "customers ignore the prompt to upload receipts", "print the onboarding instructions", "the system message sent to attendees") showed the old markers flagged **15 of 15** — they matched verb + any determiner + rule/prompt/instruction, which is ordinary language for this product. The narrowed markers require the object to be the MODEL'S own instructions (qualified as previous/above/yours/"you were given", or a bare "these/all instructions"), the platform's scoring ("override the scoring engine"), "system prompt", "system message:" only as a label, or exfiltration of "your instructions". Every other marker is unchanged | Safety bar unchanged: all 25 §12.4 adversarial cases are still rejected, plus 9 further phrasings now in the PR-blocking suite, and 17 ordinary sentences are now a PR-blocking must-NOT-flag test (`pnpm eval:pr`). Accepted trade-off: an injection phrased purely as business language ("override the approval rules") is no longer caught by these four patterns — the same sentence must pass for real analyses to work, and the structural defence is unchanged (no AI schema has a score field; the engine owns every number, ADR-005) |
+| **D-24** | §1.2 non-goals ("comment threads" → M2 P11, never built) and §14 (no M4) | **M4 Engagement added by the product owner, 2026-09-25**, after a page-by-page review found no way for people to discuss an idea. Owner decisions: (1) comments open to **anyone who can open the idea**, author edits/deletes their own, admins hide with a reason, audited; (2) **thumbs up/down kept** as they are; (3) leaderboards for **departments and individuals**, with an individual opt-out (P19); (4) built **phase by phase** (P18 → P19 → P20) with a demo stop after each. P11 shipped the structured signals and deliberately titled them "not a discussion"; P18 is the discussion, as a separate table rather than a stretched `Feedback` row (unique per idea/person/reason) | P-5 untouched: nothing in M4 is a scoring input, and F-15 asserts a comment moves no evaluation. The P13 notification rules (never the actor; per-event email opt-out; outbox in the event's own transaction) apply unchanged to the three new events, plus one new rule because recipients are no longer only the owner: **only people who can open the idea at send time** |
+| **D-25** | §14 M4 (P20 depended on P19) | **P20 built before P19, at no new running cost — owner decision, 2026-09-25.** P19 (gamification) is on hold until its numbers are signed off; P20 no longer depends on it. The AI-written "ask the portfolio" answer was previewed and left out: it would send several ideas' text to the model per question (a §4.5 notice change) and cost money per question. P20 instead ships smart filters and an interactive portfolio map, both computed in the browser from existing endpoints. "Milestone moments" are pulled forward from P19 as celebrations with no badge or count attached. |
 | **D-20** | *(new)* | **MCP moved off the MVP path entirely** (P12 risk note) | FR-21 ships from the curated `ExistingSolution` catalogue alone. Enterprise connectors are L5, feature-flagged, and additive — their absence removes enrichment, never a requirement |
 
 ---

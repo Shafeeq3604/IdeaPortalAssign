@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Trophy } from "lucide-react";
+import { MessageSquare, Trophy } from "lucide-react";
 import { StatusPill } from "@iep/ui";
 import { IdeaStatus } from "@iep/contracts";
 import type { IdeaSummary } from "@iep/contracts";
@@ -106,7 +106,7 @@ export function IdeaCard({ idea }: { idea: IdeaSummary }) {
             navigation and the rest of the card is inside its hit area. `after:absolute
             after:inset-0` is what does that without nesting the vote counts inside an <a>.
           */}
-          <h2 className="mt-2.5 text-400 font-semibold leading-snug">
+          <h2 className="mt-2.5 text-400 font-bold leading-snug">
             <Link
               to={`/ideas/${idea.id}/overview`}
               className="no-underline after:absolute after:inset-0 after:content-['']"
@@ -184,8 +184,9 @@ export function IdeaCard({ idea }: { idea: IdeaSummary }) {
         {idea.status === "DRAFT" ? (
           <span className="text-100 text-muted-foreground">Not submitted</span>
         ) : (
-          <span className="relative">
+          <span className="relative flex items-center gap-3">
             <VoteCount up={idea.feedback.up} down={idea.feedback.down} />
+            <CommentCount count={idea.commentCount} />
           </span>
         )}
       </div>
@@ -259,11 +260,26 @@ export function FeaturedIdeaCard({ idea }: { idea: IdeaSummary }) {
 
           <div className="mt-3 flex items-center gap-3">
             {idea.status === "DRAFT" ? null : (
-              <VoteCount up={idea.feedback.up} down={idea.feedback.down} />
+              <>
+                <VoteCount up={idea.feedback.up} down={idea.feedback.down} />
+                <CommentCount count={idea.commentCount} />
+              </>
             )}
           </div>
         </div>
       </div>
     </article>
+  );
+}
+
+/** P18 — how many comments, only once there are any: "0 comments" on every card is noise. */
+function CommentCount({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <span className="inline-flex items-center gap-1 text-100 text-muted-foreground tabular-nums">
+      <MessageSquare aria-hidden className="size-3.5" />
+      {count}
+      <span className="sr-only">{count === 1 ? "comment" : "comments"}</span>
+    </span>
   );
 }

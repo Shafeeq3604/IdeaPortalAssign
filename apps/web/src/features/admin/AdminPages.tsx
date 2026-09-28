@@ -116,7 +116,20 @@ const ACTION_LABEL: Record<string, string> = {
   "config.category": "Category updated",
   "config.existingSolution": "Catalogue entry updated",
   "config.detectionThresholds": "Detection thresholds updated",
+  "delivery.update": "Delivery progress noted",
+  "delivery.pilot": "Pilot record updated",
+  "delivery.kpi": "KPI defined or edited",
+  "delivery.kpiMeasurement": "KPI measurement recorded",
+  "delivery.financials": "ROI inputs updated",
+  "idea.revise": "Idea revised",
+  "idea.leadershipDecision": "Leadership decision recorded",
+  "discovery.query": "Discovery question asked",
+  "user.update": "Account or roles updated",
 };
+
+/** "idea" → "Idea", "ranking_run" → "Ranking run": the subject's kind, in words. */
+const kindLabel = (entityType: string) =>
+  (entityType.charAt(0).toUpperCase() + entityType.slice(1)).replace(/_/g, " ");
 
 /** "Today" / "Yesterday" / a real date — the log's own timestamps stay exact in the row
  * itself (just the time, once the date is the group's own heading); this is what makes a
@@ -404,10 +417,15 @@ export function AuditPage() {
                           </TableCell>
                           <TableCell>
                             {/* §6.2 row 44: every row links to what it is about. */}
+                            <span className="block text-100 text-muted-foreground">{kindLabel(entry.entityType)}</span>
                             {entry.entityHref ? (
-                              <Link to={entry.entityHref}>{entry.entityType}</Link>
+                              <Link to={entry.entityHref} className="line-clamp-2">
+                                {entry.entityLabel ?? kindLabel(entry.entityType)}
+                              </Link>
                             ) : (
-                              <span className="text-muted-foreground">{entry.entityType}</span>
+                              <span className="text-muted-foreground">
+                                {entry.entityLabel === null ? "No longer exists" : "—"}
+                              </span>
                             )}
                           </TableCell>
                           <TableCell className="max-w-xs text-200">

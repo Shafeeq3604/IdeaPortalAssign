@@ -20,6 +20,668 @@
       }
     },
     "schemas": {
+      "AddDeliveryUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "additionalProperties": false
+      },
+      "AddDeliveryUpdateResponse": {
+        "type": "object",
+        "properties": {
+          "ideaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SUBMITTED",
+              "AI_ANALYSIS",
+              "NEEDS_CLARIFICATION",
+              "EVALUATED",
+              "RANKED",
+              "UNDER_REVIEW",
+              "PROTOTYPE_CANDIDATE",
+              "PILOT",
+              "PRODUCTION_CANDIDATE",
+              "IMPLEMENTED",
+              "PARKED",
+              "BLOCKED",
+              "REJECTED",
+              "ARCHIVED"
+            ]
+          },
+          "canWrite": {
+            "type": "boolean"
+          },
+          "inDeliveryStage": {
+            "type": "boolean"
+          },
+          "pilot": {
+            "type": "object",
+            "properties": {
+              "startedAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "endedAt": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/pilot/properties/startedAt"
+                  }
+                ],
+                "nullable": true
+              },
+              "scope": {
+                "type": "string",
+                "nullable": true
+              },
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "SUCCEEDED",
+                  "MIXED",
+                  "DID_NOT_SUCCEED"
+                ],
+                "nullable": true
+              },
+              "outcomeNotes": {
+                "type": "string",
+                "nullable": true
+              },
+              "updatedBy": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/ideaId"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "departmentName": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                  "departmentName"
+                ],
+                "additionalProperties": false,
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "startedAt",
+              "endedAt",
+              "scope",
+              "outcome",
+              "outcomeNotes",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/ideaId"
+                },
+                "stage": {
+                  "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/status"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "author": {
+                  "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/pilot/properties/updatedBy"
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "stage",
+                "note",
+                "author",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "kpis": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/ideaId"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "HIGHER_IS_BETTER",
+                    "LOWER_IS_BETTER"
+                  ]
+                },
+                "targetValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "predictedValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "measurements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/ideaId"
+                      },
+                      "actualValue": {
+                        "type": "number"
+                      },
+                      "measuredAt": {
+                        "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/pilot/properties/startedAt"
+                      },
+                      "note": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "recordedBy": {
+                        "allOf": [
+                          {
+                            "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/pilot/properties/updatedBy"
+                          }
+                        ],
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "actualValue",
+                      "measuredAt",
+                      "note",
+                      "recordedBy"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "versusPredicted": {
+                  "type": "object",
+                  "properties": {
+                    "difference": {
+                      "type": "number"
+                    },
+                    "percent": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "standing": {
+                      "type": "string",
+                      "enum": [
+                        "AHEAD",
+                        "ON_PREDICTION",
+                        "BEHIND"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "difference",
+                    "percent",
+                    "standing"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "unit",
+                "description",
+                "direction",
+                "targetValue",
+                "predictedValue",
+                "measurements",
+                "versusPredicted",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "financials": {
+            "type": "object",
+            "properties": {
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3
+              },
+              "investmentToDate": {
+                "type": "number",
+                "nullable": true
+              },
+              "realizedBenefit": {
+                "type": "number",
+                "nullable": true
+              },
+              "basisNote": {
+                "type": "string",
+                "nullable": true
+              },
+              "roi": {
+                "type": "number",
+                "nullable": true
+              },
+              "updatedBy": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/pilot/properties/updatedBy"
+                  }
+                ],
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/AddDeliveryUpdateResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "currency",
+              "investmentToDate",
+              "realizedBenefit",
+              "basisNote",
+              "roi",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          }
+        },
+        "required": [
+          "ideaId",
+          "status",
+          "canWrite",
+          "inDeliveryStage",
+          "pilot",
+          "updates",
+          "kpis",
+          "financials"
+        ],
+        "additionalProperties": false
+      },
+      "AddKpiMeasurementRequest": {
+        "type": "object",
+        "properties": {
+          "actualValue": {
+            "type": "number",
+            "minimum": -99999999999.999,
+            "maximum": 99999999999.999
+          },
+          "measuredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          }
+        },
+        "required": [
+          "actualValue",
+          "measuredAt"
+        ],
+        "additionalProperties": false
+      },
+      "AddKpiMeasurementResponse": {
+        "type": "object",
+        "properties": {
+          "ideaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SUBMITTED",
+              "AI_ANALYSIS",
+              "NEEDS_CLARIFICATION",
+              "EVALUATED",
+              "RANKED",
+              "UNDER_REVIEW",
+              "PROTOTYPE_CANDIDATE",
+              "PILOT",
+              "PRODUCTION_CANDIDATE",
+              "IMPLEMENTED",
+              "PARKED",
+              "BLOCKED",
+              "REJECTED",
+              "ARCHIVED"
+            ]
+          },
+          "canWrite": {
+            "type": "boolean"
+          },
+          "inDeliveryStage": {
+            "type": "boolean"
+          },
+          "pilot": {
+            "type": "object",
+            "properties": {
+              "startedAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "endedAt": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/pilot/properties/startedAt"
+                  }
+                ],
+                "nullable": true
+              },
+              "scope": {
+                "type": "string",
+                "nullable": true
+              },
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "SUCCEEDED",
+                  "MIXED",
+                  "DID_NOT_SUCCEED"
+                ],
+                "nullable": true
+              },
+              "outcomeNotes": {
+                "type": "string",
+                "nullable": true
+              },
+              "updatedBy": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/ideaId"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "departmentName": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                  "departmentName"
+                ],
+                "additionalProperties": false,
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "startedAt",
+              "endedAt",
+              "scope",
+              "outcome",
+              "outcomeNotes",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/ideaId"
+                },
+                "stage": {
+                  "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/status"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "author": {
+                  "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/pilot/properties/updatedBy"
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "stage",
+                "note",
+                "author",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "kpis": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/ideaId"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "HIGHER_IS_BETTER",
+                    "LOWER_IS_BETTER"
+                  ]
+                },
+                "targetValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "predictedValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "measurements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/ideaId"
+                      },
+                      "actualValue": {
+                        "type": "number"
+                      },
+                      "measuredAt": {
+                        "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/pilot/properties/startedAt"
+                      },
+                      "note": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "recordedBy": {
+                        "allOf": [
+                          {
+                            "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/pilot/properties/updatedBy"
+                          }
+                        ],
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "actualValue",
+                      "measuredAt",
+                      "note",
+                      "recordedBy"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "versusPredicted": {
+                  "type": "object",
+                  "properties": {
+                    "difference": {
+                      "type": "number"
+                    },
+                    "percent": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "standing": {
+                      "type": "string",
+                      "enum": [
+                        "AHEAD",
+                        "ON_PREDICTION",
+                        "BEHIND"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "difference",
+                    "percent",
+                    "standing"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "unit",
+                "description",
+                "direction",
+                "targetValue",
+                "predictedValue",
+                "measurements",
+                "versusPredicted",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "financials": {
+            "type": "object",
+            "properties": {
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3
+              },
+              "investmentToDate": {
+                "type": "number",
+                "nullable": true
+              },
+              "realizedBenefit": {
+                "type": "number",
+                "nullable": true
+              },
+              "basisNote": {
+                "type": "string",
+                "nullable": true
+              },
+              "roi": {
+                "type": "number",
+                "nullable": true
+              },
+              "updatedBy": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/pilot/properties/updatedBy"
+                  }
+                ],
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/AddKpiMeasurementResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "currency",
+              "investmentToDate",
+              "realizedBenefit",
+              "basisNote",
+              "roi",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          }
+        },
+        "required": [
+          "ideaId",
+          "status",
+          "canWrite",
+          "inDeliveryStage",
+          "pilot",
+          "updates",
+          "kpis",
+          "financials"
+        ],
+        "additionalProperties": false
+      },
       "CompareIdeasResponse": {
         "type": "object",
         "properties": {
@@ -588,6 +1250,142 @@
         ],
         "additionalProperties": false
       },
+      "CreateIdeaCommentRequest": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "mentionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 20,
+            "default": []
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "CreateIdeaCommentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ideaId": {
+            "$ref": "#/components/schemas/definitions/CreateIdeaCommentResponse/properties/id"
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/definitions/CreateIdeaCommentResponse/properties/id"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "departmentName": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "displayName",
+              "departmentName"
+            ],
+            "additionalProperties": false
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "VISIBLE",
+              "DELETED",
+              "HIDDEN"
+            ]
+          },
+          "body": {
+            "type": "string",
+            "nullable": true
+          },
+          "mentions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/CreateIdeaCommentResponse/properties/id"
+                },
+                "displayName": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "displayName"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "editedAt": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/definitions/CreateIdeaCommentResponse/properties/createdAt"
+              }
+            ],
+            "nullable": true
+          },
+          "hiddenReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "permissions": {
+            "type": "object",
+            "properties": {
+              "canEdit": {
+                "type": "boolean"
+              },
+              "canDelete": {
+                "type": "boolean"
+              },
+              "canHide": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "canEdit",
+              "canDelete",
+              "canHide"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "ideaId",
+          "author",
+          "state",
+          "body",
+          "mentions",
+          "createdAt",
+          "editedAt",
+          "hiddenReason",
+          "permissions"
+        ],
+        "additionalProperties": false
+      },
       "CreateIdeaCreationConversationRequest": {
         "type": "object",
         "properties": {
@@ -867,6 +1665,365 @@
           "ideaId",
           "statusUrl",
           "streamUrl"
+        ],
+        "additionalProperties": false
+      },
+      "CreateKpiRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "HIGHER_IS_BETTER",
+              "LOWER_IS_BETTER"
+            ],
+            "default": "HIGHER_IS_BETTER"
+          },
+          "targetValue": {
+            "type": "number",
+            "minimum": -99999999999.999,
+            "maximum": 99999999999.999,
+            "nullable": true
+          },
+          "predictedValue": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/definitions/CreateKpiRequest/properties/targetValue"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "unit"
+        ],
+        "additionalProperties": false
+      },
+      "CreateKpiResponse": {
+        "type": "object",
+        "properties": {
+          "ideaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SUBMITTED",
+              "AI_ANALYSIS",
+              "NEEDS_CLARIFICATION",
+              "EVALUATED",
+              "RANKED",
+              "UNDER_REVIEW",
+              "PROTOTYPE_CANDIDATE",
+              "PILOT",
+              "PRODUCTION_CANDIDATE",
+              "IMPLEMENTED",
+              "PARKED",
+              "BLOCKED",
+              "REJECTED",
+              "ARCHIVED"
+            ]
+          },
+          "canWrite": {
+            "type": "boolean"
+          },
+          "inDeliveryStage": {
+            "type": "boolean"
+          },
+          "pilot": {
+            "type": "object",
+            "properties": {
+              "startedAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "endedAt": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/pilot/properties/startedAt"
+                  }
+                ],
+                "nullable": true
+              },
+              "scope": {
+                "type": "string",
+                "nullable": true
+              },
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "SUCCEEDED",
+                  "MIXED",
+                  "DID_NOT_SUCCEED"
+                ],
+                "nullable": true
+              },
+              "outcomeNotes": {
+                "type": "string",
+                "nullable": true
+              },
+              "updatedBy": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/ideaId"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "departmentName": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                  "departmentName"
+                ],
+                "additionalProperties": false,
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "startedAt",
+              "endedAt",
+              "scope",
+              "outcome",
+              "outcomeNotes",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/ideaId"
+                },
+                "stage": {
+                  "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/status"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "author": {
+                  "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/pilot/properties/updatedBy"
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "stage",
+                "note",
+                "author",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "kpis": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/ideaId"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "HIGHER_IS_BETTER",
+                    "LOWER_IS_BETTER"
+                  ]
+                },
+                "targetValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "predictedValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "measurements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/ideaId"
+                      },
+                      "actualValue": {
+                        "type": "number"
+                      },
+                      "measuredAt": {
+                        "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/pilot/properties/startedAt"
+                      },
+                      "note": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "recordedBy": {
+                        "allOf": [
+                          {
+                            "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/pilot/properties/updatedBy"
+                          }
+                        ],
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "actualValue",
+                      "measuredAt",
+                      "note",
+                      "recordedBy"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "versusPredicted": {
+                  "type": "object",
+                  "properties": {
+                    "difference": {
+                      "type": "number"
+                    },
+                    "percent": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "standing": {
+                      "type": "string",
+                      "enum": [
+                        "AHEAD",
+                        "ON_PREDICTION",
+                        "BEHIND"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "difference",
+                    "percent",
+                    "standing"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "unit",
+                "description",
+                "direction",
+                "targetValue",
+                "predictedValue",
+                "measurements",
+                "versusPredicted",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "financials": {
+            "type": "object",
+            "properties": {
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3
+              },
+              "investmentToDate": {
+                "type": "number",
+                "nullable": true
+              },
+              "realizedBenefit": {
+                "type": "number",
+                "nullable": true
+              },
+              "basisNote": {
+                "type": "string",
+                "nullable": true
+              },
+              "roi": {
+                "type": "number",
+                "nullable": true
+              },
+              "updatedBy": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/pilot/properties/updatedBy"
+                  }
+                ],
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/CreateKpiResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "currency",
+              "investmentToDate",
+              "realizedBenefit",
+              "basisNote",
+              "roi",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          }
+        },
+        "required": [
+          "ideaId",
+          "status",
+          "canWrite",
+          "inDeliveryStage",
+          "pilot",
+          "updates",
+          "kpis",
+          "financials"
         ],
         "additionalProperties": false
       },
@@ -1260,6 +2417,132 @@
         "additionalProperties": false
       },
       "DeleteAttachmentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "DeleteIdeaCommentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ideaId": {
+            "$ref": "#/components/schemas/definitions/DeleteIdeaCommentResponse/properties/id"
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/definitions/DeleteIdeaCommentResponse/properties/id"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "departmentName": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "displayName",
+              "departmentName"
+            ],
+            "additionalProperties": false
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "VISIBLE",
+              "DELETED",
+              "HIDDEN"
+            ]
+          },
+          "body": {
+            "type": "string",
+            "nullable": true
+          },
+          "mentions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/DeleteIdeaCommentResponse/properties/id"
+                },
+                "displayName": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "displayName"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "editedAt": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/definitions/DeleteIdeaCommentResponse/properties/createdAt"
+              }
+            ],
+            "nullable": true
+          },
+          "hiddenReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "permissions": {
+            "type": "object",
+            "properties": {
+              "canEdit": {
+                "type": "boolean"
+              },
+              "canDelete": {
+                "type": "boolean"
+              },
+              "canHide": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "canEdit",
+              "canDelete",
+              "canHide"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "ideaId",
+          "author",
+          "state",
+          "body",
+          "mentions",
+          "createdAt",
+          "editedAt",
+          "hiddenReason",
+          "permissions"
+        ],
+        "additionalProperties": false
+      },
+      "DeleteIdeaCreationConversationResponse": {
         "type": "object",
         "properties": {
           "id": {
@@ -2929,6 +4212,318 @@
         ],
         "additionalProperties": false
       },
+      "GetIdeaDeliveryResponse": {
+        "type": "object",
+        "properties": {
+          "ideaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SUBMITTED",
+              "AI_ANALYSIS",
+              "NEEDS_CLARIFICATION",
+              "EVALUATED",
+              "RANKED",
+              "UNDER_REVIEW",
+              "PROTOTYPE_CANDIDATE",
+              "PILOT",
+              "PRODUCTION_CANDIDATE",
+              "IMPLEMENTED",
+              "PARKED",
+              "BLOCKED",
+              "REJECTED",
+              "ARCHIVED"
+            ]
+          },
+          "canWrite": {
+            "type": "boolean"
+          },
+          "inDeliveryStage": {
+            "type": "boolean"
+          },
+          "pilot": {
+            "type": "object",
+            "properties": {
+              "startedAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "endedAt": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/pilot/properties/startedAt"
+                  }
+                ],
+                "nullable": true
+              },
+              "scope": {
+                "type": "string",
+                "nullable": true
+              },
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "SUCCEEDED",
+                  "MIXED",
+                  "DID_NOT_SUCCEED"
+                ],
+                "nullable": true
+              },
+              "outcomeNotes": {
+                "type": "string",
+                "nullable": true
+              },
+              "updatedBy": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/ideaId"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "departmentName": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                  "departmentName"
+                ],
+                "additionalProperties": false,
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "startedAt",
+              "endedAt",
+              "scope",
+              "outcome",
+              "outcomeNotes",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/ideaId"
+                },
+                "stage": {
+                  "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/status"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "author": {
+                  "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/pilot/properties/updatedBy"
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "stage",
+                "note",
+                "author",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "kpis": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/ideaId"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "HIGHER_IS_BETTER",
+                    "LOWER_IS_BETTER"
+                  ]
+                },
+                "targetValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "predictedValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "measurements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/ideaId"
+                      },
+                      "actualValue": {
+                        "type": "number"
+                      },
+                      "measuredAt": {
+                        "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/pilot/properties/startedAt"
+                      },
+                      "note": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "recordedBy": {
+                        "allOf": [
+                          {
+                            "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/pilot/properties/updatedBy"
+                          }
+                        ],
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "actualValue",
+                      "measuredAt",
+                      "note",
+                      "recordedBy"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "versusPredicted": {
+                  "type": "object",
+                  "properties": {
+                    "difference": {
+                      "type": "number"
+                    },
+                    "percent": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "standing": {
+                      "type": "string",
+                      "enum": [
+                        "AHEAD",
+                        "ON_PREDICTION",
+                        "BEHIND"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "difference",
+                    "percent",
+                    "standing"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "unit",
+                "description",
+                "direction",
+                "targetValue",
+                "predictedValue",
+                "measurements",
+                "versusPredicted",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "financials": {
+            "type": "object",
+            "properties": {
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3
+              },
+              "investmentToDate": {
+                "type": "number",
+                "nullable": true
+              },
+              "realizedBenefit": {
+                "type": "number",
+                "nullable": true
+              },
+              "basisNote": {
+                "type": "string",
+                "nullable": true
+              },
+              "roi": {
+                "type": "number",
+                "nullable": true
+              },
+              "updatedBy": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/pilot/properties/updatedBy"
+                  }
+                ],
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/GetIdeaDeliveryResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "currency",
+              "investmentToDate",
+              "realizedBenefit",
+              "basisNote",
+              "roi",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          }
+        },
+        "required": [
+          "ideaId",
+          "status",
+          "canWrite",
+          "inDeliveryStage",
+          "pilot",
+          "updates",
+          "kpis",
+          "financials"
+        ],
+        "additionalProperties": false
+      },
       "GetIdeaEvaluationResponse": {
         "type": "object",
         "properties": {
@@ -3714,6 +5309,10 @@
             ],
             "additionalProperties": false
           },
+          "commentCount": {
+            "type": "integer",
+            "minimum": 0
+          },
           "currentVersion": {
             "type": "object",
             "properties": {
@@ -3957,6 +5556,9 @@
               },
               "canSeeMatchDetail": {
                 "type": "boolean"
+              },
+              "canComment": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -3967,7 +5569,25 @@
               "canOverrideScores",
               "canDecideLeadership",
               "allowedTransitions",
-              "canSeeMatchDetail"
+              "canSeeMatchDetail",
+              "canComment"
+            ],
+            "additionalProperties": false
+          },
+          "social": {
+            "type": "object",
+            "properties": {
+              "following": {
+                "type": "boolean"
+              },
+              "followerCount": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "following",
+              "followerCount"
             ],
             "additionalProperties": false
           }
@@ -3986,12 +5606,14 @@
           "rank",
           "compositeScore",
           "feedback",
+          "commentCount",
           "currentVersion",
           "versionCount",
           "openRecommendationCount",
           "similarIdeas",
           "existingSolutionAssessment",
-          "permissions"
+          "permissions",
+          "social"
         ],
         "additionalProperties": false
       },
@@ -4065,6 +5687,52 @@
           "ideaId",
           "entries",
           "mine"
+        ],
+        "additionalProperties": false
+      },
+      "GetNotificationPreferencesResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "event": {
+                  "type": "string",
+                  "enum": [
+                    "ANALYSIS_COMPLETED",
+                    "STATUS_CHANGED",
+                    "REVIEW_RECORDED",
+                    "LEADERSHIP_DECISION_RECORDED",
+                    "COMMENT_ADDED",
+                    "MENTIONED",
+                    "FOLLOWED_IDEA_MOVED",
+                    "RESULTS_RECORDED"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "emailEnabled": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "event",
+                "label",
+                "description",
+                "emailEnabled"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
         ],
         "additionalProperties": false
       },
@@ -4753,6 +6421,133 @@
         ],
         "additionalProperties": false
       },
+      "HideIdeaCommentRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "HideIdeaCommentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ideaId": {
+            "$ref": "#/components/schemas/definitions/HideIdeaCommentResponse/properties/id"
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/definitions/HideIdeaCommentResponse/properties/id"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "departmentName": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "displayName",
+              "departmentName"
+            ],
+            "additionalProperties": false
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "VISIBLE",
+              "DELETED",
+              "HIDDEN"
+            ]
+          },
+          "body": {
+            "type": "string",
+            "nullable": true
+          },
+          "mentions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/HideIdeaCommentResponse/properties/id"
+                },
+                "displayName": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "displayName"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "editedAt": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/definitions/HideIdeaCommentResponse/properties/createdAt"
+              }
+            ],
+            "nullable": true
+          },
+          "hiddenReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "permissions": {
+            "type": "object",
+            "properties": {
+              "canEdit": {
+                "type": "boolean"
+              },
+              "canDelete": {
+                "type": "boolean"
+              },
+              "canHide": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "canEdit",
+              "canDelete",
+              "canHide"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "ideaId",
+          "author",
+          "state",
+          "body",
+          "mentions",
+          "createdAt",
+          "editedAt",
+          "hiddenReason",
+          "permissions"
+        ],
+        "additionalProperties": false
+      },
       "ListAttachmentsResponse": {
         "type": "object",
         "properties": {
@@ -4889,6 +6684,10 @@
                   "format": "date-time"
                 },
                 "entityHref": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "entityLabel": {
                   "type": "string",
                   "nullable": true
                 }
@@ -5218,6 +7017,135 @@
         ],
         "additionalProperties": false
       },
+      "ListIdeaCommentsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "ideaId": {
+                  "$ref": "#/components/schemas/definitions/ListIdeaCommentsResponse/properties/items/items/properties/id"
+                },
+                "author": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/components/schemas/definitions/ListIdeaCommentsResponse/properties/items/items/properties/id"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "departmentName": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "displayName",
+                    "departmentName"
+                  ],
+                  "additionalProperties": false
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "VISIBLE",
+                    "DELETED",
+                    "HIDDEN"
+                  ]
+                },
+                "body": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "mentions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/components/schemas/definitions/ListIdeaCommentsResponse/properties/items/items/properties/id"
+                      },
+                      "displayName": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "displayName"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "editedAt": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/definitions/ListIdeaCommentsResponse/properties/items/items/properties/createdAt"
+                    }
+                  ],
+                  "nullable": true
+                },
+                "hiddenReason": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "permissions": {
+                  "type": "object",
+                  "properties": {
+                    "canEdit": {
+                      "type": "boolean"
+                    },
+                    "canDelete": {
+                      "type": "boolean"
+                    },
+                    "canHide": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "canEdit",
+                    "canDelete",
+                    "canHide"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "ideaId",
+                "author",
+                "state",
+                "body",
+                "mentions",
+                "createdAt",
+                "editedAt",
+                "hiddenReason",
+                "permissions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "canComment": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "canComment"
+        ],
+        "additionalProperties": false
+      },
       "ListIdeaCreationConversationsResponse": {
         "type": "object",
         "properties": {
@@ -5446,6 +7374,10 @@
                     "myVote"
                   ],
                   "additionalProperties": false
+                },
+                "commentCount": {
+                  "type": "integer",
+                  "minimum": 0
                 }
               },
               "required": [
@@ -5461,7 +7393,8 @@
                 "updatedAt",
                 "rank",
                 "compositeScore",
-                "feedback"
+                "feedback",
+                "commentCount"
               ],
               "additionalProperties": false
             }
@@ -5568,6 +7501,105 @@
         },
         "required": [
           "items"
+        ],
+        "additionalProperties": false
+      },
+      "ListNotificationsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "event": {
+                  "type": "string",
+                  "enum": [
+                    "ANALYSIS_COMPLETED",
+                    "STATUS_CHANGED",
+                    "REVIEW_RECORDED",
+                    "LEADERSHIP_DECISION_RECORDED",
+                    "COMMENT_ADDED",
+                    "MENTIONED",
+                    "FOLLOWED_IDEA_MOVED",
+                    "RESULTS_RECORDED"
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "body": {
+                  "type": "string"
+                },
+                "href": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "readAt": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/definitions/ListNotificationsResponse/properties/items/items/properties/createdAt"
+                    }
+                  ],
+                  "nullable": true
+                }
+              },
+              "required": [
+                "id",
+                "event",
+                "title",
+                "body",
+                "href",
+                "createdAt",
+                "readAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "page": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "perPage": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "total": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "page",
+              "perPage",
+              "total",
+              "totalPages"
+            ],
+            "additionalProperties": false
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "meta",
+          "unreadCount"
         ],
         "additionalProperties": false
       },
@@ -6219,6 +8251,39 @@
         ],
         "additionalProperties": false
       },
+      "MarkNotificationsReadRequest": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 100
+          }
+        },
+        "additionalProperties": false
+      },
+      "MarkNotificationsReadResponse": {
+        "type": "object",
+        "properties": {
+          "updated": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "updated",
+          "unreadCount"
+        ],
+        "additionalProperties": false
+      },
       "OverrideCriterionScoreRequest": {
         "type": "object",
         "properties": {
@@ -6710,6 +8775,41 @@
         ],
         "additionalProperties": false
       },
+      "SearchPeopleResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "displayName": {
+                  "type": "string"
+                },
+                "departmentName": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "id",
+                "displayName",
+                "departmentName"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 8
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
       "SendIdeaCreationMessageRequest": {
         "type": "object",
         "properties": {
@@ -6935,6 +9035,40 @@
           "up",
           "down",
           "myVote"
+        ],
+        "additionalProperties": false
+      },
+      "SetIdeaFollowRequest": {
+        "type": "object",
+        "properties": {
+          "following": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "following"
+        ],
+        "additionalProperties": false
+      },
+      "SetIdeaFollowResponse": {
+        "type": "object",
+        "properties": {
+          "ideaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "following": {
+            "type": "boolean"
+          },
+          "followerCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "ideaId",
+          "following",
+          "followerCount"
         ],
         "additionalProperties": false
       },
@@ -7363,6 +9497,10 @@
             ],
             "additionalProperties": false
           },
+          "commentCount": {
+            "type": "integer",
+            "minimum": 0
+          },
           "currentVersion": {
             "type": "object",
             "properties": {
@@ -7606,6 +9744,9 @@
               },
               "canSeeMatchDetail": {
                 "type": "boolean"
+              },
+              "canComment": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -7616,7 +9757,25 @@
               "canOverrideScores",
               "canDecideLeadership",
               "allowedTransitions",
-              "canSeeMatchDetail"
+              "canSeeMatchDetail",
+              "canComment"
+            ],
+            "additionalProperties": false
+          },
+          "social": {
+            "type": "object",
+            "properties": {
+              "following": {
+                "type": "boolean"
+              },
+              "followerCount": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "following",
+              "followerCount"
             ],
             "additionalProperties": false
           }
@@ -7635,12 +9794,14 @@
           "rank",
           "compositeScore",
           "feedback",
+          "commentCount",
           "currentVersion",
           "versionCount",
           "openRecommendationCount",
           "similarIdeas",
           "existingSolutionAssessment",
-          "permissions"
+          "permissions",
+          "social"
         ],
         "additionalProperties": false
       },
@@ -7990,6 +10151,10 @@
             ],
             "additionalProperties": false
           },
+          "commentCount": {
+            "type": "integer",
+            "minimum": 0
+          },
           "currentVersion": {
             "type": "object",
             "properties": {
@@ -8233,6 +10398,9 @@
               },
               "canSeeMatchDetail": {
                 "type": "boolean"
+              },
+              "canComment": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -8243,7 +10411,25 @@
               "canOverrideScores",
               "canDecideLeadership",
               "allowedTransitions",
-              "canSeeMatchDetail"
+              "canSeeMatchDetail",
+              "canComment"
+            ],
+            "additionalProperties": false
+          },
+          "social": {
+            "type": "object",
+            "properties": {
+              "following": {
+                "type": "boolean"
+              },
+              "followerCount": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "following",
+              "followerCount"
             ],
             "additionalProperties": false
           }
@@ -8262,12 +10448,14 @@
           "rank",
           "compositeScore",
           "feedback",
+          "commentCount",
           "currentVersion",
           "versionCount",
           "openRecommendationCount",
           "similarIdeas",
           "existingSolutionAssessment",
-          "permissions"
+          "permissions",
+          "social"
         ],
         "additionalProperties": false
       },
@@ -8373,6 +10561,142 @@
           "categories",
           "isActive",
           "hasEmbedding"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateIdeaCommentRequest": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "mentionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 20,
+            "default": []
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateIdeaCommentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ideaId": {
+            "$ref": "#/components/schemas/definitions/UpdateIdeaCommentResponse/properties/id"
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/definitions/UpdateIdeaCommentResponse/properties/id"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "departmentName": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "displayName",
+              "departmentName"
+            ],
+            "additionalProperties": false
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "VISIBLE",
+              "DELETED",
+              "HIDDEN"
+            ]
+          },
+          "body": {
+            "type": "string",
+            "nullable": true
+          },
+          "mentions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/UpdateIdeaCommentResponse/properties/id"
+                },
+                "displayName": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "displayName"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "editedAt": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/definitions/UpdateIdeaCommentResponse/properties/createdAt"
+              }
+            ],
+            "nullable": true
+          },
+          "hiddenReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "permissions": {
+            "type": "object",
+            "properties": {
+              "canEdit": {
+                "type": "boolean"
+              },
+              "canDelete": {
+                "type": "boolean"
+              },
+              "canHide": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "canEdit",
+              "canDelete",
+              "canHide"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "ideaId",
+          "author",
+          "state",
+          "body",
+          "mentions",
+          "createdAt",
+          "editedAt",
+          "hiddenReason",
+          "permissions"
         ],
         "additionalProperties": false
       },
@@ -8578,6 +10902,1140 @@
           "messages",
           "createdAt",
           "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateIdeaFinancialsRequest": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "investmentToDate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 999999999999.99,
+            "nullable": true
+          },
+          "realizedBenefit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsRequest/properties/investmentToDate"
+              }
+            ],
+            "nullable": true
+          },
+          "basisNote": {
+            "type": "string",
+            "maxLength": 500,
+            "nullable": true
+          }
+        },
+        "required": [
+          "currency"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateIdeaFinancialsResponse": {
+        "type": "object",
+        "properties": {
+          "ideaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SUBMITTED",
+              "AI_ANALYSIS",
+              "NEEDS_CLARIFICATION",
+              "EVALUATED",
+              "RANKED",
+              "UNDER_REVIEW",
+              "PROTOTYPE_CANDIDATE",
+              "PILOT",
+              "PRODUCTION_CANDIDATE",
+              "IMPLEMENTED",
+              "PARKED",
+              "BLOCKED",
+              "REJECTED",
+              "ARCHIVED"
+            ]
+          },
+          "canWrite": {
+            "type": "boolean"
+          },
+          "inDeliveryStage": {
+            "type": "boolean"
+          },
+          "pilot": {
+            "type": "object",
+            "properties": {
+              "startedAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "endedAt": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/pilot/properties/startedAt"
+                  }
+                ],
+                "nullable": true
+              },
+              "scope": {
+                "type": "string",
+                "nullable": true
+              },
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "SUCCEEDED",
+                  "MIXED",
+                  "DID_NOT_SUCCEED"
+                ],
+                "nullable": true
+              },
+              "outcomeNotes": {
+                "type": "string",
+                "nullable": true
+              },
+              "updatedBy": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/ideaId"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "departmentName": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                  "departmentName"
+                ],
+                "additionalProperties": false,
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "startedAt",
+              "endedAt",
+              "scope",
+              "outcome",
+              "outcomeNotes",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/ideaId"
+                },
+                "stage": {
+                  "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/status"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "author": {
+                  "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/pilot/properties/updatedBy"
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "stage",
+                "note",
+                "author",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "kpis": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/ideaId"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "HIGHER_IS_BETTER",
+                    "LOWER_IS_BETTER"
+                  ]
+                },
+                "targetValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "predictedValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "measurements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/ideaId"
+                      },
+                      "actualValue": {
+                        "type": "number"
+                      },
+                      "measuredAt": {
+                        "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/pilot/properties/startedAt"
+                      },
+                      "note": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "recordedBy": {
+                        "allOf": [
+                          {
+                            "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/pilot/properties/updatedBy"
+                          }
+                        ],
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "actualValue",
+                      "measuredAt",
+                      "note",
+                      "recordedBy"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "versusPredicted": {
+                  "type": "object",
+                  "properties": {
+                    "difference": {
+                      "type": "number"
+                    },
+                    "percent": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "standing": {
+                      "type": "string",
+                      "enum": [
+                        "AHEAD",
+                        "ON_PREDICTION",
+                        "BEHIND"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "difference",
+                    "percent",
+                    "standing"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "unit",
+                "description",
+                "direction",
+                "targetValue",
+                "predictedValue",
+                "measurements",
+                "versusPredicted",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "financials": {
+            "type": "object",
+            "properties": {
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3
+              },
+              "investmentToDate": {
+                "type": "number",
+                "nullable": true
+              },
+              "realizedBenefit": {
+                "type": "number",
+                "nullable": true
+              },
+              "basisNote": {
+                "type": "string",
+                "nullable": true
+              },
+              "roi": {
+                "type": "number",
+                "nullable": true
+              },
+              "updatedBy": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/pilot/properties/updatedBy"
+                  }
+                ],
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/UpdateIdeaFinancialsResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "currency",
+              "investmentToDate",
+              "realizedBenefit",
+              "basisNote",
+              "roi",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          }
+        },
+        "required": [
+          "ideaId",
+          "status",
+          "canWrite",
+          "inDeliveryStage",
+          "pilot",
+          "updates",
+          "kpis",
+          "financials"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateKpiRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "HIGHER_IS_BETTER",
+              "LOWER_IS_BETTER"
+            ]
+          },
+          "targetValue": {
+            "type": "number",
+            "minimum": -99999999999.999,
+            "maximum": 99999999999.999,
+            "nullable": true
+          },
+          "predictedValue": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/definitions/UpdateKpiRequest/properties/targetValue"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateKpiResponse": {
+        "type": "object",
+        "properties": {
+          "ideaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SUBMITTED",
+              "AI_ANALYSIS",
+              "NEEDS_CLARIFICATION",
+              "EVALUATED",
+              "RANKED",
+              "UNDER_REVIEW",
+              "PROTOTYPE_CANDIDATE",
+              "PILOT",
+              "PRODUCTION_CANDIDATE",
+              "IMPLEMENTED",
+              "PARKED",
+              "BLOCKED",
+              "REJECTED",
+              "ARCHIVED"
+            ]
+          },
+          "canWrite": {
+            "type": "boolean"
+          },
+          "inDeliveryStage": {
+            "type": "boolean"
+          },
+          "pilot": {
+            "type": "object",
+            "properties": {
+              "startedAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "endedAt": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/pilot/properties/startedAt"
+                  }
+                ],
+                "nullable": true
+              },
+              "scope": {
+                "type": "string",
+                "nullable": true
+              },
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "SUCCEEDED",
+                  "MIXED",
+                  "DID_NOT_SUCCEED"
+                ],
+                "nullable": true
+              },
+              "outcomeNotes": {
+                "type": "string",
+                "nullable": true
+              },
+              "updatedBy": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/ideaId"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "departmentName": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                  "departmentName"
+                ],
+                "additionalProperties": false,
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "startedAt",
+              "endedAt",
+              "scope",
+              "outcome",
+              "outcomeNotes",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/ideaId"
+                },
+                "stage": {
+                  "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/status"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "author": {
+                  "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/pilot/properties/updatedBy"
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "stage",
+                "note",
+                "author",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "kpis": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/ideaId"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "HIGHER_IS_BETTER",
+                    "LOWER_IS_BETTER"
+                  ]
+                },
+                "targetValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "predictedValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "measurements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/ideaId"
+                      },
+                      "actualValue": {
+                        "type": "number"
+                      },
+                      "measuredAt": {
+                        "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/pilot/properties/startedAt"
+                      },
+                      "note": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "recordedBy": {
+                        "allOf": [
+                          {
+                            "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/pilot/properties/updatedBy"
+                          }
+                        ],
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "actualValue",
+                      "measuredAt",
+                      "note",
+                      "recordedBy"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "versusPredicted": {
+                  "type": "object",
+                  "properties": {
+                    "difference": {
+                      "type": "number"
+                    },
+                    "percent": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "standing": {
+                      "type": "string",
+                      "enum": [
+                        "AHEAD",
+                        "ON_PREDICTION",
+                        "BEHIND"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "difference",
+                    "percent",
+                    "standing"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "unit",
+                "description",
+                "direction",
+                "targetValue",
+                "predictedValue",
+                "measurements",
+                "versusPredicted",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "financials": {
+            "type": "object",
+            "properties": {
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3
+              },
+              "investmentToDate": {
+                "type": "number",
+                "nullable": true
+              },
+              "realizedBenefit": {
+                "type": "number",
+                "nullable": true
+              },
+              "basisNote": {
+                "type": "string",
+                "nullable": true
+              },
+              "roi": {
+                "type": "number",
+                "nullable": true
+              },
+              "updatedBy": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/pilot/properties/updatedBy"
+                  }
+                ],
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/UpdateKpiResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "currency",
+              "investmentToDate",
+              "realizedBenefit",
+              "basisNote",
+              "roi",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          }
+        },
+        "required": [
+          "ideaId",
+          "status",
+          "canWrite",
+          "inDeliveryStage",
+          "pilot",
+          "updates",
+          "kpis",
+          "financials"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateNotificationPreferencesRequest": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "event": {
+                  "type": "string",
+                  "enum": [
+                    "ANALYSIS_COMPLETED",
+                    "STATUS_CHANGED",
+                    "REVIEW_RECORDED",
+                    "LEADERSHIP_DECISION_RECORDED",
+                    "COMMENT_ADDED",
+                    "MENTIONED",
+                    "FOLLOWED_IDEA_MOVED",
+                    "RESULTS_RECORDED"
+                  ]
+                },
+                "emailEnabled": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "event",
+                "emailEnabled"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateNotificationPreferencesResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "event": {
+                  "type": "string",
+                  "enum": [
+                    "ANALYSIS_COMPLETED",
+                    "STATUS_CHANGED",
+                    "REVIEW_RECORDED",
+                    "LEADERSHIP_DECISION_RECORDED",
+                    "COMMENT_ADDED",
+                    "MENTIONED",
+                    "FOLLOWED_IDEA_MOVED",
+                    "RESULTS_RECORDED"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "emailEnabled": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "event",
+                "label",
+                "description",
+                "emailEnabled"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "UpdatePilotRecordRequest": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "maxLength": 2000,
+            "nullable": true
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "SUCCEEDED",
+              "MIXED",
+              "DID_NOT_SUCCEED"
+            ],
+            "nullable": true
+          },
+          "outcomeNotes": {
+            "type": "string",
+            "maxLength": 4000,
+            "nullable": true
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "endedAt": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/definitions/UpdatePilotRecordRequest/properties/startedAt"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdatePilotRecordResponse": {
+        "type": "object",
+        "properties": {
+          "ideaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SUBMITTED",
+              "AI_ANALYSIS",
+              "NEEDS_CLARIFICATION",
+              "EVALUATED",
+              "RANKED",
+              "UNDER_REVIEW",
+              "PROTOTYPE_CANDIDATE",
+              "PILOT",
+              "PRODUCTION_CANDIDATE",
+              "IMPLEMENTED",
+              "PARKED",
+              "BLOCKED",
+              "REJECTED",
+              "ARCHIVED"
+            ]
+          },
+          "canWrite": {
+            "type": "boolean"
+          },
+          "inDeliveryStage": {
+            "type": "boolean"
+          },
+          "pilot": {
+            "type": "object",
+            "properties": {
+              "startedAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "endedAt": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/pilot/properties/startedAt"
+                  }
+                ],
+                "nullable": true
+              },
+              "scope": {
+                "type": "string",
+                "nullable": true
+              },
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "SUCCEEDED",
+                  "MIXED",
+                  "DID_NOT_SUCCEED"
+                ],
+                "nullable": true
+              },
+              "outcomeNotes": {
+                "type": "string",
+                "nullable": true
+              },
+              "updatedBy": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/ideaId"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "departmentName": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "id",
+                  "displayName",
+                  "departmentName"
+                ],
+                "additionalProperties": false,
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "startedAt",
+              "endedAt",
+              "scope",
+              "outcome",
+              "outcomeNotes",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/ideaId"
+                },
+                "stage": {
+                  "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/status"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "author": {
+                  "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/pilot/properties/updatedBy"
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "stage",
+                "note",
+                "author",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "kpis": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/ideaId"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "HIGHER_IS_BETTER",
+                    "LOWER_IS_BETTER"
+                  ]
+                },
+                "targetValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "predictedValue": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "measurements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/ideaId"
+                      },
+                      "actualValue": {
+                        "type": "number"
+                      },
+                      "measuredAt": {
+                        "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/pilot/properties/startedAt"
+                      },
+                      "note": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "recordedBy": {
+                        "allOf": [
+                          {
+                            "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/pilot/properties/updatedBy"
+                          }
+                        ],
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "actualValue",
+                      "measuredAt",
+                      "note",
+                      "recordedBy"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "versusPredicted": {
+                  "type": "object",
+                  "properties": {
+                    "difference": {
+                      "type": "number"
+                    },
+                    "percent": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "standing": {
+                      "type": "string",
+                      "enum": [
+                        "AHEAD",
+                        "ON_PREDICTION",
+                        "BEHIND"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "difference",
+                    "percent",
+                    "standing"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                },
+                "createdAt": {
+                  "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/pilot/properties/startedAt"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "unit",
+                "description",
+                "direction",
+                "targetValue",
+                "predictedValue",
+                "measurements",
+                "versusPredicted",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "financials": {
+            "type": "object",
+            "properties": {
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3
+              },
+              "investmentToDate": {
+                "type": "number",
+                "nullable": true
+              },
+              "realizedBenefit": {
+                "type": "number",
+                "nullable": true
+              },
+              "basisNote": {
+                "type": "string",
+                "nullable": true
+              },
+              "roi": {
+                "type": "number",
+                "nullable": true
+              },
+              "updatedBy": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/pilot/properties/updatedBy"
+                  }
+                ],
+                "nullable": true
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/definitions/UpdatePilotRecordResponse/properties/pilot/properties/startedAt"
+              }
+            },
+            "required": [
+              "currency",
+              "investmentToDate",
+              "realizedBenefit",
+              "basisNote",
+              "roi",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          }
+        },
+        "required": [
+          "ideaId",
+          "status",
+          "canWrite",
+          "inDeliveryStage",
+          "pilot",
+          "updates",
+          "kpis",
+          "financials"
         ],
         "additionalProperties": false
       },
@@ -9859,6 +13317,280 @@
         }
       }
     },
+    "/comments/{commentId}": {
+      "patch": {
+        "operationId": "updateIdeaComment",
+        "summary": "Edit your own comment. Marked as edited; nobody is notified again.",
+        "tags": [
+          "social"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:read:own"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateIdeaCommentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIdeaCommentRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteIdeaComment",
+        "summary": "Withdraw your own comment. The thread keeps a \"comment deleted\" line in its place.",
+        "tags": [
+          "social"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:read:own"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteIdeaCommentResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comments/{commentId}/hide": {
+      "post": {
+        "operationId": "hideIdeaComment",
+        "summary": "Moderator: withhold a comment's text, with a reason everyone can read. Audited.",
+        "tags": [
+          "social"
+        ],
+        "x-access": {
+          "requires": [
+            "comment:moderate"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HideIdeaCommentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HideIdeaCommentRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/config/categories": {
       "get": {
         "operationId": "listCategories",
@@ -10736,6 +14468,88 @@
         }
       }
     },
+    "/directory/people": {
+      "get": {
+        "operationId": "searchPeople",
+        "summary": "Up to 8 active people whose name matches — the @mention picker. Names and departments only, never an email; with `ideaId`, only people who can open that idea.",
+        "tags": [
+          "social"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:read:own"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          {
+            "name": "ideaId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchPeopleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/discovery/queries": {
       "post": {
         "operationId": "createDiscoveryQuery",
@@ -11137,6 +14951,86 @@
           },
           "404": {
             "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteIdeaCreationConversation",
+        "summary": "Delete one of the signed-in user's own conversations. Scratch state only — no idea exists until the employee submits one, so nothing else is touched.",
+        "tags": [
+          "idea-creation"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:create"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteIdeaCreationConversationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONCURRENT_MODIFICATION",
             "content": {
               "application/json": {
                 "schema": {
@@ -12174,6 +16068,454 @@
         }
       }
     },
+    "/ideas/{ideaId}/comments": {
+      "get": {
+        "operationId": "listIdeaComments",
+        "summary": "The idea's comment thread, oldest first, with what the caller may do to each comment.",
+        "tags": [
+          "social"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:read:own"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListIdeaCommentsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createIdeaComment",
+        "summary": "Comment on an idea you can open (not a draft or archived one). Notifies the owner, followers and anyone @mentioned who can open it; the author starts following it.",
+        "tags": [
+          "social"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:read:own"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateIdeaCommentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIdeaCommentRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ideas/{ideaId}/delivery": {
+      "get": {
+        "operationId": "getIdeaDelivery",
+        "summary": "Pilot record, progress updates, KPIs with measurements, and ROI inputs for one idea.",
+        "tags": [
+          "delivery"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:read:own"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetIdeaDeliveryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ideas/{ideaId}/delivery/pilot": {
+      "patch": {
+        "operationId": "updatePilotRecord",
+        "summary": "Record the pilot's scope, dates and outcome (a person's judgement, never computed).",
+        "tags": [
+          "delivery"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:transition"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatePilotRecordResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN | ROLE_NOT_PERMITTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePilotRecordRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ideas/{ideaId}/delivery/updates": {
+      "post": {
+        "operationId": "addDeliveryUpdate",
+        "summary": "Add a dated progress note while the idea is in a delivery stage.",
+        "tags": [
+          "delivery"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:transition"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddDeliveryUpdateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN | ROLE_NOT_PERMITTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddDeliveryUpdateRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/ideas/{ideaId}/evaluation": {
       "get": {
         "operationId": "getIdeaEvaluation",
@@ -12500,6 +16842,200 @@
         }
       }
     },
+    "/ideas/{ideaId}/financials": {
+      "patch": {
+        "operationId": "updateIdeaFinancials",
+        "summary": "Enter the investment to date and the realized benefit. ROI is computed from these, never estimated.",
+        "tags": [
+          "delivery"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:transition"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateIdeaFinancialsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN | ROLE_NOT_PERMITTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIdeaFinancialsRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ideas/{ideaId}/follow": {
+      "post": {
+        "operationId": "setIdeaFollow",
+        "summary": "Follow or stop following an idea: its new comments and stage changes reach you.",
+        "tags": [
+          "social"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:read:own"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetIdeaFollowResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetIdeaFollowRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/ideas/{ideaId}/history": {
       "get": {
         "operationId": "getIdeaHistory",
@@ -12566,6 +17102,328 @@
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ideas/{ideaId}/kpis": {
+      "post": {
+        "operationId": "createKpi",
+        "summary": "Define a KPI for an idea in a delivery stage, with an optional target and prediction.",
+        "tags": [
+          "delivery"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:transition"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateKpiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN | ROLE_NOT_PERMITTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateKpiRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ideas/{ideaId}/kpis/{kpiId}": {
+      "patch": {
+        "operationId": "updateKpi",
+        "summary": "Edit a KPI's definition, target or prediction. Measurements are never edited.",
+        "tags": [
+          "delivery"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:transition"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "kpiId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/properties/ideaId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateKpiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN | ROLE_NOT_PERMITTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateKpiRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ideas/{ideaId}/kpis/{kpiId}/measurements": {
+      "post": {
+        "operationId": "addKpiMeasurement",
+        "summary": "Record a measured actual. Append-only: a correction is a new measurement.",
+        "tags": [
+          "delivery"
+        ],
+        "x-access": {
+          "requires": [
+            "idea:transition"
+          ]
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "kpiId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/properties/ideaId"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddKpiMeasurementResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN | ROLE_NOT_PERMITTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddKpiMeasurementRequest"
               }
             }
           }
@@ -13437,6 +18295,288 @@
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "operationId": "listNotifications",
+        "summary": "The signed-in person's notification centre, newest first, plus their unread count.",
+        "tags": [
+          "notifications"
+        ],
+        "x-access": {
+          "requires": []
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "name": "unread",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListNotificationsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/preferences": {
+      "get": {
+        "operationId": "getNotificationPreferences",
+        "summary": "Per-event email preferences. In-app notifications are always on.",
+        "tags": [
+          "notifications"
+        ],
+        "x-access": {
+          "requires": []
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetNotificationPreferencesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateNotificationPreferences",
+        "summary": "Turn email on or off per event.",
+        "tags": [
+          "notifications"
+        ],
+        "x-access": {
+          "requires": []
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateNotificationPreferencesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNotificationPreferencesRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/read": {
+      "post": {
+        "operationId": "markNotificationsRead",
+        "summary": "Mark the given notifications (or all of them) read. Ids that are not the caller's are ignored.",
+        "tags": [
+          "notifications"
+        ],
+        "x-access": {
+          "requires": []
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarkNotificationsReadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkNotificationsReadRequest"
               }
             }
           }

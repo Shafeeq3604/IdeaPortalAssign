@@ -124,6 +124,10 @@
    */
   --accent-700: #164fc4;
   --accent-600: #245fd6;
+  /* Text links. Separate from --accent-600 (button fill) because a blue that works as a
+     filled button is too dark as small text on the dark theme's surfaces — 3.5:1 there,
+     under WCAG AA's 4.5:1 (P9 tester feedback: "Rae Reviewer · People" barely noticeable). */
+  --link: var(--accent-600);
   --accent-500: #3b82f6;
   --accent-100: #d8eef7;
   --accent-050: #eef9fc;
@@ -209,9 +213,16 @@
    *   --grad-ink-soft on --grad-via    6.1:1
    *   --grad-highlight on --grad-from  6.0:1
    */
-  --grad-from: #1f2937;
-  --grad-via: #161d29;
-  --grad-to: #111827;
+  /* P9 tester feedback — light theme "needs refinement": the light hero was charcoal while
+     dark's was navy, so the two themes read as two products. Both now share dark's navy
+     hero (white on --grad-from 17.7:1, --grad-ink-soft on --grad-via 9.1:1, checked). */
+  --grad-from: #10183a;
+  --grad-via: #0b1226;
+  --grad-to: #020817;
+  /* The hero's LAST stop. It used to be --surface, which is WHITE in light mode, so every
+     light-mode hero faded to white on the right under white text (P9 screenshots: washed-
+     out tiles, Start/Ask looking disabled). A fixed navy, identical in both themes. */
+  --grad-end: #0c1627;
   --grad-ink: #ffffff;
   --grad-ink-soft: #a8b8cc;       /* cool blue-slate, replaces violet-200 */
   --grad-highlight: #38bdf8;      /* sky-400 — the one bright "electric blue" accent */
@@ -376,13 +387,13 @@
     --ink-900: #f8fafc;   /* text primary */
     --ink-700: #cbd5e1;
     --ink-500: #94a3b8;   /* text secondary, per spec */
-    --ink-400: #7a8598;   /* a step dimmer, for tertiary/muted text */
+    --ink-400: #8f9bb0;   /* tertiary/muted text — 6.5:1 on the card surface (P9 tester feedback: was #7a8598, 4.9:1, read as "too dark") */
     --ink-300: rgba(128, 164, 255, 0.22);  /* border-strong */
     --ink-200: rgba(128, 164, 255, 0.12);  /* border, per spec */
     --ink-100: #0c1627;   /* card surface, per spec */
     --ink-050: #020817;   /* canvas, per spec */
-    /* ink-000 keeps its dual role (the ramp's extreme step, and --primary-foreground: the
-       ink drawn ON a solid accent-600 button) but can no longer also BE --surface — see
+    /* ink-000 is the ramp's extreme step (no longer --primary-foreground since P9 — see
+       the semantic block) and can no longer also BE --surface — see
        --surface below, same technique already used for --sidebar/--surface-input. */
     --ink-000: #020817;
 
@@ -409,8 +420,9 @@
      * secondary blue and cyan are reserved for the badge-ink/emphasis role accent-700
      * already plays. No purple anywhere in this ramp.
      */
-    --accent-700: #3b82f6;   /* secondary blue — badge ink / stronger emphasis */
+    --accent-700: #60a5fa;   /* secondary blue — badge ink / small blue text. 7.1:1 on the card (was #3b82f6, 4.9:1) */
     --accent-600: #2563eb;   /* primary blue */
+    --link: #60a5fa;        /* 7.1:1 on the card surface — see the light block */
     --accent-500: #38bdf8;   /* cyan — focus ring */
     --accent-100: rgba(37, 99, 235, 0.16);
     --accent-050: rgba(37, 99, 235, 0.08);
@@ -489,7 +501,7 @@
        tiles and the hero glow both let it read straight through, so the eye saw "grid,
        grid, grid, dashboard" instead of "dashboard, then texture." Spacing (24px)
        unchanged — only the alpha dropped. */
-    --body-texture: radial-gradient(rgba(80, 140, 255, 0.05) 1.8px, transparent 1.8px);
+    --body-texture: radial-gradient(rgba(80, 140, 255, 0.09) 2px, transparent 2px);  /* P9: 5% → 9%, a touch more visible */
 
     /* Atmospheric lighting (see the light block above for the shared shape): the spec's
        three-corner scheme — a faint green top-left, blue centre, cyan bottom-right. */
@@ -505,7 +517,7 @@
   --ink-900: #f8fafc;
   --ink-700: #cbd5e1;
   --ink-500: #94a3b8;
-  --ink-400: #7a8598;
+  --ink-400: #8f9bb0;
   --ink-300: rgba(128, 164, 255, 0.22);
   --ink-200: rgba(128, 164, 255, 0.12);
   --ink-100: #0c1627;
@@ -521,8 +533,9 @@
   --sidebar-hover: #0b1526;
   --surface-input: #0a0f1e;
 
-  --accent-700: #3b82f6;
+  --accent-700: #60a5fa;
   --accent-600: #2563eb;
+  --link: #60a5fa;
   --accent-500: #38bdf8;
   --accent-100: rgba(37, 99, 235, 0.16);
   --accent-050: rgba(37, 99, 235, 0.08);
@@ -581,7 +594,7 @@
   --glass-blur: 0px;
   --glass-line: var(--ink-200);
 
-  --body-texture: radial-gradient(rgba(80, 140, 255, 0.05) 1.8px, transparent 1.8px);
+  --body-texture: radial-gradient(rgba(80, 140, 255, 0.09) 2px, transparent 2px);  /* P9: 5% → 9%, a touch more visible */
 
   --atmo-tl: rgba(16, 185, 129, 0.12);
   --atmo-center: rgba(37, 99, 235, 0.18);
@@ -606,7 +619,10 @@
   --popover: var(--surface);
   --popover-foreground: var(--text);
   --primary: var(--accent-600);
-  --primary-foreground: var(--ink-000);
+  /* P9: ink ON a solid accent-600 fill — white in BOTH themes. It used to be --ink-000,
+     which is white in light mode but near-black in dark: 3.7:1 on #2563eb, failing AA
+     (white is 5.2:1). Every consumer is a blue/red/gradient fill that wants white. */
+  --primary-foreground: #ffffff;
   --secondary: var(--surface-sunken);
   --secondary-foreground: var(--text);
   --muted: var(--surface-sunken);
@@ -675,7 +691,7 @@
   :root:not([data-theme="light"]) :where(h2, h3) > a:hover,
   :root:not([data-theme="light"]) [data-slot="card-title"] > a:hover,
   :root:not([data-theme="light"]) .criterion-table-link:hover {
-    color: var(--accent-600);
+    color: var(--link);
   }
 }
 :root[data-theme="dark"] :where(h2, h3) > a,
@@ -686,7 +702,7 @@
 :root[data-theme="dark"] :where(h2, h3) > a:hover,
 :root[data-theme="dark"] [data-slot="card-title"] > a:hover,
 :root[data-theme="dark"] .criterion-table-link:hover {
-  color: var(--accent-600);
+  color: var(--link);
 }
 
 /* ── Base ── */

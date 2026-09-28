@@ -59,7 +59,9 @@
 
   /* ── Accent: one calm indigo (SPEC §7.1 "ink before colour") ── */
   --color-primary: var(--accent-600);
-  --color-primary-foreground: var(--ink-000);
+  --color-primary-foreground: var(--primary-foreground);  /* P9: white in both themes, see tokens.css */
+  /* P9: text-link colour, separate from the --accent-600 button fill (see tokens.css). */
+  --color-link: var(--link);
   --color-secondary: var(--surface-sunken);
   --color-secondary-foreground: var(--text);
   --color-accent: var(--accent-100);

@@ -14,7 +14,7 @@ async function main(): Promise<void> {
     await seedEvaluationConfig(prisma);
     console.log(
       `seeded config only: ${CRITERIA.length} criteria, ${PROFILES.length} profiles, ` +
-        `${DEFAULT_ROUTES.length} model routes — no demo accounts, no demo ideas`,
+        `${DEFAULT_ROUTES.length + 1 /* + IDEA_CREATION */} model routes — no demo accounts, no demo ideas`,
     );
   } finally {
     await prisma.$disconnect();

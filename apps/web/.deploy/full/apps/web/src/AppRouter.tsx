@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Link, Route, Routes, useLocation } from "react-router-dom";
 import { matchRouteId, type Role } from "@iep/contracts";
 import { Skeleton } from "@iep/ui";
 import { AppProviders } from "./app/providers";
@@ -49,6 +49,8 @@ const VersionPage = lazy(() => import("./features/ideas/VersionPage").then((m) =
 const ReviewTab = lazy(() => import("./features/review/ReviewTab").then((m) => ({ default: m.ReviewTab })));
 const LeadershipDecisionTab = lazy(() => import("./features/leadership/LeadershipDecisionTab").then((m) => ({ default: m.LeadershipDecisionTab })));
 const AnalyticsPage = lazy(() => import("./features/analytics/AnalyticsPage").then((m) => ({ default: m.AnalyticsPage })));
+const NotificationsPage = lazy(() => import("./features/notifications/NotificationsPage").then((m) => ({ default: m.NotificationsPage })));
+const DeliveryTab = lazy(() => import("./features/delivery/DeliveryTab").then((m) => ({ default: m.DeliveryTab })));
 const ReviewQueuePage = lazy(() => import("./features/review/ReviewQueuePage").then((m) => ({ default: m.ReviewQueuePage })));
 const ComparePage = lazy(() => import("./features/rankings/ComparePage").then((m) => ({ default: m.ComparePage })));
 const DashboardPage = lazy(() => import("./features/rankings/DashboardPage").then((m) => ({ default: m.DashboardPage })));
@@ -65,6 +67,10 @@ const UsersPage = lazy(() => import("./features/admin/AdminPages").then((m) => (
 const DepartmentPage = lazy(() => import("./features/people/ScopedIdeaPages").then((m) => ({ default: m.DepartmentPage })));
 const PersonPage = lazy(() => import("./features/people/ScopedIdeaPages").then((m) => ({ default: m.PersonPage })));
 const DataAndAiPage = lazy(() => import("./features/help/DataAndAiPage").then((m) => ({ default: m.DataAndAiPage })));
+// P20 (SPEC §14 M4) — the role home, boardroom mode and the swipe deck.
+const HomePage = lazy(() => import("./features/home/HomePage").then((m) => ({ default: m.HomePage })));
+const BoardroomPage = lazy(() => import("./features/rankings/BoardroomPage").then((m) => ({ default: m.BoardroomPage })));
+const SwipePage = lazy(() => import("./features/ideas/SwipePage").then((m) => ({ default: m.SwipePage })));
 const DiscoveryChatPage = lazy(() => import("./features/discovery/DiscoveryChatPage").then((m) => ({ default: m.DiscoveryChatPage })));
 
 /** A quiet placeholder while a route's own chunk downloads — the shell (header, nav)
@@ -155,6 +161,7 @@ function Shell() {
                 its own path for compatibility/fallback, not as an equal alternative. */}
             <Route path="/ideas/new" element={<IdeaCreationPage />} />
             <Route path="/ideas/new/manual" element={<SubmitIdeaPage />} />
+            <Route path="/ideas/swipe" element={<SwipePage />} />
             <Route path="/ideas/:ideaId/overview" element={<OverviewTab />} />
             <Route path="/ideas/:ideaId/analysis" element={<AnalysisTab />} />
             <Route path="/ideas/:ideaId/evaluation" element={<EvaluationTab />} />
@@ -163,10 +170,12 @@ function Shell() {
             <Route path="/review" element={<ReviewQueuePage />} />
             {/* Static before dynamic: /rankings/compare must not be read as a run id. */}
             <Route path="/rankings/compare" element={<ComparePage />} />
+            <Route path="/rankings/boardroom" element={<BoardroomPage />} />
             <Route path="/rankings/:runId" element={<RankingsPage mode="run" />} />
             <Route path="/rankings" element={<RankingsPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/config/criteria" element={<CriteriaPage />} />
             <Route path="/config/profiles" element={<ProfilesPage />} />
             <Route path="/config/categories" element={<CategoriesPage />} />
@@ -179,10 +188,11 @@ function Shell() {
             <Route path="/help/data-and-ai" element={<DataAndAiPage />} />
             <Route path="/discovery" element={<DiscoveryChatPage />} />
             <Route path="/ideas/:ideaId/history" element={<HistoryTab />} />
+            <Route path="/ideas/:ideaId/delivery" element={<DeliveryTab />} />
             <Route path="/ideas/:ideaId/versions/:versionNo" element={<VersionPage />} />
             <Route path="/ideas/:ideaId/revise" element={<ReviseIdeaPage />} />
 
-            <Route path="/" element={<Navigate to="/ideas" replace />} />
+            <Route path="/" element={<HomePage />} />
             <Route path="*" element={<Unreachable roles={roles} />} />
           </Routes>
         </Suspense>

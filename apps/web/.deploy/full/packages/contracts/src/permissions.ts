@@ -32,6 +32,8 @@ export const PERMISSIONS = [
   /** SPC-001 — AI Discovery Agent. Granted to every role: it's a standalone research
    * tool, not gated by idea ownership or review authority. */
   "discovery:use",
+  /** P18 — hiding someone else's comment, with a reason, audited. */
+  "comment:moderate",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -67,7 +69,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     // matters is unaffected: `can()` still stops anyone reviewing their OWN idea.
     "review:write",
     "config:read", "config:write", "dashboard:read", "audit:read", "user:manage", "ranking:recompute",
-    "discovery:use", "leadership:decide",
+    "discovery:use", "leadership:decide", "comment:moderate",
   ],
 };
 
@@ -98,7 +100,9 @@ export type Action =
   | "review:create"
   | "score:override"
   | "leadership:decide"
-  | "audit:read";
+  | "audit:read"
+  | "idea:comment"
+  | "comment:moderate";
 
 export interface Actor {
   readonly userId: string;
@@ -215,6 +219,20 @@ export function can(actor: Actor, action: Action, idea?: IdeaResource): Decision
     }
 
     case "audit:read":
+      return has(actor, "ADMIN") ? ALLOW : deny("ROLE_NOT_PERMITTED");
+
+    case "idea:comment": {
+      // P18: anyone who can open the idea may join the conversation (owner decision,
+      // D-24) — but not on a draft, which is still private scratch work, nor once it is
+      // archived, which is the owner withdrawing it.
+      const read = can(actor, "idea:read", idea);
+      if (!read.allowed || !idea) return read;
+      return idea.status === "DRAFT" || idea.status === "ARCHIVED" ? deny("WRONG_STATUS") : ALLOW;
+    }
+
+    case "comment:moderate":
+      // Hiding a comment is an administrator's call, and on any idea — including their
+      // own, since a moderator removing abuse from their own thread is no conflict.
       return has(actor, "ADMIN") ? ALLOW : deny("ROLE_NOT_PERMITTED");
   }
 }

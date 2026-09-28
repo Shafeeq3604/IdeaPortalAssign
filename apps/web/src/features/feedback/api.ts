@@ -87,3 +87,25 @@ export function useSetSignal(ideaId: string) {
 }
 
 export type { StructuredFeedbackType };
+
+/**
+ * P20 — a vote on whichever idea is in front of the person, for the swipe deck, where the
+ * idea changes card by card and a hook bound to one `ideaId` does not fit. Same endpoint,
+ * same meaning as `useVote`; not optimistic, because the deck has already moved on and
+ * there is no on-screen count to keep honest.
+ */
+export function useCastVote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ideaId, vote }: { ideaId: string; vote: FeedbackVote }) =>
+      api<IdeaFeedbackSummary>(`/ideas/${ideaId}/feedback`, {
+        method: "POST",
+        body: JSON.stringify({ vote }),
+      }),
+    onSuccess: (summary, { ideaId }) => {
+      qc.setQueryData(queryKeys.ideas.feedback(ideaId), summary);
+      // Lists carry vote totals inline (IdeaSummary.feedback).
+      void qc.invalidateQueries({ queryKey: [...queryKeys.ideas.all(), "list"] });
+    },
+  });
+}

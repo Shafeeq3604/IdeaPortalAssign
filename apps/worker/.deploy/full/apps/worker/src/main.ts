@@ -22,6 +22,7 @@ import {
 import { grantRole } from "@iep/db";
 import { makeObservabilityClient } from "./observability.js";
 import { captureException, initErrorTracking } from "./error-tracking.js";
+import { makeEmailTransport, startEmailOutbox } from "./email.js";
 
 /**
  * apps/worker — the AI pipeline consumer (P3).
@@ -136,6 +137,10 @@ const observability = makeObservabilityClient(env);
  */
 const rankingQueue = makeRankingQueue(env.REDIS_URL);
 
+/** P13 — notification emails, drained from the outbox the API and pipeline write to. */
+const emailTransport = makeEmailTransport(env);
+const stopEmailOutbox = startEmailOutbox(db, emailTransport, env.PUBLIC_WEB_ORIGIN);
+
 /**
  * One-time-per-boot self-heal: an idea whose analysis finished before an
  * `EvaluationProfile` existed in this environment (see `seedEvaluationConfig`,
@@ -170,6 +175,7 @@ const worker = new Worker<AnalysisJob>(
         db,
         provider,
         budgetPerVersionUsd: env.AI_BUDGET_PER_VERSION_USD,
+        stepConcurrency: env.AI_STEP_CONCURRENCY,
         redactionEnabled: env.PII_REDACTION_ENABLED,
         observability,
       },
@@ -319,6 +325,7 @@ console.log(
     `${IDEA_CREATION_QUEUE} · provider=${provider.name} · ` +
     `discoveryProvider=${discoveryProvider.name} · ideaCreationProvider=${ideaCreationProvider.name} · ` +
     `embeddingProvider=${embeddingProvider.name} · detectionProvider=${detectionProvider.name} · ` +
+    `email=${emailTransport.name} · ` +
     `budget=$${env.AI_BUDGET_PER_VERSION_USD}/version · redaction=${env.PII_REDACTION_ENABLED} · ` +
     `iManner observability=${env.OBS_ENABLED ? "enabled" : "disabled"}`,
 );
@@ -355,6 +362,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
     if (shuttingDown) return;
     shuttingDown = true;
+    stopEmailOutbox();
     void (async () => {
       try {
         const [analysisClient, rankerClient, discoveryClient, ideaCreationClient, rankingQueueClient] =

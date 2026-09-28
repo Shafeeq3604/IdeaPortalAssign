@@ -110,6 +110,8 @@ export const IdeaSummary = z.object({
     down: z.number().int().min(0),
     myVote: FeedbackVote.nullable(),
   }),
+  /** P18 — comments people can read (visible ones only), batched like `feedback`. */
+  commentCount: z.number().int().min(0),
 });
 export type IdeaSummary = z.infer<typeof IdeaSummary>;
 
@@ -171,6 +173,14 @@ export const IdeaDetail = IdeaSummary.extend({
      * only ("We found a similar idea"), never the number behind it.
      */
     canSeeMatchDetail: z.boolean(),
+    /** P18 — may post a comment (readable, and neither a draft nor archived). */
+    canComment: z.boolean(),
+  }),
+  /** P18 — whether the signed-in person follows it, and how many do. The owner is never
+   *  counted as a follower: they hear about their own idea regardless. */
+  social: z.object({
+    following: z.boolean(),
+    followerCount: z.number().int().min(0),
   }),
 });
 export type IdeaDetail = z.infer<typeof IdeaDetail>;

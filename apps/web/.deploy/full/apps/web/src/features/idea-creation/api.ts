@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CreateIdeaCreationConversationRequest, IdeaCreationConversation, IdeaCreationStatus,
+  ListIdeaCreationConversationsResponse,
   SendIdeaCreationMessageRequest, UpdateIdeaCreationDraftRequest,
 } from "@iep/contracts";
 import { api } from "../../app/api-client";
@@ -14,13 +15,15 @@ import { queryKeys } from "../../app/query-keys";
  * endpoint, so a 2s poll on the conversation's own status meets "the AI's reply shows up
  * shortly after it's ready" without inventing new infrastructure.
  *
- * No `useIdeaCreationConversations` (list) hook — there is no "recent conversations"
- * picker in the UI yet to read it, and an unread query is just dead weight. Add it back
- * alongside whatever screen actually needs it.
+ * `useIdeaCreationHistory` (list) feeds the start screen's "Your idea conversations"
+ * (P9 tester feedback: a way back to how an idea took shape, like Discover's history).
  */
 
 const LIVE: ReadonlySet<IdeaCreationStatus> = new Set(["AWAITING_AI"]);
-const POLL_MS = 2_000;
+// 1s, not 2s: while a reply is pending this is the only thing between the model finishing
+// and the person seeing it (P9 tester feedback: replies felt slow). Polling stops the
+// moment the conversation is no longer AWAITING_AI, so the extra requests are bounded.
+const POLL_MS = 1_000;
 
 export function useIdeaCreationConversation(conversationId: string | null) {
   return useQuery({
@@ -41,6 +44,7 @@ export function useCreateIdeaCreationConversation() {
       }),
     onSuccess: (row) => {
       queryClient.setQueryData(queryKeys.ideaCreation.detail(row.id), row);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.ideaCreation.list() });
       // A cache write alone does not reliably re-arm `refetchInterval` on a query
       // observer that mounts in the same tick (the create → setConversationId → mount
       // sequence below) — an explicit refetch does, and is what actually starts the 2s
@@ -83,6 +87,27 @@ export function useUpdateIdeaCreationDraft(conversationId: string) {
     onMutate: () => queryClient.cancelQueries({ queryKey: key }),
     onSuccess: (row) => {
       queryClient.setQueryData(key, row);
+    },
+  });
+}
+
+/** The signed-in person's own conversations, newest first (server-scoped — never another user's). */
+export function useIdeaCreationHistory() {
+  return useQuery({
+    queryKey: queryKeys.ideaCreation.list(),
+    queryFn: () => api<ListIdeaCreationConversationsResponse>("/idea-creation/conversations"),
+  });
+}
+
+/** Removes one of the caller's own conversations; the list refreshes, nothing else is touched. */
+export function useDeleteIdeaCreationConversation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) =>
+      api<{ id: string }>(`/idea-creation/conversations/${conversationId}`, { method: "DELETE" }),
+    onSuccess: ({ id }) => {
+      queryClient.removeQueries({ queryKey: queryKeys.ideaCreation.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.ideaCreation.list() });
     },
   });
 }

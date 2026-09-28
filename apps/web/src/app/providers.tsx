@@ -19,7 +19,8 @@ function ToasterOnBrand() {
   // toast in light mode while the page is in dark mode (or vice-versa) would be the one
   // element on screen fighting its surroundings.
   const theme = useThemeValue();
-  return <Toaster theme={theme} position="bottom-right" richColors />;
+  // `mobileOffset`: clear the P20 bottom tab bar on a phone rather than sitting on it.
+  return <Toaster theme={theme} position="bottom-right" richColors mobileOffset={{ bottom: "5rem" }} />;
 }
 
 export function AppProviders({ children }: { children: React.ReactNode }) {

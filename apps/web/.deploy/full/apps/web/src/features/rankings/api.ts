@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CompareResponse, DashboardResponse, ListProfilesResponse, ListRankingsResponse,
   OkResponse, RankingRunMeta, RecomputeRequest, UpdateProfileWeightsRequest,
@@ -29,6 +29,10 @@ export function useRankings(filters: BoardFilters) {
   return useQuery({
     queryKey: queryKeys.rankings.list(filters),
     queryFn: () => api<ListRankingsResponse>(`/rankings${qs({ ...filters })}`),
+    // P20 settle-rank: switching profile or band keeps the current board on screen until
+    // the next one arrives, so its rows can glide to their new places instead of the
+    // whole board blinking to a skeleton and back.
+    placeholderData: keepPreviousData,
   });
 }
 

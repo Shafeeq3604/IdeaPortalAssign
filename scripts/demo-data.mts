@@ -53,8 +53,19 @@ async function main(): Promise<void> {
      * outlives what it describes.
      */
     const runs = await db.rankingRun.deleteMany({});
+    /*
+     * Notifications about ideas go too. `notifications.entity_id` has no foreign key (it
+     * is a loose pointer so one table can serve every event type), so deleting ideas left
+     * every "analysis finished" / "review recorded" alert behind, linking to an idea that
+     * no longer exists — found after a few resets: 26 of 36 notifications were orphans.
+     * The product itself never deletes an idea (it archives), so only this reset needs it.
+     */
+    const notifications = await db.notification.deleteMany({ where: { entityId: { not: null } } });
     const ideas = await db.idea.deleteMany({});
-    console.log(`  --fresh: removed ${ideas.count} idea(s) and ${runs.count} ranking run(s)`);
+    console.log(
+      `  --fresh: removed ${ideas.count} idea(s), ${runs.count} ranking run(s) and ` +
+        `${notifications.count} notification(s) about them`,
+    );
   }
 
   const pending = await db.idea.findMany({

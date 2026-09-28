@@ -9,6 +9,7 @@ import {
   type StructureOutput, type UseCaseOutput, type ValueOutput, type MarketOutput,
   type FeasibilityOutput, type RiskOutput, type EffortTimelineOutput, type RecommendationOutput,
 } from "@iep/ai";
+import { recordIdeaNotification } from "@iep/evaluation";
 import type { ObservabilityClient } from "./observability.js";
 
 /** Display name per step, for the iManner agent list — mirrors PIPELINE_STEPS' own order. */
@@ -60,6 +61,13 @@ export interface PipelineDeps {
   readonly budgetPerVersionUsd: number;
   readonly redactionEnabled: boolean;
   readonly observability: ObservabilityClient;
+  /**
+   * How many independent analysis steps run at once for one idea (P9). An operational
+   * setting, not a product one: the account's real rate limit decides it (a 429 becomes
+   * a lower-quality fallback, so too high is worse than too low). The worker also runs
+   * two ideas at once, so the peak is twice this.
+   */
+  readonly stepConcurrency?: number;
 }
 
 export interface PipelineResult {
@@ -215,10 +223,21 @@ export async function runPipeline(
   let fallbacks = 0;
   let ran = 0;
 
-  for (const step of PIPELINE_STEPS) {
+  /**
+   * One step, start to finish. Returns what it cost so the caller can keep the run's
+   * totals; each step's own rows commit in its own transaction, so steps running at the
+   * same time never share a write.
+   */
+  const runStep = async (
+    step: (typeof PIPELINE_STEPS)[number],
+    budgetRemainingUsd: number,
+    /** Run even if already done or reusable: its inputs changed underneath it. */
+    force = false,
+  ): Promise<{ ran: boolean; costUsd: number; fellBack: boolean }> => {
+    const none = { ran: false, costUsd: 0, fellBack: false };
     // Skip work already done for this exact content (idempotency, SPEC §3.3).
     const existing = existingByStep.get(step);
-    if (existing?.status === "SUCCEEDED") continue;
+    if (existing?.status === "SUCCEEDED" && !force) return none;
 
     /**
      * Carry forward when this step's inputs did not move.
@@ -228,6 +247,7 @@ export async function runPipeline(
      * into the record permanently.
      */
     const reusable =
+      !force &&
       previousFields &&
       stepInputHash(step, fields) === stepInputHash(step, previousFields)
         ? previous?.analyses.find(
@@ -238,7 +258,7 @@ export async function runPipeline(
     if (reusable) {
       await carryForward(db, reusable, input.ideaVersionId, step);
       carried += 1;
-      continue;
+      return none;
     }
 
     const analysis = await db.aiAnalysis.upsert({
@@ -259,9 +279,9 @@ export async function runPipeline(
     // ADR-026: IMPLEMENTATION_RECOMMENDATION synthesizes this run's OWN prior findings,
     // not new judgement about the submission — so it is given them as `trustedContext`
     // (engine-derived, not user-supplied — see providers/anthropic.ts), separate from
-    // `fields`/`ideaText` above. By this point in the loop every earlier step for this
-    // version has already committed (each iteration's transaction commits before the next
-    // begins), whether freshly run or carried forward, so a plain read is enough.
+    // `fields`/`ideaText` above. It runs only after every independent step has finished
+    // and committed (see the orchestration below), freshly run or carried forward, so a
+    // plain read is enough.
     const trustedContext =
       step === "IMPLEMENTATION_RECOMMENDATION"
         ? await loadRecommendationContext(db, input.ideaVersionId)
@@ -276,13 +296,15 @@ export async function runPipeline(
       fields,
       trustedContext,
       redactionEnabled: deps.redactionEnabled,
-      budgetRemainingUsd: deps.budgetPerVersionUsd - spent,
+      budgetRemainingUsd,
       routes,
     });
 
-    ran += 1;
-    spent += outcome.usage?.costUsd ?? 0;
-    if (outcome.source === "FALLBACK") fallbacks += 1;
+    const result = {
+      ran: true,
+      costUsd: outcome.usage?.costUsd ?? 0,
+      fellBack: outcome.source === "FALLBACK",
+    };
 
     // iManner observability — one event per real model call, with full attribution
     // (agent = this step, user = the idea's submitter, business record = the idea
@@ -349,7 +371,51 @@ export async function runPipeline(
 
       await persistStep(tx, input.ideaVersionId, analysis.id, step, outcome.data);
     });
-  }
+    return result;
+  };
+
+  const tally = (r: { ran: boolean; costUsd: number; fellBack: boolean }) => {
+    if (r.ran) ran += 1;
+    spent += r.costUsd;
+    if (r.fellBack) fallbacks += 1;
+  };
+
+  /**
+   * P9 tester feedback: "some ideas took too long for AI analysis to run". Every step but
+   * IMPLEMENTATION_RECOMMENDATION reads ONLY the submission (STEP_INPUT_FIELDS in
+   * packages/ai/src/step-inputs.ts) — none reads another step's output — yet they ran one
+   * after another, so the wait was the SUM of seven model calls. They now run
+   * concurrently (capped), and the recommendation, which synthesizes their findings,
+   * runs last on its own. Same models, same prompts, same cost — only the waiting changes.
+   *
+   * Budget stays fail-closed (SPEC §12.1). Sequentially, each step saw what the steps
+   * before it had spent; concurrent steps cannot see each other, so each gets an EQUAL
+   * SHARE of the version budget, with one share held back for the recommendation. That
+   * bounds a pathological run the same way the running total used to — no step can
+   * spend (or escalate to a higher tier on) budget its siblings may need.
+   */
+  const independent = PIPELINE_STEPS.filter((s) => s !== "IMPLEMENTATION_RECOMMENDATION");
+  const share = deps.budgetPerVersionUsd / (independent.length + 1);
+  const results = await mapWithConcurrency(independent, deps.stepConcurrency ?? DEFAULT_STEP_CONCURRENCY, (step) =>
+    runStep(step, share),
+  );
+  results.forEach(tally);
+  /*
+   * The recommendation is a synthesis of the steps above, so it is stale the moment any
+   * of them produces new findings. Found live: a feasibility step re-run after a false
+   * positive left the already-SUCCEEDED recommendation saying "feasibility was not
+   * assessed at all" beside a feasibility finding of "Feasible, with conditions".
+   *
+   * Except once leadership has decided against it: that decision cites this exact
+   * recommendation (FK, onDelete: Restrict), and the record of what they were shown must
+   * not change after the fact.
+   */
+  const decided =
+    (await db.leadershipDecision.count({
+      where: { recommendation: { ideaVersionId: input.ideaVersionId } },
+    })) > 0;
+  const upstreamChanged = results.some((r) => r.ran) && !decided;
+  tally(await runStep("IMPLEMENTATION_RECOMMENDATION", deps.budgetPerVersionUsd - spent, upstreamChanged));
 
   /**
    * A run that leaned on the fallback is PARTIAL, and the idea needs a human look —
@@ -364,9 +430,16 @@ export async function runPipeline(
    */
   const overall = fallbacks === 0 ? "SUCCEEDED" : fallbacks === ran && ran > 0 ? "FAILED" : "PARTIAL";
 
-  await db.idea.update({
-    where: { id: input.ideaId },
-    data: { status: overall === "FAILED" ? "NEEDS_CLARIFICATION" : "EVALUATED" },
+  const outcome = overall === "FAILED" ? "NEEDS_CLARIFICATION" : "EVALUATED";
+  // P13 — the status write and the owner's "analysis finished" notification commit
+  // together, so a finished analysis can never go un-notified (or be notified twice).
+  await db.$transaction(async (tx) => {
+    await tx.idea.update({ where: { id: input.ideaId }, data: { status: outcome } });
+    await recordIdeaNotification(tx, {
+      ideaId: input.ideaId,
+      actorId: null,
+      payload: (ideaTitle) => ({ event: "ANALYSIS_COMPLETED", ideaTitle, outcome }),
+    });
   });
 
   return {
@@ -377,6 +450,27 @@ export async function runPipeline(
     stepsFallenBack: fallbacks,
     totalCostUsd: spent,
   };
+}
+
+/**
+ * The first item for each key, in the model's own order.
+ *
+ * Found running the demo ideas through the real model: Anthropic returned two feasibility
+ * findings for the same dimension, and `@@unique([assessmentId, dimension])` failed the
+ * whole step (P2002) — the stub never repeats a key, so no test had seen it. The same
+ * one-per-key constraint sits on value findings, market findings and timeline phases.
+ * The schema says ONE finding per dimension; a repeat is the model contradicting its own
+ * contract, and keeping its first answer is predictable where failing the step is not.
+ * AI output is untrusted data — this is it being treated that way at the write.
+ */
+export function firstPer<T, K>(items: readonly T[], key: (item: T) => K): T[] {
+  const seen = new Set<K>();
+  return items.filter((item) => {
+    const k = key(item);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 /**
@@ -426,7 +520,7 @@ async function persistStep(
       const p = data as ValueOutput;
       await db.valueFinding.deleteMany({ where: { aiAnalysisId: analysisId } });
       await db.valueFinding.createMany({
-        data: p.findings.map((f) => ({
+        data: firstPer(p.findings, (f) => f.dimension).map((f) => ({
           aiAnalysisId: analysisId,
           dimension: f.dimension,
           band: f.band,
@@ -441,7 +535,7 @@ async function persistStep(
       const p = data as MarketOutput;
       await db.marketFinding.deleteMany({ where: { aiAnalysisId: analysisId } });
       await db.marketFinding.createMany({
-        data: p.findings.map((f) => ({
+        data: firstPer(p.findings, (f) => f.dimension).map((f) => ({
           aiAnalysisId: analysisId,
           dimension: f.dimension,
           band: f.band,
@@ -462,7 +556,7 @@ async function persistStep(
           summary: p.summary,
           constraintCitations: p.constraintCitations,
           findings: {
-            create: p.findings.map((f) => ({
+            create: firstPer(p.findings, (f) => f.dimension).map((f) => ({
               dimension: f.dimension,
               band: f.band,
               finding: f.finding,
@@ -520,7 +614,7 @@ async function persistStep(
             })),
           },
           timeline: {
-            create: p.timeline.map((t) => ({
+            create: firstPer(p.timeline, (t) => t.phase).map((t) => ({
               phase: t.phase,
               minWeeks: t.minWeeks,
               maxWeeks: t.maxWeeks,
@@ -614,4 +708,29 @@ async function carryForward(
      */
     await persistStep(tx, ideaVersionId, analysis.id, step, source.rawPayload);
   });
+}
+
+/** Default for `PipelineDeps.stepConcurrency` — see its comment. */
+export const DEFAULT_STEP_CONCURRENCY = 4;
+
+/**
+ * `Promise.all` with at most `limit` in flight. Results keep input order. A rejection
+ * propagates exactly as it did from the old sequential loop (the job fails and BullMQ's
+ * own retry policy applies); steps already running finish their own transactions first.
+ */
+export async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await fn(items[index] as T);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker));
+  return results;
 }

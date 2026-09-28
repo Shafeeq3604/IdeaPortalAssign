@@ -12,6 +12,7 @@ import type {
 } from "@iep/contracts";
 import { MarketDimension as MarketDimensionEnum, ValueDimension as ValueDimensionEnum } from "@iep/contracts";
 import { IdeaShell } from "../ideas/IdeaShell";
+import { haltedBeforeAnalysisNote } from "../ideas/api";
 import { AnalysisProgress } from "./AnalysisProgress";
 import {
   BAND_LABEL, BAND_STEPS, DEPENDENCY_KIND_LABEL, EFFORT_LABEL, FEASIBILITY_DIMENSION_LABEL,
@@ -122,15 +123,17 @@ export function AnalysisTab() {
           a.recommendation;
 
         if (!hasAnything) {
+          const halted = haltedBeforeAnalysisNote(idea.status);
           return (
             <div className="space-y-6">
-              <AnalysisProgress ideaId={ideaId} />
+              {halted ? null : <AnalysisProgress ideaId={ideaId} />}
               <EmptyState
-                title="No analysis yet"
+                title={halted ? "Not analysed" : "No analysis yet"}
                 description={
-                  idea.status === "DRAFT"
+                  halted ??
+                  (idea.status === "DRAFT"
                     ? "This idea is still a draft. Submitting it starts the analysis."
-                    : "The analysis has not produced results yet. This page updates on its own."
+                    : "The analysis has not produced results yet. This page updates on its own.")
                 }
                 action={{ label: "Back to the idea", to: `/ideas/${ideaId}/overview` }}
                 renderLink={link}

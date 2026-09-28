@@ -70,6 +70,21 @@ export async function persistEvaluation(
       },
     });
 
+    /*
+     * The idea's own `maturity_level` is what the idea header and every list read. It was
+     * declared (SPEC §5.3) but never written, so every idea showed "Maturity —" while its
+     * Evaluation tab said "Level 3". Maturity comes from completeness alone, so it is the
+     * same under every profile. Only the CURRENT version sets it, and only when the value
+     * actually changes, so a routine recompute does not bump the idea's `updatedAt`.
+     */
+    await tx.idea.updateMany({
+      where: {
+        currentVersionId: result.ideaVersionId,
+        OR: [{ maturityLevel: null }, { maturityLevel: { not: result.maturityLevel } }],
+      },
+      data: { maturityLevel: result.maturityLevel },
+    });
+
     /**
      * Overrides are read BEFORE the scores are rewritten and re-applied after.
      *

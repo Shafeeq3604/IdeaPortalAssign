@@ -141,7 +141,7 @@ export function ReviewQueuePage() {
                     <TableHead className={HEAD}>Rank</TableHead>
                     <TableHead className={HEAD}>Idea title</TableHead>
                     <TableHead className={HEAD}>Submitter</TableHead>
-                    <TableHead className={HEAD}>AI status</TableHead>
+                    <TableHead className={HEAD}>AI findings</TableHead>
                     <TableHead className={`${HEAD} text-right`}>Score</TableHead>
                     {/* Not in the requested column list, but SPEC §9.8 / J-2 is explicit
                         that the wait is a column a reviewer reads, not something they
@@ -197,7 +197,7 @@ export function ReviewQueuePage() {
                             variant="outline"
                             className="border-border/60 bg-muted font-medium text-muted-foreground"
                           >
-                            AI not yet checked
+                            Not yet validated
                           </Badge>
                         ) : (
                           <span className="text-muted-foreground">—</span>

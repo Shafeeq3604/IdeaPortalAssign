@@ -3,6 +3,7 @@ import type { IdeaStatus } from "@iep/contracts";
 import type { Handler } from "../../server.js";
 import { requireActor, sendError } from "../../server.js";
 import { writeAudit } from "../../lib/audit.js";
+import { recordIdeaNotification } from "@iep/evaluation";
 
 /** Thrown when a second concurrent override won the race on the same criterion score
     between this handler's own read of `previous` and its guarded `updateMany` committing
@@ -271,6 +272,16 @@ export function registerReviewRoutes(handlers: Map<string, Handler>): void {
         after: { decision: review.decision },
         reason: review.comment,
         requestId: request.id,
+      });
+
+      // P13 — the owner hears about the review, in the same transaction as the review.
+      await recordIdeaNotification(tx, {
+        ideaId,
+        actorId: actor.userId,
+        payload: (ideaTitle) => ({
+          event: "REVIEW_RECORDED", ideaTitle, decision: review.decision,
+          actorName: review.reviewer.displayName,
+        }),
       });
 
       return review;

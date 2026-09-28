@@ -1,16 +1,18 @@
 import * as React from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Check, CircleHelp, PenSquare, Send, Sparkles, SquarePen,
+  ArrowRight, Check, CircleHelp, ClipboardList, History, MessageSquareText, PenSquare, Send, Sparkles, SquarePen, Trash2,
 } from "lucide-react";
 import { ApiError } from "../../app/api-client";
 import { Badge, Button, Skeleton, Textarea } from "@iep/ui";
+import { ago } from "../../app/relative-time";
 import type { DraftField, IdeaCreationDraft, IdeaCreationMessage } from "@iep/contracts";
 import { PageHeading } from "../../app/PageHero";
 import { BrandMark } from "../../app/BrandMark";
 import type { IdeaFormValues } from "../ideas/IdeaForm";
 import {
-  useCreateIdeaCreationConversation, useIdeaCreationConversation,
+  useCreateIdeaCreationConversation, useDeleteIdeaCreationConversation, useIdeaCreationConversation,
+  useIdeaCreationHistory,
   useSendIdeaCreationMessage, useUpdateIdeaCreationDraft,
 } from "./api";
 
@@ -78,8 +80,11 @@ function StatusChip({ status }: { status: "CONFIRMED" | "INFERRED" | "MISSING" }
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-100 font-semibold text-muted-foreground">
-      Missing
+    // P9 tester feedback: a filled grey "Missing" pill on every empty row read as a wall
+    // of errors on a page that is, at the start, EXPECTED to be empty. Outlined and
+    // worded as "not yet" — it is a to-do the agent is working through, not a failure.
+    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-100 font-semibold text-muted-foreground ring-1 ring-inset ring-border-strong">
+      Not yet
     </span>
   );
 }
@@ -147,21 +152,23 @@ function DraftFieldRow({
         </p>
         <div className="flex shrink-0 items-center gap-2">
           <StatusChip status={status} />
-          <button
+          <Button
+            variant="link"
+            size="icon"
             type="button"
             aria-label={`Edit ${FIELD_LABEL[field]}`}
-            className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100"
+            className="size-auto whitespace-normal font-normal hover:shadow-none active:scale-100 block shrink rounded-none text-[length:inherit] duration-150 ease-in-out hover:no-underline text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100"
             onClick={() => {
               setDraft(value ?? "");
               setEditing(true);
             }}
           >
             <SquarePen aria-hidden className="size-3.5" />
-          </button>
+          </Button>
         </div>
       </div>
-      <p className={`mt-1 text-200 leading-relaxed ${value ? "" : "italic text-muted-foreground"}`}>
-        {value || "Not stated yet"}
+      <p className={`mt-1 text-200 leading-relaxed ${value ? "" : "text-muted-foreground"}`}>
+        {value || "The agent will ask about this"}
       </p>
     </div>
   );
@@ -219,24 +226,26 @@ function UseCasesRow({
     <div className="group rounded-lg p-3 transition-colors hover:bg-muted/60">
       <div className="flex items-start justify-between gap-2">
         <p className="text-100 font-semibold uppercase tracking-wide text-muted-foreground">Use cases</p>
-        <button
+        <Button
+          variant="link"
+          size="icon"
           type="button"
           aria-label="Edit use cases"
-          className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100"
+          className="size-auto whitespace-normal font-normal hover:shadow-none active:scale-100 block shrink rounded-none text-[length:inherit] duration-150 ease-in-out hover:no-underline shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100"
           onClick={() => {
             setText(useCases.join("\n"));
             setEditing(true);
           }}
         >
           <SquarePen aria-hidden className="size-3.5" />
-        </button>
+        </Button>
       </div>
       {useCases.length > 0 ? (
         <ul className="mt-1 list-inside list-disc space-y-0.5 text-200 leading-relaxed">
           {useCases.map((u, i) => <li key={i}>{u}</li>)}
         </ul>
       ) : (
-        <p className="mt-1 text-200 italic text-muted-foreground">None stated yet</p>
+        <p className="mt-1 text-200 text-muted-foreground">The agent will ask who would use it, and how</p>
       )}
     </div>
   );
@@ -289,7 +298,7 @@ function StartScreen({ onStart, busy }: { onStart: (message: string) => void; bu
           <Sparkles aria-hidden className="size-3" />
           AI-native idea creation
         </span>
-        <h1 className="mt-3.5 font-serif text-600 font-semibold leading-tight tracking-tight text-grad-ink">
+        <h1 className="mt-3.5 font-serif text-600 font-extrabold leading-tight tracking-tight text-grad-ink">
           What's the idea?
         </h1>
         <p className="mt-2 max-w-[60ch] text-200 leading-relaxed text-grad-ink-soft">
@@ -334,15 +343,17 @@ function StartScreen({ onStart, busy }: { onStart: (message: string) => void; bu
 
         <div className="mt-4 flex flex-wrap gap-2">
           {STARTERS.map((s) => (
-            <button
+            <Button
+              variant="link"
+              size="icon"
               key={s}
               type="button"
               disabled={busy}
               onClick={() => onStart(s)}
-              className="rounded-full bg-grad-ink/8 px-3 py-1.5 text-100 text-grad-ink-soft ring-1 ring-grad-rule transition-colors hover:bg-grad-ink/15 disabled:pointer-events-none disabled:opacity-50"
+              className="size-auto whitespace-normal font-normal hover:shadow-none active:scale-100 block shrink duration-150 ease-in-out hover:no-underline rounded-full bg-grad-ink/8 px-3 py-1.5 text-100 text-grad-ink-soft ring-1 ring-grad-rule transition-colors hover:bg-grad-ink/15 disabled:pointer-events-none disabled:opacity-50"
             >
               "{s}"
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -416,13 +427,28 @@ export function IdeaCreationPage() {
             {mutationErrorMessage(create.error)}
           </p>
         ) : null}
-        <p className="text-center text-100 text-muted-foreground">
-          Prefer to fill out the form yourself?{" "}
-          <Link to="/ideas/new/manual" className="underline underline-offset-2 hover:text-foreground">
-            Use the direct form
-          </Link>
-          .
-        </p>
+        {/*
+          P9 tester feedback: the one-line "Prefer to fill out the form yourself?" read as
+          ignorable fine print. It is a real second way in, so it gets the weight of one —
+          an outlined option with its own reason to pick it — while staying visibly
+          secondary to the conversation above (no fill, no brand gradient).
+        */}
+        <Link
+          to="/ideas/new/manual"
+          className="group mx-auto flex w-full max-w-xl items-center gap-4 rounded-xl border border-border bg-card px-5 py-4 text-left no-underline shadow-e1 transition-colors hover:border-accent-600 hover:no-underline"
+        >
+          <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-lg bg-accent-100 text-accent-700">
+            <ClipboardList className="size-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-300 font-semibold text-foreground">Prefer a form? Fill it in yourself</span>
+            <span className="block text-200 text-muted-foreground">
+              Every field on one page — the same review and the same AI analysis, just no chat.
+            </span>
+          </span>
+          <ArrowRight aria-hidden className="size-5 shrink-0 text-accent-700 transition-transform group-hover:translate-x-1" />
+        </Link>
+        <ConversationHistory />
       </main>
     );
   }
@@ -430,7 +456,7 @@ export function IdeaCreationPage() {
   const data = conversation.data;
   const waiting = data?.status === "AWAITING_AI";
   // Announced to assistive tech regardless of which turn produced it — the send mutation
-  // (this device's own action) and a status that arrived via the 2s poll (another tab,
+  // (this device's own action) and a status that arrived via the 1s poll (another tab,
   // or simply this render not having caused it) both need the same announcement.
   const liveAnnouncement = waiting
     ? "Thinking…"
@@ -452,11 +478,23 @@ export function IdeaCreationPage() {
         icon={Sparkles}
         heading="Create an idea"
         description="Talk it through with the agent — the idea on the right updates as you go."
+        actions={
+          // Back to the start screen, where "Your idea conversations" lists this one and
+          // every other — nothing is lost by leaving, the conversation is saved as it goes.
+          <Button asChild variant="outline">
+            <Link to="/ideas/new">
+              <History aria-hidden className="size-4" />
+              Your conversations
+            </Link>
+          </Button>
+        }
       />
 
       <div className="grid gap-4 lg:grid-cols-[3fr_2fr] lg:items-start">
         {/* Conversation panel */}
-        <div className="flex flex-col gap-3 rounded-2xl bg-muted/40 p-4 shadow-e1 ring-1 ring-inset ring-border">
+        {/* bg-card, not bg-muted/40: in dark mode the tint of the sunken surface sat almost
+            at canvas black, so the whole conversation read as a dark hole (P9 feedback). */}
+        <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-e2 ring-1 ring-inset ring-border">
           {/* Mounted once, always — its TEXT changing is what makes assistive tech
               announce it. A region that only appears once there's something to say never
               fires, because the announcement and the content it announces would arrive in
@@ -476,7 +514,7 @@ export function IdeaCreationPage() {
                   <span aria-hidden className="grid size-5 shrink-0 place-items-center rounded-full bg-accent-100 text-accent-700">
                     <Sparkles className="size-3" />
                   </span>
-                  <span className="text-200 text-muted-foreground">Thinking…</span>
+                  <ThinkingLabel />
                 </div>
               ) : null}
             </div>
@@ -498,15 +536,17 @@ export function IdeaCreationPage() {
               {data && data.suggestedReplies.length > 0 && !waiting ? (
                 <div className="flex flex-wrap gap-2">
                   {data.suggestedReplies.map((reply) => (
-                    <button
+                    <Button
+                      variant="link"
+                      size="icon"
                       key={reply}
                       type="button"
                       disabled={busy}
                       onClick={() => sendReply(reply)}
-                      className="rounded-full bg-card px-3 py-1.5 text-100 text-accent-700 ring-1 ring-inset ring-accent-200 transition-colors hover:bg-accent-050 disabled:pointer-events-none disabled:opacity-50"
+                      className="size-auto whitespace-normal font-normal hover:shadow-none active:scale-100 block shrink duration-150 ease-in-out hover:no-underline rounded-full bg-card px-3 py-1.5 text-100 text-accent-700 ring-1 ring-inset ring-accent-200 transition-colors hover:bg-accent-050 disabled:pointer-events-none disabled:opacity-50"
                     >
                       {reply}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               ) : null}
@@ -536,7 +576,7 @@ export function IdeaCreationPage() {
         {/* Evolving idea panel */}
         <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-e2 ring-1 ring-inset ring-border">
           <div className="flex items-center justify-between">
-            <h2 className="text-300 font-semibold">Your idea, so far</h2>
+            <h2 className="text-300 font-extrabold">Your idea, so far</h2>
             {data?.readyToReview ? (
               <Badge variant="secondary" className="bg-factor-up-bg text-factor-up">Ready to review</Badge>
             ) : null}
@@ -593,5 +633,113 @@ export function IdeaCreationPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+/**
+ * P9 tester feedback: replies "take too much time". Most of a reply's wait is the model
+ * itself, but a static "Thinking…" for fifteen seconds reads as a hang. The label moves on
+ * as time passes so a slow reply still looks like work in progress — and says the message
+ * is safe, since the reply is queued server-side and survives a reload.
+ */
+function ThinkingLabel() {
+  const [seconds, setSeconds] = React.useState(0);
+  React.useEffect(() => {
+    const started = Date.now();
+    const id = setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const text =
+    seconds < 8
+      ? "Thinking…"
+      : seconds < 20
+        ? "Still thinking — working through what you've said…"
+        : "Taking a little longer than usual. Your message is saved — the reply will appear here.";
+  return <span className="text-200 text-muted-foreground">{text}</span>;
+}
+
+const CONVERSATION_STAGE: Record<"ACTIVE" | "AWAITING_AI" | "HANDED_OFF", string> = {
+  ACTIVE: "In progress",
+  AWAITING_AI: "Waiting for a reply",
+  HANDED_OFF: "Sent to review",
+};
+
+/**
+ * P9 tester feedback: "after the idea is created with the AI-native flow, a history of
+ * that chat would be good to see, just like the discovery agent". The conversation id
+ * already lives in the URL (`?c=`), so each entry simply reopens it — the full chat and
+ * the draft it produced, including ones already handed to the review form.
+ */
+function ConversationHistory() {
+  const history = useIdeaCreationHistory();
+  const remove = useDeleteIdeaCreationConversation();
+  // Two clicks, not a dialog: the first arms the row's own "Delete" button, so a stray
+  // click on the bin never loses a conversation, and nothing modal covers the list.
+  const [armed, setArmed] = React.useState<string | null>(null);
+  const items = history.data?.items ?? [];
+  if (history.isPending || items.length === 0) return null;
+  return (
+    <section aria-labelledby="idea-conversations" className="mx-auto w-full max-w-xl">
+      <h2 id="idea-conversations" className="mb-2 flex items-center gap-2 text-200 font-semibold text-muted-foreground">
+        <History aria-hidden className="size-4" />
+        Your idea conversations
+      </h2>
+      {remove.isError ? (
+        <p role="alert" className="mb-2 text-200 text-destructive">
+          {remove.error instanceof ApiError ? remove.error.message : "That conversation could not be deleted."}
+        </p>
+      ) : null}
+      <ul className="grid gap-2">
+        {items.slice(0, 8).map((c) => {
+          const title = c.title ?? "Untitled idea";
+          const isArmed = armed === c.id;
+          return (
+            <li key={c.id} className="flex items-stretch gap-2">
+              <Link
+                to={`/ideas/new?c=${c.id}`}
+                className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 no-underline shadow-e1 transition-colors hover:border-accent-600 hover:no-underline"
+              >
+                <MessageSquareText aria-hidden className="size-4 shrink-0 text-accent-700" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-200 font-semibold text-foreground">{title}</span>
+                  <span className="block text-100 text-muted-foreground">
+                    {CONVERSATION_STAGE[c.status]} · {c.turnCount} {c.turnCount === 1 ? "message" : "messages"} · {ago(c.updatedAt)}
+                  </span>
+                </span>
+                <ArrowRight aria-hidden className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              </Link>
+              {isArmed ? (
+                <span className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={remove.isPending}
+                    onClick={() => remove.mutate(c.id, { onSettled: () => setArmed(null) })}
+                  >
+                    Delete
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setArmed(null)}>
+                    Keep
+                  </Button>
+                </span>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="self-center text-muted-foreground hover:text-destructive"
+                  aria-label={`Delete conversation: ${title}`}
+                  disabled={c.status === "AWAITING_AI"}
+                  onClick={() => setArmed(c.id)}
+                >
+                  <Trash2 aria-hidden className="size-4" />
+                </Button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

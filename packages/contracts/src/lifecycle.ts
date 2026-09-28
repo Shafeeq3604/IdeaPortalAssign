@@ -47,16 +47,24 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: "UNDER_REVIEW", to: "NEEDS_CLARIFICATION", roles: ANY_REVIEWER, requiresReason: true, availableInM1: true },
   { from: "UNDER_REVIEW", to: "PROTOTYPE_CANDIDATE", roles: ANY_REVIEWER, requiresReason: false, availableInM1: true },
 
-  // ── M3: unreachable until P15. Present so the enum is complete at P0. ──
-  { from: "PROTOTYPE_CANDIDATE", to: "PILOT", roles: ANY_REVIEWER, requiresReason: false, availableInM1: false },
-  { from: "PILOT", to: "PRODUCTION_CANDIDATE", roles: ANY_REVIEWER, requiresReason: false, availableInM1: false },
-  { from: "PRODUCTION_CANDIDATE", to: "IMPLEMENTED", roles: ["ADMIN"], requiresReason: false, availableInM1: false },
+  // ── M3 delivery stages — unlocked by P15 (SPEC §5.4: "the later states exist in the
+  // enum and stay unreachable until M3"). `availableInM1` now reads as "reachable in the
+  // current build"; the flag and `canTransition`'s milestone check stay, so a future
+  // stage can be staged the same way. ──
+  { from: "PROTOTYPE_CANDIDATE", to: "PILOT", roles: ANY_REVIEWER, requiresReason: false, availableInM1: true },
+  { from: "PILOT", to: "PRODUCTION_CANDIDATE", roles: ANY_REVIEWER, requiresReason: false, availableInM1: true },
+  { from: "PRODUCTION_CANDIDATE", to: "IMPLEMENTED", roles: ["ADMIN"], requiresReason: false, availableInM1: true },
 ];
 
-/** States an idea may be parked/blocked/rejected/archived from. */
+/**
+ * States an idea may be parked/blocked/rejected/archived from — SPEC §5.4's "any
+ * non-terminal". PILOT and PRODUCTION_CANDIDATE joined at P15: a pilot that fails has to
+ * be stoppable with a recorded reason, and a paused one resumable to exactly where it was
+ * (RESUME_TRANSITIONS below is generated from this list). IMPLEMENTED is terminal.
+ */
 export const INTERRUPTIBLE: readonly IdeaStatus[] = [
   "SUBMITTED", "AI_ANALYSIS", "NEEDS_CLARIFICATION", "EVALUATED", "RANKED",
-  "UNDER_REVIEW", "PROTOTYPE_CANDIDATE",
+  "UNDER_REVIEW", "PROTOTYPE_CANDIDATE", "PILOT", "PRODUCTION_CANDIDATE",
 ];
 
 /**

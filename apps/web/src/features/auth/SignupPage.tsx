@@ -192,7 +192,7 @@ export function SignupPage() {
       <div className="mt-6 border-t border-welcome-rule pt-5 text-200 text-welcome-ink-soft">
         <p>
           Already have an account?{" "}
-          <Link to="/login" className="font-medium text-welcome-accent">
+          <Link to="/login" className="font-medium text-link">
             Sign in
           </Link>
           .

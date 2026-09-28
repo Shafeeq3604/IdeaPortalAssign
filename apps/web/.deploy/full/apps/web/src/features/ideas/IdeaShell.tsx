@@ -1,13 +1,17 @@
 import * as React from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { Archive, Ellipsis, Trophy } from "lucide-react";
 import {
   Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
-  DialogTitle, ErrorState, Label, ScoreDisplay, Skeleton, StatusPill, Textarea,
+  DialogTitle, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  ErrorState, Label, Skeleton, StatusPill, Textarea,
 } from "@iep/ui";
 import { ROUTES } from "@iep/contracts";
 import { STATUS_LABEL, useIdea, useTransition } from "./api";
 import { VoteButtons } from "../feedback/VoteButtons";
+import { IdeaSocialBar } from "../social/IdeaSocialBar";
+import { MilestoneCelebration } from "./MilestoneCelebration";
 import { MATURITY_LABEL } from "../evaluation/api";
 import { useSession } from "../../app/use-session";
 import type { IdeaDetail } from "@iep/contracts";
@@ -22,6 +26,7 @@ const TABS = [
   { id: "idea.analysis", label: "Analysis", seg: "analysis" },
   { id: "idea.evaluation", label: "Evaluation", seg: "evaluation" },
   { id: "idea.history", label: "History", seg: "history" },
+  { id: "idea.delivery", label: "Delivery", seg: "delivery" },
   { id: "idea.review", label: "Review", seg: "review" },
   { id: "idea.leadershipDecision", label: "Leadership decision", seg: "leadership-decision" },
 ] as const;
@@ -91,167 +96,176 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
 
   return (
     <main className="page">
+      <MilestoneCelebration idea={idea} isOwner={idea.submitter.id === session.data?.user.id} />
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/ideas">Ideas</Link>  ›  {idea.title}
       </nav>
 
       {/*
-        Idea Details is the one screen every role lands on to make a decision — the
-        flagship of the enterprise-polish pass (§12). The title is the primary fact
-        (large, serif, on its own line); status + version are secondary (a real
-        `StatusPill`, the same one every card and table on the product uses, not a plain
-        `Badge` guessing at a variant); submitter/department recede to tertiary metadata.
-        Three tiers instead of one flat row of equally-weighted text.
+        P9 usability round 1 ("richer, enterprise-grade look"): the header is one card
+        carrying what the idea IS (title, who, the pitch, what you can do to it), beside a
+        navy score panel carrying where it STANDS. Every figure in the panel is one this
+        page already fetched — composite, rank, maturity, open recommendations — so it is
+        the old "strategic snapshot" line given the weight a decision screen needs, not new
+        data. The panel is absent until there is a score: no placeholder dial for an idea
+        the engine has not seen.
       */}
-      <h1 className="font-serif text-700 font-semibold leading-tight tracking-tight">
-        {idea.title}
-      </h1>
+      <section
+        className={`mt-1 grid gap-5 ${idea.compositeScore !== null ? "lg:grid-cols-[minmax(0,1fr)_20.5rem]" : ""}`}
+      >
+        <div className="flex min-w-0 flex-col gap-3.5 rounded-2xl border border-border bg-card p-5 shadow-e2 sm:p-7">
+          <div className="flex flex-wrap items-center gap-2">
+            {idea.rank !== null ? (
+              <Link
+                to={`/ideas/${ideaId}/evaluation`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-accent-100 px-3 py-1 text-100 font-extrabold text-accent-700 no-underline hover:underline"
+              >
+                <Trophy aria-hidden className="size-3.5" />
+                Ranked #{idea.rank}
+              </Link>
+            ) : null}
+            <StatusPill kind="LIFECYCLE" status={idea.status} label={STATUS_LABEL[idea.status]} />
+            {idea.maturityLevel !== null ? (
+              <span className="rounded-full border border-border px-3 py-0.5 text-100 font-semibold text-muted-foreground">
+                Maturity: {MATURITY_LABEL[idea.maturityLevel]}
+              </span>
+            ) : null}
+          </div>
 
-      <div className="mt-2 mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        <StatusPill kind="LIFECYCLE" status={idea.status} label={STATUS_LABEL[idea.status]} />
-        <span className="text-100 text-muted-foreground tabular">
-          Version {idea.currentVersionNo} of {idea.versionCount}
-        </span>
-        <span className="text-100 text-muted-foreground">
-          <Link to={`/people/${idea.submitter.id}`}>{idea.submitter.displayName}</Link>
-          {idea.department ? (
-            <>
-              {" · "}
-              <Link to={`/departments/${idea.department.id}`}>{idea.department.name}</Link>
-            </>
-          ) : null}
-        </span>
-      </div>
+          <h1 className="text-600 font-extrabold leading-tight tracking-tight text-balance sm:text-700 lg:text-800">
+            {idea.title}
+          </h1>
 
-      {/*
-        The strategic snapshot (leadership audit finding): the composite score, rank,
-        maturity, and any open recommendations were each a fact that lived on a
-        DIFFERENT tab — a reader had to open Evaluation to learn the score existed at all,
-        then Analysis to learn whether anything was still open against it. This repeats
-        exactly what `IdeaShell` already fetches (no second request) as one quiet line
-        that sits above every tab, so the idea's own headline numbers are never more than
-        a glance away regardless of which tab happens to be open. It disappears entirely
-        before there is anything real to show — no placeholder dashes for an idea that
-        has not been evaluated yet.
-      */}
-      {idea.compositeScore !== null ? (
-        <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg border border-border bg-muted/40 px-3.5 py-2.5">
-          <span className="text-100 font-medium uppercase tracking-widest text-muted-foreground">
-            Strategic snapshot
-          </span>
-          <Link
-            to={`/ideas/${ideaId}/evaluation`}
-            className="inline-flex items-center gap-1.5 no-underline hover:underline"
-          >
-            <ScoreDisplay value={idea.compositeScore} size="sm" animate={false} />
-            <span className="text-100 text-muted-foreground">composite score</span>
-          </Link>
-          {idea.rank !== null ? (
-            <Link
-              to={`/ideas/${ideaId}/evaluation`}
-              className="text-200 font-medium no-underline hover:underline"
-            >
-              Ranked #{idea.rank}
-            </Link>
-          ) : null}
-          {idea.maturityLevel !== null ? (
-            <span className="text-200 text-muted-foreground">
-              {MATURITY_LABEL[idea.maturityLevel]}
+          {/*
+            P9 tester feedback: at text-100 in link blue, the submitter read as fine print
+            ("barely noticeable"). A byline instead, with the person's initials — who
+            submitted it is one of the first things a reviewer wants — in foreground ink at
+            body size, still links (§6.2 rows 3, 4).
+          */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-200 text-muted-foreground">
+            <span className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="grid size-7 shrink-0 place-items-center rounded-full bg-accent-100 text-100 font-extrabold text-accent-700"
+              >
+                {initials(idea.submitter.displayName)}
+              </span>
+              <span>
+                Submitted by{" "}
+                <Link to={`/people/${idea.submitter.id}`} className="font-bold text-foreground hover:text-accent-700">
+                  {idea.submitter.displayName}
+                </Link>
+                {idea.department ? (
+                  <>
+                    {" · "}
+                    <Link to={`/departments/${idea.department.id}`} className="font-semibold text-foreground hover:text-accent-700">
+                      {idea.department.name}
+                    </Link>
+                  </>
+                ) : null}
+              </span>
             </span>
-          ) : null}
-          {idea.openRecommendationCount > 0 ? (
-            <Link
-              to={`/ideas/${ideaId}/analysis`}
-              className="text-200 font-medium text-accent-700 no-underline hover:underline"
-            >
-              {idea.openRecommendationCount} open recommendation
-              {idea.openRecommendationCount === 1 ? "" : "s"}
-            </Link>
-          ) : null}
-        </div>
-      ) : null}
-
-      {/*
-        Reactions and actions share one compact row, so an idea's context (what it is,
-        what colleagues think, what you can do to it) reads as a single block above the
-        tab strip instead of three separately-margined ones pushing tab content further
-        down the page every time. Both still sit above the tabs and outside them —
-        reacting is something you do to the IDEA, not to its analysis, and an action like
-        "Create a new version" is a decision about the idea as a whole, not one tab's
-        concern — so neither belongs buried on a single tab where most people would never
-        find it.
-      */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2.5">
-        {idea.status === "DRAFT" ? (
-          <span />
-        ) : (
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-100 font-medium uppercase tracking-widest text-muted-foreground">
-              Team feedback
-            </span>
-            <VoteButtons ideaId={ideaId} />
-            <span className="text-100 text-muted-foreground">
-              What colleagues think — separate from the platform's own evaluation.
+            {idea.submittedAt ? <span>{new Date(idea.submittedAt).toLocaleDateString()}</span> : null}
+            <span className="tabular">
+              Version {idea.currentVersionNo} of {idea.versionCount}
             </span>
           </div>
-        )}
 
-        {/* Actions the API confirmed THIS actor may take — never guessed client-side. */}
-        <div className="flex flex-wrap gap-2.5">
-          {idea.permissions.canEdit ? (
-            <Button asChild size="sm" variant="outline">
-              {link({ to: `/ideas/${ideaId}/revise`, children: "Edit" })}
-            </Button>
-          ) : null}
-          {idea.permissions.canRevise ? (
-            <Button asChild size="sm">
-              {link({ to: `/ideas/${ideaId}/revise`, children: "Create a new version" })}
-            </Button>
-          ) : null}
-          {idea.permissions.allowedTransitions.includes("SUBMITTED") ? (
-            <Button
-              size="sm"
-              disabled={transition.isPending}
-              onClick={() =>
-                transition.mutate(
-                  { to: "SUBMITTED" },
-                  // The status pill above re-renders to "Submitted" either way, but that
-                  // is easy to miss on a page someone is about to navigate away from —
-                  // this is the moment the analysis pipeline actually starts, and it was
-                  // the one transition on this page with nothing telling you it worked.
-                  { onSuccess: () => toast.success("Submitted — analysis is starting.") },
-                )
-              }
-            >
-              {transition.isPending ? "Submitting…" : "Submit for analysis"}
-            </Button>
-          ) : null}
-          {idea.permissions.allowedTransitions.includes("ARCHIVED") ? (
-            // `ghost`, not `destructive` — this is the trigger, not the commit. It sat at
-            // full destructive-red weight next to routine actions like "Submit for
-            // analysis," so the rarest, hardest-to-undo control on the page was also the
-            // loudest one. The actual point of no return is the confirm button in the
-            // dialog below, which keeps its destructive styling; a reason is required
-            // there and nothing here can archive anything by itself.
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => setArchiveOpen(true)}
-            >
-              Archive this idea
-            </Button>
-          ) : null}
+          <p className="line-clamp-3 max-w-[78ch] text-300 leading-relaxed text-foreground/85">
+            {idea.currentVersion.description}
+          </p>
+
+          {/*
+            Actions and reactions share one row. Both sit above the tabs and outside them —
+            reacting is something you do to the IDEA, and an action like "Create a new
+            version" is a decision about the idea as a whole, not one tab's concern.
+          */}
+          <div className="mt-1 flex flex-wrap items-center gap-x-5 gap-y-3">
+            {/* Actions the API confirmed THIS actor may take — never guessed client-side. */}
+            {idea.permissions.canRevise ? (
+              <Button asChild>
+                {link({ to: `/ideas/${ideaId}/revise`, children: "Create a new version" })}
+              </Button>
+            ) : null}
+            {idea.permissions.allowedTransitions.includes("SUBMITTED") ? (
+              <Button
+                disabled={transition.isPending}
+                onClick={() =>
+                  transition.mutate(
+                    { to: "SUBMITTED" },
+                    // This is the moment the analysis pipeline actually starts, and it
+                    // was the one transition on this page with nothing saying it worked.
+                    { onSuccess: () => toast.success("Submitted — analysis is starting.") },
+                  )
+                }
+              >
+                {transition.isPending ? "Submitting…" : "Submit for analysis"}
+              </Button>
+            ) : null}
+            {idea.permissions.canEdit ? (
+              <Button asChild variant="outline">
+                {link({ to: `/ideas/${ideaId}/revise`, children: "Edit" })}
+              </Button>
+            ) : null}
+            {idea.status === "DRAFT" ? null : (
+              <span className="flex flex-wrap items-center gap-2.5">
+                <span className="text-100 font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                  Team feedback
+                </span>
+                <VoteButtons ideaId={ideaId} />
+              </span>
+            )}
+            {idea.permissions.allowedTransitions.includes("ARCHIVED") ? (
+              /*
+               * Behind a "More actions" menu, not a red button beside the reactions: it
+               * sat one slip away from 👍/👎 on every idea an admin opened, and hides the
+               * idea from everyone. The dialog below is still the point of no return, with
+               * its required reason; this only stops the trigger shouting.
+               */
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="icon" variant="ghost" className="ml-auto text-muted-foreground" aria-label="More actions">
+                    <Ellipsis aria-hidden className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem variant="destructive" onSelect={() => setArchiveOpen(true)}>
+                    <Archive aria-hidden className="size-4" />
+                    Archive this idea
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </div>
+          {idea.status === "DRAFT" ? null : (
+            <p className="-mt-1 text-100 text-muted-foreground">
+              Team feedback is what colleagues think — separate from the platform's own evaluation.
+            </p>
+          )}
+          {/* P18 — team, follow and share. Nothing to follow or share on a private draft. */}
+          {idea.status === "DRAFT" ? null : (
+            <div className="border-t border-border pt-3.5">
+              <IdeaSocialBar idea={idea} isOwner={idea.submitter.id === session.data?.user.id} />
+            </div>
+          )}
         </div>
-      </div>
+
+        {idea.compositeScore !== null ? (
+          <ScorePanel
+            ideaId={ideaId}
+            score={idea.compositeScore}
+            rank={idea.rank}
+            maturity={idea.maturityLevel === null ? null : MATURITY_LABEL[idea.maturityLevel]}
+            openRecommendations={idea.openRecommendationCount}
+          />
+        ) : null}
+      </section>
 
       {/*
-        An underline tab strip, not filled buttons — five destinations sharing one report
-        (Overview / Analysis / Evaluation / History / Review) read as SECTIONS of the same
-        document, not five separate places to navigate to. The active underline is the
-        one thing carrying weight; everything else stays quiet until it's current.
+        An underline tab strip, not filled buttons — the tabs are SECTIONS of one report,
+        not separate places. The active underline is the one thing carrying weight.
       */}
-      <div className="mb-6 flex flex-wrap gap-1 border-b border-border">
+      <div className="mb-6 mt-6 flex flex-wrap gap-1 border-b border-border">
         {TABS.filter((t) => canSee(t.id)).map((tab) => {
           const to = `/ideas/${ideaId}/${tab.seg}`;
           const active = pathname === to;
@@ -262,8 +276,8 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
               aria-current={active ? "page" : undefined}
               className={
                 active
-                  ? "-mb-px border-b-2 border-accent-600 px-3 py-2.5 text-200 font-semibold text-foreground"
-                  : "-mb-px border-b-2 border-transparent px-3 py-2.5 text-200 font-medium text-muted-foreground transition-colors duration-[var(--dur-fast)] hover:text-foreground"
+                  ? "-mb-px whitespace-nowrap border-b-2 border-accent-600 px-3.5 py-3 text-200 font-extrabold text-foreground no-underline"
+                  : "-mb-px whitespace-nowrap border-b-2 border-transparent px-3.5 py-3 text-200 font-semibold text-muted-foreground no-underline transition-colors duration-[var(--dur-fast)] hover:border-border-strong hover:text-foreground"
               }
             >
               {tab.label}
@@ -358,5 +372,99 @@ export function IdeaShell({ children }: { children: (idea: IdeaDetail) => React.
         {children(idea)}
       </div>
     </main>
+  );
+}
+
+const initials = (name: string): string =>
+  name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0] ?? "")
+    .join("")
+    .toUpperCase();
+
+/**
+ * Where the idea stands, on the same fixed-navy surface as the dashboard hero — the one
+ * focal panel on this page. The ring is the composite out of 100, drawn as a fraction of
+ * a turn; the ramp-free single accent keeps it a measurement, not a verdict (P-1).
+ */
+function ScorePanel({
+  ideaId,
+  score,
+  rank,
+  maturity,
+  openRecommendations,
+}: {
+  ideaId: string;
+  score: number;
+  rank: number | null;
+  maturity: string | null;
+  openRecommendations: number;
+}) {
+  const c = 2 * Math.PI * 50;
+  const filled = (Math.max(0, Math.min(100, score)) / 100) * c;
+
+  return (
+    <aside
+      aria-label="Where this idea stands"
+      className="dash-hero relative flex flex-col justify-between gap-4 overflow-hidden rounded-2xl p-5 text-grad-ink shadow-e4-lit sm:p-6"
+    >
+      <p className="relative text-100 font-bold uppercase tracking-[0.1em] text-grad-ink-soft">
+        Composite score
+      </p>
+      <div className="relative flex items-center gap-4.5">
+        <svg viewBox="0 0 120 120" className="size-28 shrink-0" role="img" aria-label={`Composite score ${score.toFixed(1)} out of 100`}>
+          <circle cx="60" cy="60" r="50" fill="none" strokeWidth="10" className="stroke-grad-rule" />
+          <circle
+            cx="60" cy="60" r="50" fill="none" strokeWidth="10" strokeLinecap="round"
+            strokeDasharray={`${filled} ${c}`}
+            transform="rotate(-90 60 60)"
+            className="stroke-grad-highlight"
+          />
+          <text x="60" y="67" textAnchor="middle" className="fill-grad-ink text-600 font-extrabold">
+            {score.toFixed(1)}
+          </text>
+        </svg>
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="text-300 font-extrabold">
+            {rank === null ? "Not on the current board" : rank === 1 ? "Top of the board" : `Ranked #${rank}`}
+          </span>
+          <span className="text-200 leading-snug text-grad-ink-soft">
+            Out of 100.{" "}
+            <Link to={`/ideas/${ideaId}/evaluation`} className="font-semibold text-grad-ink underline">
+              See why
+            </Link>
+          </span>
+        </div>
+      </div>
+      <dl className="relative m-0 grid grid-cols-3 gap-2">
+        <PanelStat label="Rank" value={rank === null ? "—" : `#${rank}`} />
+        <PanelStat label="Maturity" value={maturity ?? "—"} small />
+        <PanelStat
+          label="Open recs"
+          value={String(openRecommendations)}
+          href={openRecommendations > 0 ? `/ideas/${ideaId}/analysis` : undefined}
+        />
+      </dl>
+    </aside>
+  );
+}
+
+function PanelStat({ label, value, small = false, href }: { label: string; value: string; small?: boolean; href?: string | undefined }) {
+  // A `<div>` around each pair keeps the `<dl>` valid; the link, when there is one, is the
+  // value itself rather than a wrapper around dt/dd.
+  return (
+    <div className="hero-panel rounded-xl p-2.5">
+      <dt className="text-100 text-grad-ink-soft">{label}</dt>
+      <dd className={`m-0 mt-0.5 font-extrabold leading-tight ${small ? "text-200" : "text-400 tabular-nums"}`}>
+        {href ? (
+          <Link to={href} className="text-grad-ink underline">
+            {value}
+          </Link>
+        ) : (
+          value
+        )}
+      </dd>
+    </div>
   );
 }

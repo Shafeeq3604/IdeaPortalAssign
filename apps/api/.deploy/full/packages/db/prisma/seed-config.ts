@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { CRITERIA, PROFILES, profileWeightSum } from "@iep/contracts";
-import { DEFAULT_ROUTES } from "@iep/ai";
+import { DEFAULT_ROUTES, IDEA_CREATION_ROUTE } from "@iep/ai";
 
 /**
  * The config half of `seed.ts` — evaluation criteria, profiles/weights, and model
@@ -89,7 +89,8 @@ export async function seedEvaluationConfig(prisma: PrismaClient): Promise<void> 
   });
 
   // Model routing is configuration, not code (ADR-021).
-  for (const r of DEFAULT_ROUTES) {
+  // The eight analysis steps plus the idea-creation chat (P9 — moved off a code literal).
+  for (const r of [...DEFAULT_ROUTES, IDEA_CREATION_ROUTE]) {
     await prisma.aiModelRoute.upsert({
       where: { storyKey: r.storyKey },
       update: {

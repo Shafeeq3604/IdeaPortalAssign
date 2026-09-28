@@ -1,12 +1,14 @@
 import * as React from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { ChevronDown, Layers, Target, TrendingUp, Trophy } from "lucide-react";
+import { ChevronDown, Layers, Presentation, Target, TrendingUp, Trophy } from "lucide-react";
 import { Button, Checkbox, EmptyState, ErrorState, Skeleton, StatusPill } from "@iep/ui";
 import type { ExplanationItem, ListRankingsResponse, RankingEntry } from "@iep/contracts";
 import { HeadingStat, PageHeading } from "../../app/PageHero";
 import { FEASIBILITY_LABEL } from "../analysis/api";
 import { useProfiles, useRankingRun, useRankings } from "./api";
 import { RankDelta } from "./DashboardHero";
+import { useFlip } from "../../app/motion";
+import { canSee, useSession } from "../../app/use-session";
 
 const link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <Link to={to} className={className}>{children}</Link>
@@ -26,6 +28,7 @@ function describeTrigger(reason: string): string {
   if (UUID_RE.test(reason)) {
     if (reason.startsWith("analysis completed")) return "a new idea finished scoring";
     if (reason.startsWith("score override")) return "a reviewer adjusted a score";
+    if (reason.includes(" moved ")) return "an idea moved to a new stage";
     return "an idea on the board changed";
   }
   switch (reason) {
@@ -35,7 +38,14 @@ function describeTrigger(reason: string): string {
     case "no ranking run has been computed for this profile yet":
       return "no ranking has run yet for this profile";
     default:
-      return reason;
+      /*
+       * Anything else is free text — most often the reason an administrator typed when
+       * recomputing by hand ("re-ran one idea after an injection-check false positive"),
+       * which is written for the audit log, not for everyone reading the board. It stays
+       * in full there; the board says only what kind of thing happened.
+       */
+      if (reason.startsWith("evaluation backfill")) return "missing scores were filled in";
+      return "a manual refresh";
   }
 }
 
@@ -78,6 +88,10 @@ export function RankingsPage({ mode = "current" }: { mode?: "current" | "run" })
     });
 
   const leader = query.data?.items.find((e) => e.rank === 1);
+  // P20 boardroom — the same audience as Compare (navigation.map.ts `rankings.boardroom`).
+  const session = useSession();
+  const canPresent =
+    mode === "current" && canSee(session.data?.user.roles ?? [], ["MANAGEMENT", "ADMIN", "REVIEWER"]);
 
   return (
     <main className="page">
@@ -107,6 +121,16 @@ export function RankingsPage({ mode = "current" }: { mode?: "current" | "run" })
           mode === "run"
             ? "A snapshot of the board as it stood at the moment this run was computed."
             : "Every scored idea, ranked and explained — the same weights applied to every submission, published with the arithmetic shown."
+        }
+        actions={
+          canPresent ? (
+            <Button asChild variant="outline" size="sm">
+              <Link to="/rankings/boardroom" className="no-underline">
+                <Presentation aria-hidden className="size-4" />
+                Present the top ten
+              </Link>
+            </Button>
+          ) : undefined
         }
         stats={
           query.data ? (
@@ -168,9 +192,11 @@ export function RankingsPage({ mode = "current" }: { mode?: "current" | "run" })
  * criterion (matched on `criterionKey`, not the label — labels are not guaranteed
  * unique, keys are).
  *
- * This happens whenever only one criterion has actually been scored: that criterion
- * is simultaneously the best thing about the idea and the only thing holding it back,
- * so both "top" picks resolve to it. Shown as two separate chips, that reads as the
+ * This happens when the most heavily weighted criterion sits mid-scale: at 50/100 under
+ * an 18% weight it adds more points than any other criterion AND has more points left to
+ * gain than any other, so both "top" picks resolve to it. (It was once read as "only one
+ * criterion has been scored" and the board said so — found false in review: every
+ * criterion was scored.) Shown as two separate chips, that reads as the
  * board contradicting itself ("Strongest: Business impact 50/100" right beside
  * "Limiting factor: Business impact 50/100") — exactly the kind of unexplained number
  * P-2 exists to prevent. `FactorPair` below collapses that case into one honest line.
@@ -255,11 +281,21 @@ function FactorPair({
     return (
       <div className="sm:col-span-2">
         <dt className="text-100 font-medium uppercase tracking-wider text-muted-foreground">
-          Only criterion scored so far
+          Decides this rank
         </dt>
         <dd className="text-200" title={only.text}>
-          <span className="font-medium">{only.criterionLabel}</span> is the whole story on this
-          idea right now — nothing else has been scored yet.
+          <span className="font-medium">{only.criterionLabel}</span>
+          {only.normalized !== undefined && only.headroom !== undefined ? (
+            <>
+              {" "}scored <span className="tabular-nums">{only.normalized}/100</span>. It adds the
+              most to this idea{" "}
+              <span className="tabular-nums font-medium text-factor-up">(+{only.contribution.toFixed(1)} pts)</span>{" "}
+              and has the most left to gain{" "}
+              <span className="tabular-nums font-medium text-factor-down">({only.headroom.toFixed(1)} pts available)</span>.
+            </>
+          ) : (
+            <> is both its strongest factor and its limiting one — {only.text}</>
+          )}
         </dd>
       </div>
     );
@@ -326,16 +362,24 @@ function PodiumCard({
         }`}
       />
 
-      <div className="relative flex items-center justify-between gap-3">
+      <div className="relative flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         {first ? (
           // "Top opportunity" → "Featured opportunity", Trophy → Target (dark-mode
           // final-polish pass, items 3 & 6): "top"/Trophy is a leaderboard-winner claim;
           // "featured" says this is the one opportunity being called out, not the one
           // that beat the others. Kept a NEUTRAL-adjacent icon (bullseye = "the thing
           // under assessment"), not the trophy every awards page uses.
-          <span className="inline-flex items-center gap-2 rounded-full bg-accent-050 px-2.5 py-1 text-100 font-bold uppercase tracking-wide text-accent-700">
-            <Target aria-hidden className="size-3.5" />
-            Featured opportunity
+          // P9 tester feedback: #2 and #3 showed their rank and #1 did not, so the one
+          // card that most needed its position stated was the one that didn't state it.
+          // Same tile as 2nd/3rd, in the accent fill the dashboard's rank-1 badge uses.
+          <span className="flex items-center gap-2.5">
+            <span className="grid size-9 place-items-center rounded-lg bg-accent-600 text-300 font-extrabold tabular-nums text-grad-ink shadow-e1">
+              {row.rank}
+            </span>
+            <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-accent-050 px-2.5 py-1 text-100 font-bold uppercase tracking-wide text-accent-700">
+              <Target aria-hidden className="size-3.5" />
+              Featured opportunity
+            </span>
           </span>
         ) : (
           // A contained tile, not a free-floating numeral the same visual weight as the
@@ -525,7 +569,7 @@ function AssessmentOverview({ items }: { items: readonly RankingEntry[] }) {
       */}
       <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
         <span>
-          <span className="block font-serif text-300 font-semibold">Assessment overview</span>
+          <span className="block font-serif text-300 font-extrabold">Assessment overview</span>
           <span className="mt-1 block text-100 text-muted-foreground">
             What most often lifts or holds back the {items.length} ideas shown below.
           </span>
@@ -570,6 +614,11 @@ function Board({
 
   const podium = data.items.filter((row) => row.rank <= 3);
   const rest = data.items.filter((row) => row.rank > 3);
+
+  // settle-rank (SPEC §8.3, P20): when a recompute — or a profile switch — reorders the
+  // board, rows glide to their new places instead of jumping.
+  const boardRef = React.useRef<HTMLDivElement>(null);
+  useFlip(boardRef, data.items.map((row) => row.ideaId).join(","));
 
   return (
     <>
@@ -665,11 +714,13 @@ function Board({
       */}
       {!empty && data.items.length >= 4 ? <AssessmentOverview items={data.items} /> : null}
 
+      <div ref={boardRef}>
       {podium.length > 0 ? (
         <ol className="grid list-none grid-cols-1 items-end gap-3.5 p-0 md:grid-cols-3">
           {podium.map((row) => (
             <li
               key={row.ideaId}
+              data-flip-key={row.ideaId}
               /* Order 2 · 1 · 3 on a real podium; source order stays 1 · 2 · 3 so a screen
                  reader and the keyboard get the board in rank order. */
               className={row.rank === 1 ? "md:order-2" : row.rank === 2 ? "md:order-1" : "md:order-3"}
@@ -687,10 +738,7 @@ function Board({
 
       <ol className={`list-none space-y-2.5 p-0 ${podium.length > 0 ? "mt-4" : ""}`}>
         {rest.map((row) => (
-          <li key={row.ideaId}>
-            {/* settle-rank's FLIP reorder is not implemented; the delta chip and the
-                afterglow it pairs with are. Called out rather than faked — SPEC §8.3
-                describes a motion this board does not yet perform. */}
+          <li key={row.ideaId} data-flip-key={row.ideaId}>
             <div className="grid grid-cols-[3.25rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-2xl bg-card p-4 shadow-e2 ring-1 ring-inset ring-border transition-shadow duration-[var(--dur-base)] hover:shadow-e3 lg:grid-cols-[3.25rem_minmax(0,1fr)_auto]">
               {/* Neutral, not accent (dark-mode final-polish pass, items 1 & 6) — every
                   row on the board repeating the same blue tile was both "accent
@@ -777,6 +825,7 @@ function Board({
           </li>
         ))}
       </ol>
+      </div>
 
       <p className="mt-4 text-100 text-muted-foreground">
         {mode === "run" ? "This run was" : "This board was"} last updated{" "}

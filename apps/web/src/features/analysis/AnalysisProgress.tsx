@@ -1,7 +1,9 @@
+import * as React from "react";
 import { Link } from "react-router-dom";
 import { PIPELINE_STEPS, type AnalysisStep } from "@iep/contracts";
 import { Skeleton, Stepper } from "@iep/ui";
 import { STEP_LABEL, useAnalysisStatus } from "./api";
+import { AnalysisReveal } from "./AnalysisReveal";
 
 /**
  * The six-step determinate stepper (SPEC §8.4, F-03).
@@ -32,6 +34,21 @@ export function AnalysisProgress({
 }) {
   const query = useAnalysisStatus(ideaId);
 
+  /*
+   * P20 live reveal: did THIS page watch the run finish? Only a real status the API
+   * reported counts as "before" — the first load of an already-finished idea has no
+   * earlier status, so it never plays. Adjusted during render (the AppShell pattern),
+   * not in an effect.
+   */
+  const reported = query.data?.overall ?? null;
+  const [lastReported, setLastReported] = React.useState(reported);
+  const [watched, setWatched] = React.useState(false);
+  if (reported !== lastReported) {
+    const wasLive = lastReported === "PENDING" || lastReported === "RUNNING";
+    if (wasLive && (reported === "SUCCEEDED" || reported === "PARTIAL")) setWatched(true);
+    setLastReported(reported);
+  }
+
   if (query.isPending) return <Skeleton className="h-64 w-full" />;
 
   // Not an error state: an idea that has never been submitted has no run, and saying so
@@ -50,6 +67,7 @@ export function AnalysisProgress({
 
   return (
     <div className="space-y-3">
+      {watched ? <AnalysisReveal ideaId={ideaId} runStartedAt={query.data?.startedAt ?? null} /> : null}
       <Stepper steps={steps} />
 
       {overall === "PENDING" ? (

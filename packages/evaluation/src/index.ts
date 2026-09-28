@@ -17,3 +17,4 @@ export * from "./evaluate.js";
 export * from "./ranking.js";
 export * from "./backfill.js";
 export * from "./detection.js";
+export * from "./notifications.js";

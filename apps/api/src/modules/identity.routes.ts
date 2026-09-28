@@ -53,6 +53,31 @@ export function registerIdentityRoutes(handlers: Map<string, Handler>): void {
       ctx.db.auditLog.count({ where }),
     ]);
 
+    /*
+     * Names for the subjects on this page, two batched reads rather than one per row.
+     * `evaluation` rows are keyed by the idea (see `entityHrefFor`), so they share the
+     * idea lookup. A subject that no longer exists gets no name AND no link — the log is
+     * append-only and outlives what it describes, and a link to a 404 is a dead end.
+     */
+    // `audit_log.entity_id` is text; the tables looked up are uuid-keyed, and one
+    // malformed id in an `in` list would fail the whole page rather than one row.
+    const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const idsOf = (...types: string[]) =>
+      [...new Set(rows.filter((a) => types.includes(a.entityType) && isUuid(a.entityId)).map((a) => a.entityId))];
+    const ideaIds = idsOf("idea", "evaluation");
+    const userIds = idsOf("user");
+    const [ideas, users] = await Promise.all([
+      ideaIds.length
+        ? ctx.db.idea.findMany({ where: { id: { in: ideaIds } }, select: { id: true, currentVersion: { select: { title: true } } } })
+        : [],
+      userIds.length ? ctx.db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, displayName: true } }) : [],
+    ]);
+    const names = new Map<string, string>([
+      ...ideas.map((i) => [i.id, i.currentVersion?.title ?? "(untitled idea)"] as const),
+      ...users.map((u) => [u.id, u.displayName] as const),
+    ]);
+    const named = (entityType: string) => entityType === "idea" || entityType === "evaluation" || entityType === "user";
+
     return {
       items: rows.map((a) => ({
         id: a.id,
@@ -66,7 +91,9 @@ export function registerIdentityRoutes(handlers: Map<string, Handler>): void {
         // Was a literal "Idea" comparison against a writer that emits "idea", so every
         // href came back null and every audit row was a dead end (SPEC §6.2 row 44).
         // One helper now owns the mapping, and both sides import it.
-        entityHref: entityHrefFor(a.entityType, a.entityId),
+        entityHref: named(a.entityType) && !names.has(a.entityId) ? null : entityHrefFor(a.entityType, a.entityId),
+        // Only for kinds that have a name; others omit it rather than claim "no longer exists".
+        ...(named(a.entityType) ? { entityLabel: names.get(a.entityId) ?? null } : {}),
       })),
       meta: { page, perPage, total, totalPages: Math.ceil(total / perPage) },
     };

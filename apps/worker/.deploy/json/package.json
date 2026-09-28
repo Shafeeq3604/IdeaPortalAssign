@@ -23,6 +23,7 @@
     "db:seed": "pnpm --filter @iep/db seed",
     "db:seed:config": "pnpm --filter @iep/db seed:config",
     "eval": "turbo run eval",
+    "eval:pr": "pnpm --filter @iep/ai exec vitest run src/ai.test.ts -t \"PR-BLOCKING|schema validity|fallbacks keep an idea rankable\" && pnpm --filter @iep/scoring exec vitest run src/engine.test.ts -t \"explain — deterministic and faithful\"",
     "lighthouse": "turbo run lighthouse",
     "smoke": "node scripts/smoke.mjs",
     "deploy:prune": "node scripts/prepare-deploy.mjs",

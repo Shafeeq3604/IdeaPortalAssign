@@ -33,7 +33,16 @@ export type AuditAction =
   | "config.profileWeights"
   | "config.category"
   | "config.existingSolution"
-  | "config.detectionThresholds";
+  | "config.detectionThresholds"
+  // P15/P16 — every delivery write, recorded against the idea.
+  | "delivery.update"
+  | "delivery.pilot"
+  | "delivery.kpi"
+  | "delivery.kpiMeasurement"
+  | "delivery.financials"
+  // P18 — a moderator withholding a comment. Posting, editing and deleting your own are
+  // not audited (like votes and signals): they are conversation, not decisions.
+  | "comment.hide";
 
 export interface AuditInput {
   readonly actorId: string | null;

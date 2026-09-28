@@ -26,6 +26,7 @@ function idea(overrides: Partial<IdeaSummary> = {}): IdeaSummary {
     rank: 3,
     compositeScore: 82.4,
     feedback: { up: 0, down: 0, myVote: null },
+    commentCount: 0,
     ...overrides,
   };
 }

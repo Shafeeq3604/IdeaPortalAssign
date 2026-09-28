@@ -18,10 +18,13 @@ import { registerReviewRoutes } from "./modules/review/routes.js";
 import { registerLeadershipRoutes } from "./modules/leadership/routes.js";
 import { registerRankingRoutes } from "./modules/rankings/routes.js";
 import { registerAnalyticsRoutes } from "./modules/analytics/routes.js";
+import { registerNotificationRoutes } from "./modules/notifications/routes.js";
+import { registerDeliveryRoutes } from "./modules/delivery/routes.js";
 import { registerAccountRoutes } from "./modules/account/routes.js";
 import { registerAttachmentRoutes } from "./modules/idea/attachment-routes.js";
 import { registerDiscoveryRoutes } from "./modules/discovery/routes.js";
 import { registerIdeaCreationRoutes } from "./modules/idea-creation/routes.js";
+import { registerSocialRoutes } from "./modules/social/routes.js";
 import { captureException } from "./lib/error-tracking.js";
 import { notImplementedYet } from "./lib/handlers.js";
 import type { AppContext } from "./context.js";
@@ -163,10 +166,13 @@ export function buildServer(ctx: AppContext): FastifyInstance {
   registerLeadershipRoutes(handlers);
   registerRankingRoutes(handlers);
   registerAnalyticsRoutes(handlers);
+  registerNotificationRoutes(handlers);
+  registerDeliveryRoutes(handlers);
   registerAccountRoutes(handlers);
   registerAttachmentRoutes(handlers);
   registerDiscoveryRoutes(handlers);
   registerIdeaCreationRoutes(handlers);
+  registerSocialRoutes(handlers);
 
   /* ── register every endpoint from the contract ── */
   const stubbed: string[] = [];
