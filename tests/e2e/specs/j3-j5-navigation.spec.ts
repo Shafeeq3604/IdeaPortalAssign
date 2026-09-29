@@ -172,8 +172,10 @@ test.describe("J-5 the orphan hunt", () => {
       await runLink.click();
       await expect(page).toHaveURL(/\/rankings\/[0-9a-f-]+/);
       // The breadcrumb is the way home. A page you can only leave by Back is a dead end.
-      await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link").first().click();
-      await expect(page).toHaveURL(/\/ideas$/);
+      // Home is `/` itself since P20 (it used to redirect to /ideas).
+      await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Home" }).click();
+      await expect(page).toHaveURL(/:\d+\/$/);
+      await expect(page.getByRole("main")).toBeVisible();
     }
   });
 
