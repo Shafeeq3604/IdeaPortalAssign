@@ -198,10 +198,15 @@ MILESTONE M2 — Signals, Duplication & Config
                                   reviewer/admin-only ("canSeeMatchDetail") existing-
                                   solution card on the Evaluation tab. Both thresholds
                                   admin-editable via /config/detection, not code literals.
-                                  No BDD spec yet — a real gap, covered so far by
-                                  packages/evaluation/src/detection.test.ts against a real
-                                  pgvector-backed Postgres plus a live end-to-end browser
-                                  verification)
+                                  F-16 BDD flow (2026-09-29) covers it through the API: the
+                                  banner, per-viewer visibility, match detail for reviewers/
+                                  admins only, the no-model fallback, the admin threshold,
+                                  no score movement. Writing it found and fixed two leaks:
+                                  the banner named ideas the viewer could not open (drafts,
+                                  unranked ideas), and employees' API responses carried the
+                                  build/buy assessment the web client only hid. ADR-027:
+                                  `similarIdeas[].similarity` is now nullable and null for
+                                  employees too — @iep/contracts 2.0.0)
   [x] P13 Notifications   (in-app centre + header bell + per-event email opt-out; events
                                   = analysis finished, status changed by a person, review
                                   recorded, leadership decision — always to the idea's owner,

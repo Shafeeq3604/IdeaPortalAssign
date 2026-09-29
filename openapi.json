@@ -5450,7 +5450,8 @@
                 "similarity": {
                   "type": "number",
                   "minimum": 0,
-                  "maximum": 1
+                  "maximum": 1,
+                  "nullable": true
                 },
                 "differenceSummary": {
                   "type": "string",
@@ -9638,7 +9639,8 @@
                 "similarity": {
                   "type": "number",
                   "minimum": 0,
-                  "maximum": 1
+                  "maximum": 1,
+                  "nullable": true
                 },
                 "differenceSummary": {
                   "type": "string",
@@ -10292,7 +10294,8 @@
                 "similarity": {
                   "type": "number",
                   "minimum": 0,
-                  "maximum": 1
+                  "maximum": 1,
+                  "nullable": true
                 },
                 "differenceSummary": {
                   "type": "string",

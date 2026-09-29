@@ -119,13 +119,14 @@ export type IdeaSummary = z.infer<typeof IdeaSummary>;
  * FR-20 (P12, AI-10). Deliberately no exposed technical detail (REQUIREMENTS §15: "Do not
  * expose similarity/AI technical details") — `differenceSummary` is plain language, and
  * `similarity` is carried for a reviewer/admin view, not the plain "We found a similar
- * idea" employee-facing banner (the web client chooses what to render per role; see
- * `IdeaDetail.permissions.canSeeMatchScores`).
+ * idea" employee-facing banner (see `IdeaDetail.permissions.canSeeMatchDetail`).
  */
 export const SimilarIdeaRef = z.object({
   ideaId: Id,
   title: Title,
-  similarity: z.number().min(0).max(1),
+  /** ADR-027 — `null` when the viewer may not see match detail (`canSeeMatchDetail` is
+   *  false): the API withholds the number, it is not merely hidden by the client. */
+  similarity: z.number().min(0).max(1).nullable(),
   differenceSummary: z.string().nullable(),
 });
 export type SimilarIdeaRef = z.infer<typeof SimilarIdeaRef>;

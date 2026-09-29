@@ -166,10 +166,17 @@ async function feedbackForIdeas(
  * P12 (FR-20/FR-21) — single-idea only (`getIdea`), not batched across a list: the
  * similar-idea banner and existing-solution assessment are detail-page content, same
  * scope as `getIdeaHistory`, not something a list row needs.
+ *
+ * Matches are per-viewer: detection searches every idea (a reviewer should hear about a
+ * duplicate still in the queue), so each match goes back through `idea:read` before its
+ * title leaves the API. Without that, the banner named ideas the viewer cannot open — a
+ * colleague's private draft (via the trigram fallback), or a submitted-but-unranked idea
+ * an employee may not see yet (assumption A5).
  */
 async function detectionForIdea(
   ctx: { db: PrismaClient },
   idea: { id: string; currentVersionId?: string | null },
+  actor: Parameters<typeof can>[0],
 ): Promise<{
   similarIdeas: readonly {
     ideaId: string; title: string; similarity: number; differenceSummary: string | null;
@@ -196,15 +203,19 @@ async function detectionForIdea(
   const matchedIdeas = similar.length > 0
     ? await ctx.db.idea.findMany({
         where: { id: { in: similar.map((s) => s.similarTo) } },
-        select: { id: true, currentVersion: { select: { title: true } } },
+        select: { id: true, submitterId: true, status: true, currentVersion: { select: { title: true } } },
       })
     : [];
-  const titleByIdeaId = new Map(matchedIdeas.map((i) => [i.id, i.currentVersion?.title ?? "(untitled)"]));
+  const readable = matchedIdeas.filter((i) =>
+    can(actor, "idea:read", { ideaId: i.id, submitterId: i.submitterId, status: i.status as IdeaStatus }).allowed,
+  );
+  const titleByIdeaId = new Map(readable.map((i) => [i.id, i.currentVersion?.title ?? "(untitled)"]));
 
   return {
-    similarIdeas: similar.map((s) => ({
+    // A match whose idea is gone or unreadable is dropped, never shown as "(untitled)".
+    similarIdeas: similar.filter((s) => titleByIdeaId.has(s.similarTo)).map((s) => ({
       ideaId: s.similarTo,
-      title: titleByIdeaId.get(s.similarTo) ?? "(untitled)",
+      title: titleByIdeaId.get(s.similarTo) ?? "",
       similarity: Number(s.similarity),
       differenceSummary: s.differenceSummary,
     })),
@@ -390,7 +401,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     const [feedback, scores, detection, social] = await Promise.all([
       feedbackForIdeas(ctx, [idea], actor.userId),
       scoresForCurrentVersions(ctx, [idea]),
-      detectionForIdea(ctx, idea),
+      detectionForIdea(ctx, idea, actor),
       socialFor(ctx.db, idea.id, actor.userId),
     ]);
     return toIdeaDetail(idea, actor, feedback.get(idea.id), detection, scores.get(idea.id), social);
@@ -714,7 +725,7 @@ export function registerIdeaRoutes(handlers: Map<string, Handler>): void {
     const [feedback, scores, detection, social] = await Promise.all([
       feedbackForIdeas(ctx, [transitioned], actor.userId),
       scoresForCurrentVersions(ctx, [transitioned]),
-      detectionForIdea(ctx, transitioned),
+      detectionForIdea(ctx, transitioned, actor),
       socialFor(ctx.db, transitioned.id, actor.userId),
     ]);
     return toIdeaDetail(

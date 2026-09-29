@@ -197,8 +197,13 @@ export function toIdeaDetail(
     currentVersion: toVersionDetail(idea.currentVersion),
     versionCount: idea._count?.versions ?? 1,
     openRecommendationCount: 0, // P5 supplies this
-    similarIdeas: detection.similarIdeas,
-    existingSolutionAssessment: detection.existingSolutionAssessment,
+    // Withheld here, not only hidden by the web client: an EMPLOYEE's API response never
+    // carries the number behind a match (ADR-027), nor the build/buy/extend/integrate
+    // call and its catalogue matches.
+    similarIdeas: canSeeMatchDetail
+      ? detection.similarIdeas
+      : detection.similarIdeas.map((s) => ({ ...s, similarity: null })),
+    existingSolutionAssessment: canSeeMatchDetail ? detection.existingSolutionAssessment : null,
     permissions: {
       canEdit: can(actor, "idea:edit", resource).allowed,
       canSubmit: can(actor, "idea:submit", resource).allowed,
