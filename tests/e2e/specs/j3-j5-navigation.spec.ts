@@ -156,7 +156,9 @@ test.describe("J-5 the orphan hunt", () => {
     await expect(page).toHaveURL(new RegExp(String.raw`/ideas/[0-9a-f-]+/overview`));
 
     /* ── from an idea to the run that ranked it, and out again ── */
-    await page.getByRole("main").getByRole("link", { name: "Evaluation" }).click();
+    // `.first()` is the tab strip: a scored idea's Overview also has "Why it ranks here →
+    // Evaluation" further down, which goes to the same place. Either hop proves the link.
+    await page.getByRole("main").getByRole("link", { name: "Evaluation", exact: true }).first().click();
     await expect(page).toHaveURL(new RegExp(String.raw`/ideas/[0-9a-f-]+/evaluation`));
 
     /*

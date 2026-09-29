@@ -85,6 +85,14 @@ const PAGES: readonly { name: string; path: string; public?: boolean }[] = [
   { name: "audit log", path: "/admin/audit" },
   { name: "people & access", path: "/admin/users" },
   { name: "data & AI notice", path: "/help/data-and-ai" },
+  // M4 (P18/P20, SPEC §14): the role home, the two new routes, and the pages P20 changed
+  // (Analytics' portfolio map; My ideas and Alerts carry the new impact lines and events).
+  { name: "role home", path: "/" },
+  { name: "swipe to weigh in", path: "/ideas/swipe" },
+  { name: "boardroom", path: "/rankings/boardroom" },
+  { name: "analytics", path: "/analytics" },
+  { name: "my ideas", path: "/me/ideas" },
+  { name: "notifications", path: "/notifications" },
 ];
 
 for (const theme of THEMES) {
@@ -123,7 +131,8 @@ for (const theme of THEMES) {
       await expect(page).toHaveURL(new RegExp(String.raw`/ideas/[0-9a-f-]+/overview`));
 
       const base = page.url().replace(/\/[a-z]+$/, "");
-      for (const tab of ["overview", "analysis", "evaluation", "improve", "history"]) {
+      // Overview carries the P18 comment thread and team; Delivery feeds P20's impact card.
+      for (const tab of ["overview", "analysis", "evaluation", "improve", "history", "delivery"]) {
         await page.goto(`${base}/${tab}`);
         await page.waitForTimeout(1000);
         const results = await scan(page);

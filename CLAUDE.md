@@ -239,17 +239,20 @@ MILESTONE M3 — Outcomes
                                   Pick a target (e.g. outbound webhooks, Teams, Jira) to unblock)
 
 MILESTONE M4 — Engagement   (added 2026-09-25, SPEC §14 M4 + §16.1 D-24; nothing here is scored)
-  [~] P18 Social layer   (comments + @mentions for anyone who can open the idea — author
+  [x] P18 Social layer   (comments + @mentions for anyone who can open the idea — author
                                   edits/deletes own, admin hides with a reason, audited; follow
                                   (auto on comment); team = the existing "I could help build
                                   this" signal made visible + "Join the team"; share link;
                                   COMMENT_ADDED / MENTIONED / FOLLOWED_IDEA_MOVED notifications,
                                   only to people who can open the idea. Thumbs kept. F-15 BDD
-                                  flow. Built and tested — awaiting the owner demo)
+                                  flow. Owner marked done 2026-09-29 after the full §15 DoD
+                                  run and a live walkthrough: comment + @mention → MENTIONED to
+                                  the named person, COMMENT_ADDED to the owner, nothing to the
+                                  actor, commenter auto-followed)
   [ ] P19 Light gamification   (ON HOLD — owner, 2026-09-25, D-25. Badges, department +
                                   individual leaderboards with opt-out, challenges, digest —
                                   thresholds need sign-off. Milestone moments moved to P20)
-  [~] P20 Experience layer     (built before P19 at no new running cost — D-25: no model call,
+  [x] P20 Experience layer     (built before P19 at no new running cost — D-25: no model call,
                                   no new endpoint. Role home at /, "since you were last here",
                                   live analysis reveal, boardroom mode /rankings/boardroom, swipe
                                   to weigh in /ideas/swipe, mobile tab bar, smart filters on
@@ -258,8 +261,12 @@ MILESTONE M4 — Engagement   (added 2026-09-25, SPEC §14 M4 + §16.1 D-24; not
                                   the Delivery figures, RESULTS_RECORDED notification to
                                   submitter + team). The AI "ask the portfolio"
                                   answer was previewed and left out. axe clean on every new or
-                                  changed page in both themes. Built and tested — awaiting the
-                                  owner demo)
+                                  changed page in both themes — now a standing part of the axe
+                                  sweep (/, /ideas/swipe, /rankings/boardroom, /analytics,
+                                  /me/ideas, /notifications, the Delivery tab), not a one-off.
+                                  Owner marked done 2026-09-29 after the full §15 DoD run:
+                                  build, test, test:bdd 82/82, test:nav 89/89, smoke, lint,
+                                  lint:tokens, typecheck, e2e 55/55 twice on the stub provider)
 ```
 
 **Stop for review when:**

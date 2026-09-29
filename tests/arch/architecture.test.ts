@@ -13,8 +13,9 @@ const ROOT = join(import.meta.dirname, "..", "..");
 // `.deploy` is a committed `turbo prune` snapshot (apps/api, apps/worker, apps/web —
 // see scripts/prepare-deploy.mjs) that mirrors other workspace packages' source
 // verbatim; scanning it double-counts every rule this file checks against whatever
-// it mirrors.
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".turbo", "coverage", "scratchpad", ".deploy"]);
+// it mirrors. `.storage` is the gitignored attachment store (ATTACHMENT_STORAGE_DIR):
+// user-uploaded bytes, not source — an upload that mentions a banned name is not a violation.
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".turbo", "coverage", "scratchpad", ".deploy", ".storage"]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
